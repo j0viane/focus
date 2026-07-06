@@ -102,11 +102,13 @@ When the LLM label pass is enabled (Phase 3+):
 
 ---
 
-## Open questions (Phase 0 → 1)
+## Resolved decisions (Phase 0)
 
-- [ ] Default HUD caveat text for partial static analysis coverage
-- [ ] Whether LLM label pass is opt-in per repo (recommended: **yes**)
-- [ ] Contributor license for example/fixture repos used in docs
+See [`DECISIONS.md`](DECISIONS.md) for full log. Summary:
+
+- **HUD caveat:** frozen default in [`HUD.md`](HUD.md) Block 4
+- **LLM labels:** opt-in per repo (`FOCUS_LLM_ENABLED=false` by default)
+- **Fixtures:** MIT, committed under `tests/fixtures/glass_box/`
 
 ---
 

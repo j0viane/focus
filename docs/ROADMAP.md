@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 0 — planning
+**Current phase:** Phase 0 — **complete** → Phase 1 starting
 
 ---
 
@@ -21,31 +21,31 @@ Living document for project progress. Updated as phases complete.
 
 ---
 
-## Phase 0 — Planning *(in progress)*
+## Phase 0 — Planning *(complete)*
 
-No application code until these are locked.
+All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open questions.
 
 | Item | Status | Notes |
 |---|---|---|
-| Product definition + HUD output schema | **Done** | README + this doc |
-| Stack confirmation (Python, Tree-sitter, NetworkX, Mermaid, Typer) | Pending | |
-| Smart trigger rule table (path + AST + blast radius threshold) | **Done** | [`docs/TRIGGERS.md`](TRIGGERS.md) |
-| Danger Zone scoring rubric | **Done** | In `cursor-rules/focus/focus.mdc` + ETHICS |
+| Product definition + HUD output schema | **Done** | [`docs/HUD.md`](HUD.md) |
+| Stack confirmation | **Done** | [`docs/STACK.md`](STACK.md) |
+| Smart trigger rule table | **Done** | [`docs/TRIGGERS.md`](TRIGGERS.md) |
+| Danger Zone scoring rubric | **Done** | HUD.md + ETHICS + `focus.mdc` |
 | Privacy model | **Done** | [`docs/PRIVACY.md`](PRIVACY.md) |
 | Ethics model | **Done** | [`docs/ETHICS.md`](ETHICS.md) |
 | Testing pyramid | **Done** | [`docs/TESTING.md`](TESTING.md) |
-| First target repo for golden tests | **Done** | `tests/fixtures/glass_box/` spec in TESTING.md |
+| Golden fixture spec | **Done** | `tests/fixtures/glass_box/` in TESTING.md |
+| Learning + mentorship rules | **Done** | `cursor-rules/focus/` |
 | Public README + roadmap | **Done** | |
-| Engineering + learning rules in repo | **Done** | `.cursor/rules/` + `cursor-rules/focus/` |
 
 ### Phase 0 exit criteria
 
 - [x] Trigger rules documented (`docs/TRIGGERS.md`)
-- [x] Privacy + ethics principles documented (`docs/PRIVACY.md`, `docs/ETHICS.md`)
-- [x] Explicit "won't build" list agreed (ETHICS + ROADMAP below)
-- [ ] HUD schema frozen (Executive Summary + Mermaid + Blast Radius blocks)
-- [ ] Stack confirmation locked
-- [ ] Phase 1 week plan agreed
+- [x] Privacy + ethics principles documented
+- [x] Explicit "won't build" list agreed
+- [x] HUD schema frozen (`docs/HUD.md`)
+- [x] Stack confirmation locked (`docs/STACK.md`)
+- [x] Phase 1 week plan agreed (below)
 
 ---
 
@@ -53,12 +53,14 @@ No application code until these are locked.
 
 **Goal:** Parse a Python repo and emit a dependency map for one file.
 
-| Week | Deliverable |
-|---|---|
-| **1** | Project scaffold: `pyproject.toml`, Typer CLI shell, `focus scan` walks repo |
-| **2** | Tree-sitter Python parser: extract defs, imports, call sites |
-| **3** | NetworkX dependency graph + `focus trace [file]` HUD (text table first) |
-| **4** | Mermaid renderer + golden test on fixture repo (`auth → billing → dashboard`) |
+| Week | Deliverable | Explain-back |
+|---|---|---|
+| **1** | `pyproject.toml`, Typer CLI, `focus scan` walks repo + respects `.gitignore` | Parse pipeline diagram |
+| **2** | Tree-sitter Python: defs, imports, call sites → in-memory index | What AST nodes we extract |
+| **3** | NetworkX graph + `focus trace [file]` → text HUD (no Mermaid yet) | Reverse edges, downstream list |
+| **4** | Mermaid renderer + pytest golden tests on `glass_box/` fixture | Full HUD walkthrough |
+
+**Week 4 testing deliverable:** pytest unit (triggers, BFS) + integration (fixture → HUD string). See [`TESTING.md`](TESTING.md).
 
 **Constraints:**
 

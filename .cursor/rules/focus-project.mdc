@@ -39,6 +39,9 @@ Focus intercepts analysis at the CLI or GitHub Action layer and emits a **Focus 
 
 | Doc | Purpose |
 |---|---|
+| [`docs/HUD.md`](../../docs/HUD.md) | Frozen HUD schema (canonical) |
+| [`docs/STACK.md`](../../docs/STACK.md) | Locked stack decisions |
+| [`docs/DECISIONS.md`](../../docs/DECISIONS.md) | Phase 0 resolved questions |
 | [`docs/ETHICS.md`](../../docs/ETHICS.md) | Responsible use, LLM ethics, won't-build list |
 | [`docs/PRIVACY.md`](../../docs/PRIVACY.md) | Data boundaries, secrets, Action permissions |
 | [`docs/TRIGGERS.md`](../../docs/TRIGGERS.md) | Diagram vs pass-through rules |

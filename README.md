@@ -2,7 +2,7 @@
 
 Focus is an **architectural diagnostic engine** — an "AR HUD for codebases." It transforms opaque legacy repositories into transparent **Glass Box** environments so developers can see the logic strings of a system before they make a change.
 
-> **Status:** Phase 0 — planning and architecture. Application code has not landed yet. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status:** Phase 0 complete — Phase 1 starting. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -114,6 +114,9 @@ Focus is **passive enablement** — it informs reviewers; it never blocks merges
 
 | Document | Contents |
 |---|---|
+| [`docs/HUD.md`](docs/HUD.md) | Frozen HUD output schema (source of truth) |
+| [`docs/STACK.md`](docs/STACK.md) | Locked technology choices |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Phase 0 resolved questions |
 | [`docs/ETHICS.md`](docs/ETHICS.md) | Responsible use, anti-weaponization, LLM ethics |
 | [`docs/PRIVACY.md`](docs/PRIVACY.md) | Data boundaries, secrets, LLM payloads, Action permissions |
 | [`docs/TRIGGERS.md`](docs/TRIGGERS.md) | Smart triggers — diagram vs pass-through |
