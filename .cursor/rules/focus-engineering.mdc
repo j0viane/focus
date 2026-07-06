@@ -1,0 +1,32 @@
+---
+description: Focus immutable engineering rules — non-negotiable constraints
+alwaysApply: true
+---
+
+# Focus — Immutable Engineering Rules
+
+These are non-negotiable. If a task appears to require breaking one of these rules, **stop and ask the project owner** rather than improvising a workaround.
+
+1. **Full-repo graph, never diff-only.** Tree-sitter must index the entire repository (respecting `.gitignore`). Blast radius is computed via reverse traversal on the dependency graph. Reading only the git patch to infer impact is forbidden — it causes the blindspots Focus exists to eliminate.
+
+2. **LLM labels topology; LLM does not invent topology.** The dependency graph and blast radius subgraph are computed deterministically. The LLM may generate Mermaid labels, executive summary prose, and layout hints from structured JSON — it must not add nodes or edges not present in the graph payload. Validate Mermaid output against the graph before posting.
+
+3. **Smart triggers are mandatory.** Do not generate diagrams for every change. Pass-through (summary only) for markdown, cosmetic UI, comments, and isolated private utils with zero downstream surface hits. Diagram for schema, API route, global state, dependency manifest, or blast radius above threshold.
+
+4. **Credential isolation via `.env`.** LLM API keys and GitHub tokens live in `.env`, loaded via `pydantic-settings`. Never hardcode, commit, or log secrets. `.env.example` stays in sync with placeholders only.
+
+5. **Passive UX only.** Focus comments and CLI output inform; they never block merges, gate CI, or quiz developers. No required interactive steps.
+
+6. **Mermaid first, SVG fallback later.** Primary output is Mermaid in CLI stdout and GitHub PR comments (native render). Pre-rendered SVG/Graphviz is a Phase 3+ fallback when validation fails — not the default.
+
+7. **Type everything.** Python: full type hints, Pydantic models for graph payloads, HUD schema, and CLI I/O.
+
+8. **Framework agnostic.** Heuristics for routes/schemas/state use patterns (decorators, path conventions) — not hard dependency on one web framework. Phase 1 proves the pipeline on plain Python imports/calls first.
+
+9. **No silent refactors.** Do not restructure or rename beyond explicit task scope. Propose and ask first.
+
+10. **Parse cache is optional, correctness is not.** File-hash AST caches may speed repeat runs but must invalidate on content change. Never serve stale graph data silently.
+
+11. **Privacy-by-design.** Respect `.gitignore` and `.focusignore`. Never parse, log, or transmit `.env`, keys, or credential files. LLM calls (when enabled) receive structured graph JSON only — not full source files. See `docs/PRIVACY.md`.
+
+12. **No surveillance features.** Do not build developer identity tracking, blame metrics, merge gates, or management dashboards. Focus analyzes code structure for review aid only. See `docs/ETHICS.md`.

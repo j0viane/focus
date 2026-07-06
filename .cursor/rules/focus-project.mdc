@@ -1,0 +1,63 @@
+---
+description: Focus project context, architecture, and tech stack
+alwaysApply: true
+---
+
+# Focus — Project Context
+
+Focus is an **architectural diagnostic engine** — an "AR HUD for codebases." It transforms opaque "Black Box" legacy repositories into transparent "Glass Box" environments, giving developers structural clarity before they change code.
+
+## The Problem
+
+AI-generated pull requests are large and fast to produce but slow and scary to review. A line-level diff hides *blast radius*: downstream importers, API routes, schema coupling, and regression vectors. Text summaries cause cognitive overload without evidence.
+
+## The Solution
+
+Focus intercepts analysis at the CLI or GitHub Action layer and emits a **Focus HUD**:
+
+1. **Executive Summary** — 1–2 sentence architectural health assessment.
+2. **Visual Dependency Map** — Mermaid flowchart of impact paths (topology from computed graph, not LLM invention).
+3. **Blast Radius Report** — bulleted Danger Zones and downstream dependencies.
+
+## Core Capabilities
+
+| Capability | Description |
+|---|---|
+| **Focus Scan** | Tree-sitter full-repo AST index; map imports, calls, routes, schemas |
+| **Blast Radius Engine** | Reverse BFS from changed symbols; pre-flight regression simulation |
+| **Smart Triggers** | Diagram only for high-impact changes; one-liner for pass-through edits |
+
+## Design Principles
+
+- **Codebase-wide context** — never diff-only blindspots
+- **Evidence-based** — graph edges are computed; LLM labels only
+- **Concise & visual** — charts and bullets over prose walls
+- **Passive enablement** — no blocking commits, no developer quizzes
+- Production-grade Python with full type hints
+
+## Documentation
+
+| Doc | Purpose |
+|---|---|
+| [`docs/ETHICS.md`](../../docs/ETHICS.md) | Responsible use, LLM ethics, won't-build list |
+| [`docs/PRIVACY.md`](../../docs/PRIVACY.md) | Data boundaries, secrets, Action permissions |
+| [`docs/TRIGGERS.md`](../../docs/TRIGGERS.md) | Diagram vs pass-through rules |
+| [`docs/TESTING.md`](../../docs/TESTING.md) | Golden fixtures, CI constraints |
+
+## Tech Stack
+
+| Layer | Technology | Notes |
+|---|---|---|
+| CLI | Python 3.12+ / Typer | `focus scan`, `focus trace`, `focus audit` |
+| AST | Tree-sitter | Multi-language grammars; Phase 1 = Python |
+| Graph | NetworkX | Dependency graph + reverse BFS blast radius |
+| Diagrams | Mermaid.js | Native GitHub PR rendering |
+| LLM | Claude / GPT-4o (Phase 3+) | Node labels + layout hints from structured graph JSON |
+| GitHub | Actions + REST API | PR comment on open/sync |
+
+## Commands
+
+- `focus scan [path]` — full-repo index + graph build
+- `focus trace [file]` — dependency map for a file/symbol
+- `focus audit [pr|branch]` — pre-merge blast radius
+- `focus audit --local` — working tree vs base branch

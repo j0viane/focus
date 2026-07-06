@@ -1,0 +1,52 @@
+# --- Secrets & environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.log
+
+# Tree-sitter build artifacts
+*.so.dSYM/
+tree-sitter-*/
+
+# Focus parse cache (local dev)
+.focus-cache/
+
+# Focus path exclusions (optional)
+# .focusignore is respected at runtime; not gitignored itself
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Claude Code local settings ---
+.claude/settings.local.json
+
+# --- Private Cursor rules (canonical copy in ~/Cursor/cursor-rules/focus/) ---
+.cursor/rules/focus.mdc
+.cursor/rules/focus-mentorship.mdc
+.cursor/rules/focus-learning.mdc
