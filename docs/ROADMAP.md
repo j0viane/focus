@@ -53,14 +53,14 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 **Goal:** Parse a Python repo and emit a dependency map for one file.
 
-| Week | Deliverable | Explain-back |
-|---|---|---|
-| **1** | `pyproject.toml`, Typer CLI, `focus scan` walks repo + respects `.gitignore` | Parse pipeline diagram |
-| **2** | Tree-sitter Python: defs, imports, call sites → in-memory index | What AST nodes we extract |
-| **3** | NetworkX graph + `focus trace [file]` → text HUD (no Mermaid yet) | Reverse edges, downstream list |
-| **4** | Mermaid renderer + pytest golden tests on `glass_box/` fixture | Full HUD walkthrough |
+| Week | Deliverable | Tests added | Explain-back |
+|---|---|---|---|
+| **1** | `pyproject.toml`, Typer CLI, `focus scan` walks repo + respects `.gitignore` | `glass_box/` fixture, pytest harness, smoke tests | Parse pipeline diagram |
+| **2** | Tree-sitter Python: defs, imports, call sites → in-memory index | `test_parser.py` — parametrize import/def cases | What AST nodes we extract |
+| **3** | NetworkX graph + `focus trace [file]` → text HUD (no Mermaid yet) | `test_graph.py`, `test_triggers.py`, parse → graph integration | Reverse edges, downstream list |
+| **4** | Mermaid renderer + HUD output | `test_hud_golden.py`, Mermaid validator, E2E CLI subprocess | Full HUD walkthrough |
 
-**Week 4 testing deliverable:** pytest unit (triggers, BFS) + integration (fixture → HUD string). See [`TESTING.md`](TESTING.md).
+**Testing principle:** fixture and pytest land Week 1; each week adds tests **with** the feature — see [`TESTING.md`](TESTING.md).
 
 **Constraints:**
 

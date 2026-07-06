@@ -3,7 +3,7 @@
 Living document. Defines how Focus is tested without exposing private code or secrets.
 
 **Last updated:** July 2026  
-**Status:** Phase 0 — pyramid locked before application code
+**Status:** Locked — tests grow with each Phase 1 week (not a Week 4 bolt-on)
 
 ---
 
@@ -11,26 +11,123 @@ Living document. Defines how Focus is tested without exposing private code or se
 
 **Prove the graph pipeline on fixtures you control.** Golden repos with known dependency shapes — not random open-source clones with unknown edge cases in CI.
 
+**Testing philosophy:** `glass_box/` fixture lands **Week 1**; each feature week adds tests **with** the feature. Correctness is the product — untested graph logic is unacceptable.
+
+---
+
+## Phased rollout (Phase 1)
+
+Tests accumulate week by week — not a single testing sprint at the end.
+
+| Week | Test layer | What ships |
+|---|---|---|
+| **1** | Harness + smoke | `pytest` in `pyproject.toml`, `tests/fixtures/glass_box/` committed, `test_cli_smoke.py` |
+| **2** | Parser unit | `test_parser.py` — imports, defs, call sites (`@pytest.mark.parametrize`) |
+| **3** | Graph unit + integration | `test_graph.py`, `test_triggers.py`, first parse → graph integration test |
+| **4** | HUD golden + E2E | `test_hud_golden.py`, Mermaid validator, subprocess CLI against fixture |
+
+```mermaid
+flowchart LR
+    W1[Week 1<br/>harness + smoke]
+    W2[Week 2<br/>parser units]
+    W3[Week 3<br/>graph + integration]
+    W4[Week 4<br/>HUD golden E2E]
+
+    W1 --> W2 --> W3 --> W4
+```
+
 ---
 
 ## Testing pyramid
 
 ```mermaid
 flowchart TB
-    E2E[E2E — golden fixture repo<br/>focus trace / audit CLI]
-    INT[Integration — parser + graph + HUD render]
-    UNIT[Unit — symbol extract, BFS, triggers, Mermaid validate]
+    E2E[E2E — CLI subprocess on glass_box]
+    INT[Integration — parse → graph → HUD render]
+    UNIT[Unit — parser, BFS, triggers, Mermaid validate]
 
     E2E --> INT --> UNIT
 ```
 
-| Layer | What | Runs in CI? |
-|---|---|---|
-| **Unit** | Tree-sitter query output, edge builder, trigger evaluator, Mermaid validator | ✅ Always |
-| **Integration** | Parse fixture dir → graph → blast radius → HUD string | ✅ Always |
-| **E2E** | Full CLI against `tests/fixtures/glass_box/` golden repo | ✅ Always |
-| **Live repo manual** | Run against GhostAgent or personal project locally | ❌ Manual only |
-| **Live GitHub Action** | PR comment on test repo | ❌ Manual / scheduled |
+| Layer | What | When | Runs in CI? |
+|---|---|---|---|
+| **Smoke** | CLI exits 0, `--help` works | Week 1 | ✅ |
+| **Unit** | Pure functions: parser extract, BFS, triggers, validator | Weeks 2–4 | ✅ |
+| **Integration** | Parse fixture → graph → assert edges/downstream | Week 3+ | ✅ |
+| **Golden / snapshot** | HUD string matches `HUD.md` structure | Week 4 | ✅ |
+| **E2E** | `focus trace` subprocess on `glass_box/` | Week 4 | ✅ |
+| **Live repo manual** | GhostAgent or personal project locally | Anytime | ❌ Manual |
+| **Live GitHub Action** | PR comment on test repo | Phase 3 | ❌ Manual |
+
+---
+
+## Project layout
+
+```
+tests/
+├── conftest.py                 # glass_box path fixture
+├── fixtures/
+│   └── glass_box/              # Week 1 — committed oracle repo
+│       ├── auth_utils.py
+│       ├── billing/service.py
+│       ├── api/routes.py
+│       └── dashboard/views.py
+├── test_cli_smoke.py           # Week 1
+├── test_parser.py              # Week 2
+├── test_graph.py               # Week 3
+├── test_triggers.py            # Week 3 — table-driven per TRIGGERS.md
+└── test_hud_golden.py          # Week 4
+```
+
+---
+
+## Test categories (by type)
+
+### 1. Smoke tests (Week 1)
+
+- `focus --help` exits 0
+- `focus scan tests/fixtures/glass_box` finds expected `.py` files
+- Respects `.gitignore` when scanning real project root
+
+### 2. Unit tests (Weeks 2–4) — bulk of the suite
+
+| Target | Assert |
+|---|---|
+| Import extractor | `from billing import x` → correct module edge |
+| Call resolver | `foo()` in file A → edge to definition of `foo` |
+| Reverse BFS | Known 4-node graph → hop counts, downstream set |
+| Smart triggers | Parametrize: `(paths, diff_patch) → diagram \| pass` |
+| Mermaid validator | Edge in diagram not in graph JSON → fail |
+| Pydantic HUD model | Invalid `risk_tier` → validation error |
+
+**Trigger tests mirror [`TRIGGERS.md`](TRIGGERS.md)** — doc and code must not drift.
+
+### 3. Integration tests (Week 3+)
+
+Call Python functions directly (no subprocess):
+
+```python
+# parse glass_box → build graph
+# assert auth_utils downstream includes billing, api, dashboard
+```
+
+### 4. Golden / structural tests (Week 4)
+
+Prefer **structural assertions** over brittle full-string snapshots:
+
+- Downstream node set matches expected
+- Risk tier is `HIGH` or `CRITICAL` for auth change
+- Mermaid fence present; edge count ≤ 15
+- Optional: snapshot file for final HUD polish (update intentionally)
+
+### 5. E2E CLI tests (Week 4)
+
+```python
+# subprocess: focus trace auth_utils.py --cwd glass_box
+# assert returncode 0 and stdout contains Danger Zone
+```
+
+One happy path + one pass-through (README-only diff mock).
 
 ---
 
@@ -48,47 +145,34 @@ glass_box/
 └── dashboard/views.py # imports auth_utils
 ```
 
-**Golden assertions:**
+**Golden assertions (full suite by Week 4):**
 
 - `focus trace auth_utils.py` → downstream includes billing, api, dashboard
 - `focus audit` (change to `validate_token`) → Danger Zone: API route
 - README-only change → pass-through, no diagram
+
+**License:** MIT (see [`DECISIONS.md`](DECISIONS.md))
 
 ### Synthetic data only in CI
 
 | Allowed in CI | Never in CI |
 |---|---|
 | Fixture Python files (fake names) | Real API keys in fixtures |
-| Mock git diffs (patch files) | Cloned private repos |
+| Mock git diffs (patch files in `tests/fixtures/patches/`) | Cloned private repos |
 | Mock LLM responses (JSON fixtures) | Live LLM API calls (Phase 1) |
 | Static Mermaid expected output | User `.env` files |
 
 ---
 
-## Test categories
+## Explicitly defer (Phase 1)
 
-### Parser tests
-
-- Import extraction: absolute, relative, `from x import y`
-- Call site resolution: same-file, cross-file (best effort)
-- Edge cases: `if TYPE_CHECKING`, star imports (document as limitation)
-
-### Graph tests
-
-- Reverse BFS hop count
-- Cycle handling (don't infinite loop)
-- Empty graph / orphan file
-
-### Trigger tests
-
-- Table-driven: `(file_paths, diff, expected: diagram|pass)`
-- See [`TRIGGERS.md`](TRIGGERS.md) for rule coverage
-
-### HUD / Mermaid tests
-
-- Every edge in Mermaid exists in graph JSON
-- Node count cap enforced
-- Invalid Mermaid → fallback to bullet list
+| Type | Why |
+|---|---|
+| Live LLM API tests | Mock fixtures only; manual with real key |
+| GitHub Action integration | Phase 3 |
+| Real open-source repos in CI | Uncontrolled graph shape |
+| Property-based (Hypothesis) | Optional Phase 2+ for BFS invariants |
+| Coverage % gates | Meaningless until core logic exists |
 
 ### Privacy tests (Phase 2+)
 
@@ -110,5 +194,6 @@ glass_box/
 ## Related documents
 
 - [`PRIVACY.md`](PRIVACY.md) — no real secrets in CI
-- [`ROADMAP.md`](ROADMAP.md) — Phase 1 Week 4 golden test deliverable
+- [`ROADMAP.md`](ROADMAP.md) — week-by-week test deliverables
 - [`TRIGGERS.md`](TRIGGERS.md) — trigger table-driven tests
+- [`HUD.md`](HUD.md) — golden HUD structure
