@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 3 — parse cache on this branch; LLM labels next; IDE still parked
+**Current phase:** Phase 3 **complete** (evidence-only). IDE and LLM labels parked — no AI copy that can hallucinate.
 
 ---
 
@@ -13,11 +13,12 @@ Living document for project progress. Updated as phases complete.
 
 | Ship | Defer |
 |---|---|
-| Python-only AST + dependency graph | Go, Rust, Java parsers |
+| Python + JS/TS AST + dependency graph | Go, Rust, Java parsers |
 | `focus trace` + `focus audit --local` | Cloud-hosted graph store |
 | Mermaid HUD in CLI + PR comments | Interactive D2/SVG viewer |
 | Smart triggers (no diagram fatigue) | ML-based trigger classifier |
 | Evidence-based Danger Zones | Full points-to / data-flow analysis |
+| Parse cache | LLM label pass (parked — hallucination risk) |
 
 ---
 
@@ -83,7 +84,7 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 ---
 
-## Phase 3 — GitHub Action + multi-language
+## Phase 3 — GitHub Action + multi-language *(complete)*
 
 | Feature | Purpose | Status |
 |---|---|---|
@@ -92,7 +93,8 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 | Blast-radius signal polish | Quieter Danger Zones; reasons name real importers | ✅ |
 | JS/TS Tree-sitter grammar | Web repo support | ✅ |
 | Parse cache | File-hash keyed AST cache for speed | ✅ |
-| LLM label pass | Business-meaningful node names from graph JSON | ⬜ next |
+
+LLM label pass was **removed from Phase 3** and parked (see below): Focus ships evidence-only HUDs so we never add model-generated copy that can hallucinate.
 
 ---
 
@@ -114,6 +116,7 @@ Full ethics list: [`docs/ETHICS.md`](ETHICS.md)
 ## Parking lot — future ideas (unscoped, not promised)
 
 - **IDE extension (Phase 4+ candidate):** show the Focus HUD inline in the editor, next to the code being changed — a third surface after CLI (Phase 1–2) and PR comments (Phase 3). Same engine, same computed graph; only the display changes. Deliberately unscoped until the CLI + Action prove the core loop.
+- **LLM label pass (parked):** optional plain-English node names / short summaries from graph JSON only. **Not scheduled.** Focus’s value is computed topology; we will not add an LLM layer “for show” if it can invent wording that outruns the evidence. Revisit only with a clear user need and a design that cannot hallucinate edges (labels strictly validated against the graph).
 
 ---
 

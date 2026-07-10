@@ -11,7 +11,7 @@ Resolved open questions from ethics, privacy, and planning reviews.
 | Question | Decision | Rationale |
 |---|---|---|
 | Default HUD caveat for partial static analysis | Use frozen text in [`HUD.md`](HUD.md) Block 4; append detected blindspots | Honest without alarming on every PR |
-| LLM label pass opt-in | **Yes — default off** (`FOCUS_LLM_ENABLED=false`) | Private code stays local until repo owner enables |
+| LLM label pass opt-in | **Parked — not building for now** | Product value is computed blast radius; avoid model copy that can hallucinate. See [`ROADMAP.md`](ROADMAP.md) parking lot |
 | Fixture repo license | MIT for `tests/fixtures/glass_box/`; committed to Focus repo | Clear redistribution for open-source path later |
 | Stack: CLI framework | **Typer** | Locked in [`STACK.md`](STACK.md) |
 | Stack: graph library | **NetworkX** | Locked in [`STACK.md`](STACK.md) |

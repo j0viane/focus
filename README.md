@@ -4,7 +4,7 @@ Focus answers one question before you merge: **what else in this codebase could 
 
 It's an **AR HUD for codebases**: it maps how the pieces of a repository connect — imports, calls, API routes, schemas — and shows the blast radius of a change before it merges.
 
-> **Status:** Phase 3 — Python + JS/TS blast radius on `main`; parse cache next. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status:** Phase 3 complete — evidence-based blast radius (Python + JS/TS), GitHub Action, parse cache. No LLM labels. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -118,7 +118,6 @@ flowchart TB
 | AST parsing | Tree-sitter (multi-language grammars) |
 | Graph | NetworkX (dependency + blast radius traversal) |
 | Diagrams | Mermaid.js (native GitHub rendering) |
-| LLM | Off by default (`FOCUS_LLM_ENABLED=false`); optional labels only — topology is computed, not hallucinated |
 | GitHub integration | GitHub Action on PR open/sync |
 
 **Core pipeline:** Full-repo Tree-sitter index → dependency graph → diff/symbol seeds → reverse BFS blast radius → smart triggers (diagram vs summary) → Focus HUD.
@@ -131,8 +130,8 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 
 | Command | Purpose | Status |
 |---|---|---|
-| `focus scan [path]` | Full-repo AST index + dependency map | 🟡 Works today: indexes imports, definitions, and calls per file; dependency map lands next |
-| `focus trace [file]` | Focus HUD for a file: summary, Mermaid map, blast radius | ✅ Works today (text + Mermaid); smart triggers land in Phase 2 |
+| `focus scan [path]` | Full-repo AST index (Python + JS/TS) | ✅ |
+| `focus trace [file]` | Focus HUD for a file: summary, Mermaid map, blast radius | ✅ |
 | `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ✅ `focus audit --base <sha>` (PR range) |
 | `focus audit --local` | Pre-flight against working tree vs `main` | ✅ |
 | `focus version` | Print the installed version | ✅ |
@@ -146,7 +145,7 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 | **0** *(complete)* | Stack decisions, HUD schema, trigger rules, learning docs |
 | **1** *(complete)* | Python CLI: `focus scan` + `focus trace` with Mermaid HUD |
 | **2** *(complete)* | `focus audit --local`, Danger Zone polish, smart triggers |
-| **3** *(now)* | GitHub Action PR comments; JS/TS + LLM labels later |
+| **3** *(complete)* | GitHub Action, JS/TS, parse cache — evidence-only HUD (no LLM labels) |
 
 Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
@@ -154,8 +153,8 @@ Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Ethics & privacy
 
-- **Evidence-based** — graph topology is computed; an LLM (when enabled) only labels nodes, it never invents edges
-- **Privacy-by-design** — respects `.gitignore`; secrets excluded; LLM receives structured graph JSON, not full source (Phase 3+)
+- **Evidence-based** — graph topology is computed from static analysis; Focus does not use an LLM to invent edges or summarize impact
+- **Privacy-by-design** — respects `.gitignore`; secrets excluded; no source sent to third-party model APIs
 - **No surveillance** — analyzes code structure, not developer identity or velocity
 - **Opt-in GitHub Action** — minimum token scope; repos choose to install
 
