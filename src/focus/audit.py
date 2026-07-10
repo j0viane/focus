@@ -153,11 +153,11 @@ def _full_audit_hud(
         if is_danger_zone(seed, graph, fan_out_threshold=fan_out_threshold):
             fans = graph.in_degree(seed) if seed in graph else 0
             if is_danger_path(seed):
-                reason = "changed API/schema/config surface (seed itself)"
+                reason = "You changed an API, schema, or config file."
             else:
                 reason = (
-                    f"changed high fan-out shared module "
-                    f"({fans} direct importers; threshold {fan_out_threshold})"
+                    f"You changed a shared module — {fans} other files import it "
+                    f"directly (threshold is {fan_out_threshold})."
                 )
             danger.insert(
                 0,

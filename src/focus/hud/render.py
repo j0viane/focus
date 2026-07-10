@@ -41,13 +41,13 @@ def render_hud(hud: FocusHUD) -> str:
             "",
             "### Blast radius",
             "",
-            "🔴 **Danger Zones**",
+            "🔴 **Danger Zones** *(risky if wrong — shared or API/schema/config)*",
             *_bullets(hud.danger_zones),
             "",
-            "🟡 **Impacted Downstream**",
+            "🟡 **Also affected** *(these files depend on what you changed)*",
             *_bullets(hud.downstream),
             "",
-            "🟢 **Isolated / Low Risk**",
+            "🟢 **Not pulled in** *(no dependents found for this change)*",
             *_isolated(hud.isolated),
         ]
     )
