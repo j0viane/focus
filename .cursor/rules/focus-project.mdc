@@ -32,7 +32,7 @@ Focus intercepts analysis at the CLI or GitHub Action layer and emits a **Focus 
 - **Codebase-wide context** — never diff-only blindspots
 - **Evidence-based** — graph edges are computed; LLM labels only
 - **Concise & visual** — charts and bullets over prose walls
-- **Passive enablement** — no blocking commits, no developer quizzes
+- **Passive enablement** — no blocking commits, no developer quizzes (design principle; owner has asked that this line NOT appear in the README — it lives in `docs/ETHICS.md`)
 - Production-grade Python with full type hints
 
 ## Documentation

@@ -8,21 +8,11 @@ It's an **AR HUD for codebases**: it maps how the pieces of a repository connect
 
 ---
 
-## Why "Focus"?
-
-The name comes from *Horizon Zero Dawn*. The game's world was built by a civilization that is long gone, and it runs on machines no one alive fully understands. Aloy can navigate it because of her **Focus** — a small AR device that scans that inherited world and reveals what the naked eye can't: machine weak points, hidden paths, danger ahead. Intel first, decisions second.
-
-A legacy codebase is the same kind of world — built by people who have moved on, full of machinery nobody fully understands anymore. This Focus scans it and surfaces what a raw diff can't, so you make the change with intel instead of walking in blind.
-
-In other words: Aloy is the junior engineer handed a legacy codebase. The Focus is how she reads it.
-
-*Horizon Zero Dawn and Aloy belong to Guerrilla Games — no affiliation, just admiration.*
-
----
-
 ## Why this exists
 
-AI coding assistants generate massive pull requests in seconds — and then those PRs sit, because reviewing them is the hard part. A standard text diff can't show *blast radius*: who imports this function, which API routes break, which schemas drift.
+There's a new kind of pressure on developers — and it lands hardest on juniors: walk into a codebase you've never seen, point an AI at it, and ship. Developers used to build a mental map of a system by debugging it the old-fashioned way: tracing calls, breaking things, fixing them. That process has been compressed into a prompt. The code now arrives in seconds. The understanding doesn't.
+
+Focus exists for the moment right before you commit and push to a codebase that was there long before you. It shows two things, with evidence: **what the system looks like right now, and what your proposed change will actually touch** — who imports this function, which API routes break, which schemas drift. That's the difference between "the AI wrote it and it seems fine" and "I checked — here's the map." Confidence you can defend in review, whether you're a junior shipping your first AI-assisted PR or a senior reviewing your tenth one today. And the stakes are real: catching a missed dependency before merge costs minutes; catching it after costs the week.
 
 Existing tools dump 1,000-word summaries onto PRs. Focus replaces text walls with **evidence-based visual clarity**:
 
@@ -30,7 +20,53 @@ Existing tools dump 1,000-word summaries onto PRs. Focus replaces text walls wit
 - **Blast Radius Engine** — Simulates ripple effects of a proposed change; highlights Danger Zones before merge.
 - **Focus HUD** — Executive summary + Mermaid dependency map + bulleted blast radius report.
 
-Passive enablement only: no blocking commits, no quizzing developers.
+---
+
+## When you'd use it
+
+| The moment | What you'd do | What you get |
+|---|---|---|
+| Your AI assistant just rewrote a shared function | `focus audit --local` before you push | The blast radius of your working tree vs `main` — before anyone else sees the PR |
+| An 800-line AI-generated PR lands in your review queue | Read the Focus HUD on the PR | A skim-or-dig decision in one glance: diagram + Danger Zones, or a one-line "low impact" |
+| You inherited a module and need to change it | `focus trace path/to/file.py` | Everything that depends on that file, before you touch it |
+| You're renaming or moving a shared utility | `focus trace`, then `focus audit --local` | Every consumer of that symbol, so the refactor surprises no one |
+| A migration or API route changes | `focus audit` on the branch | Which parts of the app actually reach that schema or endpoint |
+
+Commands land per the roadmap below — `scan` works today; `trace` and `audit` are Phase 1–2; the PR comment is Phase 3.
+
+---
+
+## Getting started
+
+> Phase 1 is in progress. `focus scan` currently discovers the files it will analyze (respecting `.gitignore`); the AST index, graph, and `trace` land as Phase 1 progresses.
+
+```bash
+git clone https://github.com/j0viane/focus.git
+cd focus
+uv sync            # or: pip install -e .
+uv run focus --help
+uv run focus scan .
+```
+
+Requirements: Python 3.12+, [`uv`](https://docs.astral.sh/uv/) (or `pip`). Tree-sitter grammars arrive with the parser in Phase 1.
+
+Run the tests:
+
+```bash
+uv run pytest
+```
+
+---
+
+## Why "Focus"?
+
+The name comes from *Horizon Zero Dawn*. The game's world was built by a civilization that is long gone, and it runs on machines no one alive fully understands. Aloy can navigate it because of her **Focus** — a small AR device that scans that inherited world and reveals what the naked eye can't: machine weak points, hidden paths, danger ahead. Intel first, decisions second.
+
+A legacy codebase is the same kind of world — built by people who have moved on, full of machinery nobody fully understands anymore. This Focus scans it and surfaces what a raw diff can't, so you make the change with intel instead of walking in blind.
+
+In other words: Aloy is the junior engineer handed a legacy codebase. The Focus is how she reads it. And fittingly, in the game's lore, the Focus was originally designed to educate the next generation about the world they inherited.
+
+*Horizon Zero Dawn and Aloy belong to Guerrilla Games — no affiliation, just admiration.*
 
 ---
 
@@ -97,28 +133,6 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 | **3** | JS/TS parsers, smart triggers, GitHub Action |
 
 Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
-
----
-
-## Getting started
-
-> Phase 1 is in progress. `focus scan` currently discovers the files it will analyze (respecting `.gitignore`); the AST index, graph, and `trace` land as Phase 1 progresses.
-
-```bash
-git clone https://github.com/j0viane/focus.git
-cd focus
-uv sync            # or: pip install -e .
-uv run focus --help
-uv run focus scan .
-```
-
-Requirements: Python 3.12+, [`uv`](https://docs.astral.sh/uv/) (or `pip`). Tree-sitter grammars arrive with the parser in Phase 1.
-
-Run the tests:
-
-```bash
-uv run pytest
-```
 
 ---
 
