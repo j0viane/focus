@@ -46,7 +46,9 @@ def test_audit_local_auth_change_is_critical(tmp_path: Path, glass_box_path: Pat
     assert any(n.path == "api/routes.py" for n in hud.danger_zones)
     assert any(n.path == "auth_utils.py" for n in hud.danger_zones)
     assert any(
-        "shared module" in n.reason.lower() for n in hud.danger_zones if n.path == "auth_utils.py"
+        "shared hub" in n.reason.lower() and "imported directly by" in n.reason.lower()
+        for n in hud.danger_zones
+        if n.path == "auth_utils.py"
     )
     assert any(s.name == "validate_token" for s in hud.changed_symbols)
 

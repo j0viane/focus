@@ -16,7 +16,7 @@ def _git(root: Path, *args: str) -> None:
 
 
 def test_load_config_defaults(tmp_path: Path):
-    assert load_config(tmp_path).fan_out_threshold == 2
+    assert load_config(tmp_path).fan_out_threshold == 3
 
 
 def test_load_config_override(tmp_path: Path):
@@ -27,9 +27,24 @@ def test_load_config_override(tmp_path: Path):
 def test_fan_out_threshold_from_config(glass_box_path: Path, tmp_path: Path):
     facts = [parse_module(f) for f in discover_python_files(glass_box_path)]
     graph = build_graph(facts, glass_box_path)
-    # auth_utils has 2 importers — danger at threshold 2, not at 3.
-    assert is_danger_zone("auth_utils.py", graph, fan_out_threshold=2) is True
-    assert is_danger_zone("auth_utils.py", graph, fan_out_threshold=3) is False
+    # auth_utils has 3 importers after jobs/worker.py — danger at 3, not at 4.
+    assert is_danger_zone("auth_utils.py", graph, fan_out_threshold=3) is True
+    assert is_danger_zone("auth_utils.py", graph, fan_out_threshold=4) is False
+
+
+def test_package_init_skipped_for_fan_out_only():
+    import networkx as nx
+
+    graph = nx.DiGraph()
+    graph.add_edges_from(
+        [
+            ("a.py", "pkg/__init__.py"),
+            ("b.py", "pkg/__init__.py"),
+            ("c.py", "pkg/__init__.py"),
+            ("d.py", "pkg/__init__.py"),
+        ]
+    )
+    assert is_danger_zone("pkg/__init__.py", graph, fan_out_threshold=3) is False
 
 
 def test_changed_symbols_detects_def(tmp_path: Path, glass_box_path: Path):

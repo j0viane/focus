@@ -24,7 +24,10 @@ _DANGER_FRAGMENTS = (
 _DANGER_NAMES = frozenset({"models.py", "schema.prisma", "settings.py", "config.py"})
 
 # Direct importers (predecessors) at or above this count → shared / high fan-out.
-DEFAULT_FAN_OUT_THRESHOLD = 2
+DEFAULT_FAN_OUT_THRESHOLD = 3
+
+# How many importer paths to name in Danger Zone reasons before "and N more".
+_IMPORTER_NAME_CAP = 3
 
 DEFAULT_CAVEAT = (
     "**Caveat:** Static analysis only. Runtime imports, dynamic dispatch, "
@@ -39,6 +42,13 @@ def importer_count(graph: nx.DiGraph, path: str) -> int:
     return graph.in_degree(path)
 
 
+def list_importers(graph: nx.DiGraph, path: str) -> list[str]:
+    """Sorted paths of files that import `path` directly."""
+    if path not in graph:
+        return []
+    return sorted(graph.predecessors(path))
+
+
 def is_danger_zone(
     path: str,
     graph: nx.DiGraph | None = None,
@@ -48,9 +58,11 @@ def is_danger_zone(
     """True for API/schema/config paths or high-fan-out shared modules."""
     if is_danger_path(path):
         return True
-    if graph is not None and importer_count(graph, path) >= fan_out_threshold:
-        return True
-    return False
+    if graph is None:
+        return False
+    if _is_package_init(path):
+        return False
+    return importer_count(graph, path) >= fan_out_threshold
 
 
 def is_danger_path(path: str) -> bool:
@@ -67,8 +79,10 @@ def classify_impacts(
     graph: nx.DiGraph | None = None,
     *,
     fan_out_threshold: int = DEFAULT_FAN_OUT_THRESHOLD,
+    seeds: list[str] | None = None,
 ) -> tuple[list[ImpactNode], list[ImpactNode]]:
     """Split ring files into Danger Zones vs ordinary downstream."""
+    seed_list = seeds or []
     danger: list[ImpactNode] = []
     downstream: list[ImpactNode] = []
     for hops, paths in rings:
@@ -86,7 +100,7 @@ def classify_impacts(
                     ImpactNode(
                         path=path,
                         hops=hops,
-                        reason=_downstream_reason(hops),
+                        reason=_downstream_reason(path, hops, graph, seed_list),
                     )
                 )
     return danger, downstream
@@ -110,6 +124,27 @@ def score_risk(
     return "MEDIUM"
 
 
+def shared_hub_reason(
+    graph: nx.DiGraph | None,
+    path: str,
+    *,
+    changed: bool = False,
+    hops: int | None = None,
+) -> str:
+    """Plain-English reason naming who imports a shared hub."""
+    importers = list_importers(graph, path) if graph is not None else []
+    named = _format_path_list(importers)
+    distance = _distance_phrase(hops) if hops is not None else ""
+    if changed:
+        if named:
+            return f"You changed a shared hub — imported directly by {named}."
+        return "You changed a shared hub."
+    if named:
+        return f"Shared hub — imported directly by {named}{distance}."
+    count = len(importers)
+    return f"Shared hub — {count} other files import it directly{distance}."
+
+
 def _danger_reason(path: str, hops: int, graph: nx.DiGraph | None) -> str:
     distance = _distance_phrase(hops)
 
@@ -126,12 +161,21 @@ def _danger_reason(path: str, hops: int, graph: nx.DiGraph | None) -> str:
             kind = "a migration file"
         return f"This is {kind}{distance}."
 
-    count = importer_count(graph, path) if graph is not None else 0
-    return f"Shared module — {count} other files import it directly{distance}."
+    return shared_hub_reason(graph, path, hops=hops)
 
 
-def _downstream_reason(hops: int) -> str:
+def _downstream_reason(
+    path: str,
+    hops: int,
+    graph: nx.DiGraph | None,
+    seeds: list[str],
+) -> str:
     if hops == 1:
+        if graph is not None and seeds:
+            # Edge A -> B means A imports B; hop-1 dependents import a seed.
+            hit = sorted(s for s in seeds if graph.has_edge(path, s))
+            if hit:
+                return f"Directly imports {_format_path_list(hit)}."
         return "Directly imports a file you changed."
     return f"Depends on a file you changed through {hops} import steps (not a direct import)."
 
@@ -142,3 +186,23 @@ def _distance_phrase(hops: int) -> str:
     if hops == 1:
         return " — it directly imports a file you changed"
     return f" — {hops} import steps away from a file you changed"
+
+
+def _format_path_list(paths: list[str]) -> str:
+    """Format paths as `a`, `b`, and `c` (cap then 'and N more')."""
+    if not paths:
+        return ""
+    if len(paths) <= _IMPORTER_NAME_CAP:
+        if len(paths) == 1:
+            return f"`{paths[0]}`"
+        if len(paths) == 2:
+            return f"`{paths[0]}` and `{paths[1]}`"
+        return f"`{paths[0]}`, `{paths[1]}`, and `{paths[2]}`"
+    shown = paths[:_IMPORTER_NAME_CAP]
+    more = len(paths) - _IMPORTER_NAME_CAP
+    head = ", ".join(f"`{p}`" for p in shown)
+    return f"{head}, and {more} more"
+
+
+def _is_package_init(path: str) -> bool:
+    return PurePosixPath(path).name == "__init__.py"

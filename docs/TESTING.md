@@ -142,7 +142,8 @@ glass_box/
 ├── auth_utils.py      # validate_token()
 ├── billing/service.py # imports auth_utils
 ├── api/routes.py      # POST /charge → billing
-└── dashboard/views.py # imports auth_utils
+├── dashboard/views.py # imports auth_utils
+└── jobs/worker.py     # imports auth_utils (3rd direct importer → shared hub)
 ```
 
 **Golden assertions (full suite by Step 4):**

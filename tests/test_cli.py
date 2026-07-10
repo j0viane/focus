@@ -23,7 +23,8 @@ def test_scan_indexes_fixture_files(glass_box_path) -> None:
     result = runner.invoke(app, ["scan", str(glass_box_path)])
     assert result.exit_code == 0
     assert "billing/service.py — 1 imports · 1 defs · 2 calls" in result.output
-    assert "4 Python file(s) indexed" in result.output
+    assert "jobs/worker.py — 1 imports · 1 defs · 1 calls" in result.output
+    assert "5 Python file(s) indexed" in result.output
 
 
 def test_scan_rejects_missing_path() -> None:
