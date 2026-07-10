@@ -21,21 +21,27 @@ from focus.ingest import changed_files, changed_source_files
 from focus.ingest.diff import DiffMode
 from focus.ingest.symbols import changed_symbols, touches_only_non_symbols
 from focus.models import ChangedSymbolInfo, FocusHUD, ImpactNode
-from focus.scan import discover_source_files, parse_module
+from focus.scan import cache_dir_for, discover_source_files, parse_module_cached
 from focus.triggers import should_emit_diagram
 
 
-def audit_local(root: Path, base: str = "main") -> FocusHUD:
+def audit_local(root: Path, base: str = "main", *, use_cache: bool = True) -> FocusHUD:
     """Build a HUD for working-tree changes vs `base`."""
-    return run_audit(root, base=base, mode="local")
+    return run_audit(root, base=base, mode="local", use_cache=use_cache)
 
 
-def audit_pr(root: Path, base: str = "main") -> FocusHUD:
+def audit_pr(root: Path, base: str = "main", *, use_cache: bool = True) -> FocusHUD:
     """Build a HUD for commits on this branch vs `base` (``base...HEAD``)."""
-    return run_audit(root, base=base, mode="range")
+    return run_audit(root, base=base, mode="range", use_cache=use_cache)
 
 
-def run_audit(root: Path, base: str = "main", *, mode: DiffMode = "local") -> FocusHUD:
+def run_audit(
+    root: Path,
+    base: str = "main",
+    *,
+    mode: DiffMode = "local",
+    use_cache: bool = True,
+) -> FocusHUD:
     """Build a HUD for changes vs `base` in local or PR-range mode."""
     root = root.resolve()
     config = load_config(root)
@@ -76,7 +82,11 @@ def run_audit(root: Path, base: str = "main", *, mode: DiffMode = "local") -> Fo
             risk_tier="LOW",
         )
 
-    facts_list = [parse_module(path) for path in discover_source_files(root)]
+    cache_dir = cache_dir_for(root) if use_cache else None
+    facts_list = [
+        parse_module_cached(path, cache_dir=cache_dir, use_cache=use_cache)
+        for path in discover_source_files(root)
+    ]
     facts_by_rel = {
         facts.path.resolve().relative_to(root).as_posix(): facts for facts in facts_list
     }

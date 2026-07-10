@@ -4,7 +4,7 @@ Focus answers one question before you merge: **what else in this codebase could 
 
 It's an **AR HUD for codebases**: it maps how the pieces of a repository connect — imports, calls, API routes, schemas — and shows the blast radius of a change before it merges.
 
-> **Status:** Phase 3 — GitHub Action + blast-radius signal on `main`; JS/TS Tree-sitter next. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status:** Phase 3 — Python + JS/TS blast radius on `main`; parse cache next. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -53,6 +53,8 @@ uv run focus audit --local --out focus-hud.md
 
 `focus audit --local` diffs your working tree against `main` and prints a Focus HUD.  
 `--out focus-hud.md` also writes that HUD to a file — open it in the editor and use **Markdown preview** to see the Mermaid diagram (works in Cursor and VS Code).
+
+Unchanged files are re-used from a local **`.focus-cache/`** (gitignored). Pass `--no-cache` on `scan` / `trace` / `audit` to force a full re-parse, or delete the folder anytime.
 
 Optional repo config: copy [`.focus.toml.example`](.focus.toml.example) to `.focus.toml` to tune `fan_out_threshold` (default **3** — when a shared hub becomes a Danger Zone).
 

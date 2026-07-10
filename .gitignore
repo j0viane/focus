@@ -34,6 +34,9 @@ tree-sitter-*/
 # Generated Focus HUD previews
 focus-hud.md
 
+# Focus parse cache (derived AST facts — safe to delete)
+.focus-cache/
+
 
 # Focus path exclusions (optional)
 # .focusignore is respected at runtime; not gitignored itself

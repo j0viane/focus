@@ -11,7 +11,7 @@ from focus.graph import build_graph, downstream_rings
 from focus.hud import build_hud, render_hud
 from focus.ingest import GitDiffError
 from focus.models import FocusHUD
-from focus.scan import discover_source_files, parse_module
+from focus.scan import cache_dir_for, discover_source_files, parse_module_cached
 
 app = typer.Typer(
     name="focus",
@@ -32,13 +32,18 @@ def scan(
         Path,
         typer.Argument(exists=True, file_okay=False, help="Repository root to scan."),
     ] = Path("."),
+    no_cache: Annotated[
+        bool,
+        typer.Option("--no-cache", help="Bypass .focus-cache/ and re-parse every file."),
+    ] = False,
 ) -> None:
     """Index the repo's source files: imports, definitions, calls per file."""
     files = discover_source_files(path)
     root = path.resolve()
+    cache_dir = None if no_cache else cache_dir_for(root)
     total_imports = total_defs = total_calls = 0
     for file in files:
-        facts = parse_module(file)
+        facts = parse_module_cached(file, cache_dir=cache_dir, use_cache=not no_cache)
         total_imports += len(facts.imports)
         total_defs += len(facts.definitions)
         total_calls += len(facts.calls)
@@ -68,6 +73,10 @@ def trace(
         Path | None,
         typer.Option("--out", help="Write HUD markdown here (open in IDE preview)."),
     ] = None,
+    no_cache: Annotated[
+        bool,
+        typer.Option("--no-cache", help="Bypass .focus-cache/ and re-parse every file."),
+    ] = False,
 ) -> None:
     """Show the Focus HUD for FILE: summary, Mermaid map, blast radius rings."""
     try:
@@ -76,7 +85,11 @@ def trace(
         typer.echo(f"{file} is not inside the scan root {root.resolve()}")
         raise typer.Exit(1) from None
 
-    facts = [parse_module(f) for f in discover_source_files(root)]
+    cache_dir = None if no_cache else cache_dir_for(root)
+    facts = [
+        parse_module_cached(f, cache_dir=cache_dir, use_cache=not no_cache)
+        for f in discover_source_files(root)
+    ]
     graph = build_graph(facts, root)
     if target not in graph:
         typer.echo(f"{target} was not among the scanned source files under {root.resolve()}")
@@ -105,10 +118,18 @@ def audit(
         Path | None,
         typer.Option("--out", help="Write HUD markdown here (open in IDE preview)."),
     ] = None,
+    no_cache: Annotated[
+        bool,
+        typer.Option("--no-cache", help="Bypass .focus-cache/ and re-parse every file."),
+    ] = False,
 ) -> None:
     """Pre-merge blast radius for local changes or a PR branch vs base."""
     try:
-        hud = audit_local(path, base=base) if local else audit_pr(path, base=base)
+        hud = (
+            audit_local(path, base=base, use_cache=not no_cache)
+            if local
+            else audit_pr(path, base=base, use_cache=not no_cache)
+        )
     except GitDiffError as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from None
