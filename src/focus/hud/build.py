@@ -34,7 +34,7 @@ def build_hud(graph: nx.DiGraph, seed: str, rings: list[tuple[int, list[str]]]) 
             caveat=None,
         )
 
-    danger, downstream = classify_impacts(rings)
+    danger, downstream = classify_impacts(rings, graph)
     max_hops = max(hops for hops, _ in rings)
     risk = score_risk(
         downstream_count=total,

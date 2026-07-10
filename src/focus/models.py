@@ -63,6 +63,15 @@ class ImpactNode(BaseModel):
     reason: str
 
 
+class ChangedSymbolInfo(BaseModel):
+    """A definition the diff actually touched (line overlap with a hunk)."""
+
+    path: str
+    name: str
+    kind: Literal["function", "class"]
+    line: int
+
+
 class FocusHUD(BaseModel):
     """Canonical HUD payload — CLI and (later) PR comments render from this."""
 
@@ -74,4 +83,5 @@ class FocusHUD(BaseModel):
     danger_zones: list[ImpactNode] = []
     downstream: list[ImpactNode] = []
     isolated: list[str] = []
+    changed_symbols: list[ChangedSymbolInfo] = []
     caveat: str | None = None

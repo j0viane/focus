@@ -15,26 +15,42 @@ def render_hud(hud: FocusHUD) -> str:
         "",
         hud.summary,
         "",
-        "### Architecture impact",
-        "",
-        "Legend: each box is a **file**; an arrow means **change flows to** "
-        "(that file imports / depends on the previous one).",
-        "",
-        "```mermaid",
-        hud.mermaid or "",
-        "```",
-        "",
-        "### Blast radius",
-        "",
-        "🔴 **Danger Zones**",
-        *_bullets(hud.danger_zones),
-        "",
-        "🟡 **Impacted Downstream**",
-        *_bullets(hud.downstream),
-        "",
-        "🟢 **Isolated / Low Risk**",
-        *_isolated(hud.isolated),
     ]
+    if hud.changed_symbols:
+        parts.extend(
+            [
+                "### Changed symbols",
+                "",
+                *(
+                    f"- `{s.path}` → `{s.name}` ({s.kind}, line {s.line})"
+                    for s in hud.changed_symbols
+                ),
+                "",
+            ]
+        )
+    parts.extend(
+        [
+            "### Architecture impact",
+            "",
+            "Legend: each box is a **file**; an arrow means **change flows to** "
+            "(that file imports / depends on the previous one).",
+            "",
+            "```mermaid",
+            hud.mermaid or "",
+            "```",
+            "",
+            "### Blast radius",
+            "",
+            "🔴 **Danger Zones**",
+            *_bullets(hud.danger_zones),
+            "",
+            "🟡 **Impacted Downstream**",
+            *_bullets(hud.downstream),
+            "",
+            "🟢 **Isolated / Low Risk**",
+            *_isolated(hud.isolated),
+        ]
+    )
     if hud.caveat:
         parts.extend(["", hud.caveat])
     return "\n".join(parts)
