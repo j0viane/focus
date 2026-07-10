@@ -2,16 +2,22 @@
 
 Nodes are files (posix paths relative to the scan root); a directed
 edge A -> B means "A imports B". An edge exists only when the imported
-module name resolves to a file that was actually scanned — stdlib and
-third-party imports never create nodes or edges, so the graph contains
-no invented topology.
+module name resolves to a file that was actually scanned — stdlib,
+node_modules, and third-party imports never create nodes or edges, so
+the graph contains no invented topology.
 """
 
+from __future__ import annotations
+
+import posixpath
 from pathlib import Path, PurePosixPath
 
 import networkx as nx
 
 from focus.models import Import, ModuleFacts
+from focus.scan.js_parser import SOURCE_EXTENSIONS as JS_SOURCE_EXTENSIONS
+
+_JS_SUFFIXES = tuple(sorted(JS_SOURCE_EXTENSIONS))
 
 
 def build_graph(all_facts: list[ModuleFacts], root: Path) -> nx.DiGraph:
@@ -24,11 +30,13 @@ def build_graph(all_facts: list[ModuleFacts], root: Path) -> nx.DiGraph:
         if rel.parts[0] == "src" and len(rel.parts) > 1:
             modules.setdefault(_dotted(PurePosixPath(*rel.parts[1:])), rel)
 
+    js_index = _js_path_index([rel for rel, _ in rel_facts])
+
     graph = nx.DiGraph()
     for rel, facts in rel_facts:
         graph.add_node(str(rel))
         for imp in facts.imports:
-            for target in _resolve(imp, rel, modules):
+            for target in _resolve(imp, rel, modules, js_index):
                 if target != rel:
                     graph.add_edge(str(rel), str(target))
     return graph
@@ -60,13 +68,19 @@ def _dotted(rel: PurePosixPath) -> str:
     return ".".join(parts)
 
 
-def _resolve(imp: Import, importer: PurePosixPath, modules: dict[str, PurePosixPath]):
-    """Scanned files this import statement can refer to.
+def _resolve(
+    imp: Import,
+    importer: PurePosixPath,
+    modules: dict[str, PurePosixPath],
+    js_index: dict[str, PurePosixPath],
+):
+    """Scanned files this import statement can refer to."""
+    if _uses_js_resolution(imp.module, importer):
+        target = _resolve_js_relative(imp.module, importer, js_index)
+        if target is not None:
+            yield target
+        return
 
-    Both the module itself and `module.symbol` are tried, because
-    `from billing import service` binds a submodule through the symbol
-    list. Names that match no scanned file resolve to nothing.
-    """
     base = _absolute_module_name(imp.module, importer)
     if base is None:
         return
@@ -78,6 +92,48 @@ def _resolve(imp: Import, importer: PurePosixPath, modules: dict[str, PurePosixP
         if target is not None and target not in seen:
             seen.add(target)
             yield target
+
+
+def _uses_js_resolution(module: str, importer: PurePosixPath) -> bool:
+    if importer.suffix.lower() in JS_SOURCE_EXTENSIONS:
+        return True
+    return module.startswith("./") or module.startswith("../")
+
+
+def _js_path_index(rels: list[PurePosixPath]) -> dict[str, PurePosixPath]:
+    """Map normalized path keys → scanned JS/TS files."""
+    index: dict[str, PurePosixPath] = {}
+    for rel in rels:
+        if rel.suffix.lower() not in JS_SOURCE_EXTENSIONS:
+            continue
+        index[str(rel)] = rel
+        without = str(rel.with_suffix(""))
+        index.setdefault(without, rel)
+        if rel.stem == "index":
+            index.setdefault(str(rel.parent), rel)
+    return index
+
+
+def _resolve_js_relative(
+    module: str,
+    importer: PurePosixPath,
+    js_index: dict[str, PurePosixPath],
+) -> PurePosixPath | None:
+    """Resolve `./foo` / `../bar` against scanned JS/TS files only."""
+    if not (module.startswith("./") or module.startswith("../")):
+        return None
+    joined = posixpath.normpath(str(importer.parent / module))
+    if joined in js_index:
+        return js_index[joined]
+    for suffix in _JS_SUFFIXES:
+        candidate = joined + suffix
+        if candidate in js_index:
+            return js_index[candidate]
+    for suffix in _JS_SUFFIXES:
+        candidate = f"{joined}/index{suffix}"
+        if candidate in js_index:
+            return js_index[candidate]
+    return None
 
 
 def _absolute_module_name(module: str, importer: PurePosixPath) -> str | None:

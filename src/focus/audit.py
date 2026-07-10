@@ -17,11 +17,11 @@ from focus.hud.classify import (
     shared_hub_reason,
 )
 from focus.hud.mermaid import render_mermaid, validate_mermaid_edges
-from focus.ingest import changed_files, changed_python_files
+from focus.ingest import changed_files, changed_source_files
 from focus.ingest.diff import DiffMode
 from focus.ingest.symbols import changed_symbols, touches_only_non_symbols
 from focus.models import ChangedSymbolInfo, FocusHUD, ImpactNode
-from focus.scan import discover_python_files, parse_module
+from focus.scan import discover_source_files, parse_module
 from focus.triggers import should_emit_diagram
 
 
@@ -41,7 +41,7 @@ def run_audit(root: Path, base: str = "main", *, mode: DiffMode = "local") -> Fo
     config = load_config(root)
     fan_out = config.fan_out_threshold
     all_changed = changed_files(root, base, mode=mode)
-    py_changed = changed_python_files(root, base, mode=mode)
+    py_changed = changed_source_files(root, base, mode=mode)
 
     if not all_changed:
         return FocusHUD(
@@ -56,9 +56,9 @@ def run_audit(root: Path, base: str = "main", *, mode: DiffMode = "local") -> Fo
         more = "" if len(all_changed) <= 5 else f" (+{len(all_changed) - 5} more)"
         return FocusHUD(
             mode="pass_through",
-            seed="(non-python)",
+            seed="(non-source)",
             summary=(
-                f"**Focus:** Changed non-Python paths only ({sample}{more}) — "
+                f"**Focus:** Changed non-source paths only ({sample}{more}) — "
                 f"no executable dependency graph for this diff. **LOW** risk."
             ),
             risk_tier="LOW",
@@ -76,7 +76,7 @@ def run_audit(root: Path, base: str = "main", *, mode: DiffMode = "local") -> Fo
             risk_tier="LOW",
         )
 
-    facts_list = [parse_module(path) for path in discover_python_files(root)]
+    facts_list = [parse_module(path) for path in discover_source_files(root)]
     facts_by_rel = {
         facts.path.resolve().relative_to(root).as_posix(): facts for facts in facts_list
     }
@@ -96,7 +96,7 @@ def run_audit(root: Path, base: str = "main", *, mode: DiffMode = "local") -> Fo
             mode="pass_through",
             seed="(unscanned)",
             summary=(
-                f"**Focus:** Python changes ({detail}) were not in the scanned "
+                f"**Focus:** Source changes ({detail}) were not in the scanned "
                 f"graph (deleted or ignored). **LOW** risk."
             ),
             risk_tier="LOW",

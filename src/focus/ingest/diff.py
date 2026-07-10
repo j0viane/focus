@@ -16,6 +16,9 @@ from typing import Literal
 DiffMode = Literal["local", "range"]
 
 
+from focus.scan.walker import SOURCE_EXTENSIONS
+
+
 class GitDiffError(RuntimeError):
     """Raised when git is missing, the path is not a repo, or the base ref is unknown."""
 
@@ -46,6 +49,15 @@ def changed_files(root: Path, base: str = "main", *, mode: DiffMode = "local") -
 def changed_python_files(root: Path, base: str = "main", *, mode: DiffMode = "local") -> list[str]:
     """Subset of `changed_files` that end in `.py`."""
     return [path for path in changed_files(root, base, mode=mode) if path.endswith(".py")]
+
+
+def changed_source_files(root: Path, base: str = "main", *, mode: DiffMode = "local") -> list[str]:
+    """Subset of `changed_files` Focus can parse (Python + JS/TS)."""
+    return [
+        path
+        for path in changed_files(root, base, mode=mode)
+        if Path(path).suffix.lower() in SOURCE_EXTENSIONS
+    ]
 
 
 def resolve_base_ref(root: Path, preferred: str = "main") -> str:

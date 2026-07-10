@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 3 — Action + PR-range audit on `main`; blast-radius signal polish on `feat/blast-radius-signal`; JS/TS + LLM labels still later
+**Current phase:** Phase 3 — JS/TS Tree-sitter next; parse cache then LLM labels; IDE still parked
 
 ---
 
@@ -89,10 +89,10 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 |---|---|---|
 | GitHub Action | `focus audit` on PR open/sync → PR comment | ✅ |
 | PR-range audit | `focus audit --base <sha>` uses `base...HEAD` | ✅ |
-| Blast-radius signal polish | Quieter Danger Zones; reasons name real importers | 🟡 |
-| JS/TS Tree-sitter grammar | Web repo support | ⬜ |
-| LLM label pass | Business-meaningful node names from graph JSON | ⬜ |
-| Parse cache | File-hash keyed AST cache for speed | ⬜ |
+| Blast-radius signal polish | Quieter Danger Zones; reasons name real importers | ✅ |
+| JS/TS Tree-sitter grammar | Web repo support | 🟡 next |
+| LLM label pass | Business-meaningful node names from graph JSON | ⬜ after JS/TS |
+| Parse cache | File-hash keyed AST cache for speed | ⬜ after JS/TS |
 
 ---
 

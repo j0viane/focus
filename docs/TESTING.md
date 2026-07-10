@@ -87,6 +87,7 @@ tests/
 
 - `focus --help` exits 0
 - `focus scan tests/fixtures/glass_box` finds expected `.py` files
+- `focus scan tests/fixtures/glass_box_js` finds expected `.ts` files
 - Respects `.gitignore` when scanning real project root
 
 ### 2. Unit tests (Steps 2–4) — bulk of the suite
@@ -153,6 +154,24 @@ glass_box/
 - README-only change → pass-through, no diagram
 
 **License:** MIT (see [`DECISIONS.md`](DECISIONS.md))
+
+### Golden repo: `tests/fixtures/glass_box_js/`
+
+Same blast-radius shape in TypeScript (relative ESM imports only):
+
+```
+glass_box_js/
+├── authUtils.ts
+├── billing/service.ts
+├── api/routes.ts
+├── dashboard/views.ts
+└── jobs/worker.ts
+```
+
+**Golden assertions:**
+
+- `focus trace authUtils.ts` → ring 1 billing/dashboard/jobs; ring 2 api/routes
+- Bare `lodash` imports create no edges (no invented topology)
 
 ### Synthetic data only in CI
 

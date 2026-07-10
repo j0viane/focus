@@ -15,6 +15,7 @@ from pathlib import Path
 from focus.ingest.diff import DiffMode, GitDiffError, resolve_base_ref
 from focus.models import Definition, ModuleFacts
 from focus.scan import parse_module
+from focus.scan.walker import SOURCE_EXTENSIONS
 
 _HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
@@ -51,7 +52,7 @@ def changed_line_ranges(
             _merge_ranges(ranges, _parse_diff(_git_diff(root, args)))
         untracked = _git_lines(root, ["ls-files", "--others", "--exclude-standard"])
         for rel in untracked:
-            if not rel.endswith(".py"):
+            if Path(rel).suffix.lower() not in SOURCE_EXTENSIONS:
                 continue
             path = root / rel
             if not path.is_file():
@@ -70,12 +71,12 @@ def changed_symbols(
     mode: DiffMode = "local",
     facts_by_path: dict[str, ModuleFacts] | None = None,
 ) -> list[ChangedSymbol]:
-    """Definitions that overlap changed line ranges in `.py` files."""
+    """Definitions that overlap changed line ranges in source files."""
     root = root.resolve()
     ranges = changed_line_ranges(root, base, mode=mode)
     found: list[ChangedSymbol] = []
     for rel, spans in sorted(ranges.items()):
-        if not rel.endswith(".py"):
+        if Path(rel).suffix.lower() not in SOURCE_EXTENSIONS:
             continue
         facts = (facts_by_path or {}).get(rel)
         if facts is None:
@@ -88,13 +89,15 @@ def changed_symbols(
 
 
 def touches_only_non_symbols(root: Path, base: str = "main", *, mode: DiffMode = "local") -> bool:
-    """True when Python files changed but no def/import line was touched.
+    """True when source files changed but no def/import line was touched.
 
     Used for comments/formatting-only pass-through. Returns False when no
-    Python files changed (caller should handle that separately).
+    source files changed (caller should handle that separately).
     """
     ranges = {
-        p: s for p, s in changed_line_ranges(root, base, mode=mode).items() if p.endswith(".py")
+        p: s
+        for p, s in changed_line_ranges(root, base, mode=mode).items()
+        if Path(p).suffix.lower() in SOURCE_EXTENSIONS
     }
     if not ranges:
         return False
@@ -112,9 +115,20 @@ def touches_only_non_symbols(root: Path, base: str = "main", *, mode: DiffMode =
                 if line_no > len(text_lines):
                     continue
                 stripped = text_lines[line_no - 1].strip()
-                if stripped and not stripped.startswith("#"):
+                if stripped and not _is_comment_or_blank(stripped):
                     return False
     return True
+
+
+def _is_comment_or_blank(stripped: str) -> bool:
+    if not stripped:
+        return True
+    return (
+        stripped.startswith("#")
+        or stripped.startswith("//")
+        or stripped.startswith("/*")
+        or stripped.startswith("*")
+    )
 
 
 def _symbols_for_file(

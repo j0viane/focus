@@ -5,6 +5,7 @@ from focus.ingest.diff import (
     GitDiffError,
     changed_files,
     changed_python_files,
+    changed_source_files,
     resolve_base_ref,
 )
 from focus.ingest.symbols import changed_symbols, touches_only_non_symbols
@@ -14,6 +15,7 @@ __all__ = [
     "GitDiffError",
     "changed_files",
     "changed_python_files",
+    "changed_source_files",
     "changed_symbols",
     "resolve_base_ref",
     "touches_only_non_symbols",
