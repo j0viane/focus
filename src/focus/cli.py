@@ -1,8 +1,12 @@
 """Typer entrypoint for the Focus CLI."""
 
 from importlib.metadata import version as package_version
+from pathlib import Path
+from typing import Annotated
 
 import typer
+
+from focus.scan import discover_python_files
 
 app = typer.Typer(
     name="focus",
@@ -18,8 +22,15 @@ def version() -> None:
 
 
 @app.command()
-def scan(path: str = typer.Argument(".", help="Repository root to scan.")) -> None:
-    """Index a repository and build its dependency graph."""
-    # TODO(Week 1): walk `path`, respect .gitignore, collect Python files.
-    typer.echo(f"scan: not implemented yet (target: {path})")
-    raise typer.Exit(code=1)
+def scan(
+    path: Annotated[
+        Path,
+        typer.Argument(exists=True, file_okay=False, help="Repository root to scan."),
+    ] = Path("."),
+) -> None:
+    """Discover the Python files Focus will index (respects .gitignore)."""
+    files = discover_python_files(path)
+    root = path.resolve()
+    for file in files:
+        typer.echo(file.relative_to(root).as_posix())
+    typer.echo(f"{len(files)} Python file(s) found")

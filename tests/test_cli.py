@@ -19,7 +19,13 @@ def test_version_matches_pyproject() -> None:
     assert result.output.strip() == "0.0.1"
 
 
-def test_scan_is_honest_about_not_being_implemented() -> None:
-    result = runner.invoke(app, ["scan"])
-    assert result.exit_code == 1
-    assert "not implemented" in result.output
+def test_scan_lists_fixture_files(glass_box_path) -> None:
+    result = runner.invoke(app, ["scan", str(glass_box_path)])
+    assert result.exit_code == 0
+    assert "billing/service.py" in result.output
+    assert "4 Python file(s) found" in result.output
+
+
+def test_scan_rejects_missing_path() -> None:
+    result = runner.invoke(app, ["scan", "does/not/exist"])
+    assert result.exit_code != 0
