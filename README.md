@@ -178,3 +178,5 @@ Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 ## Author
 
 Built by [Joviane Bellegarde](https://github.com/j0viane). Feedback and architecture review tips welcome via Issues.
+
+Small comment for commit 585cdd
