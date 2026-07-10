@@ -55,7 +55,7 @@ Focus intercepts analysis at the CLI or GitHub Action layer and emits a **Focus 
 | AST | Tree-sitter | Multi-language grammars; Phase 1 = Python |
 | Graph | NetworkX | Dependency graph + reverse BFS blast radius |
 | Diagrams | Mermaid.js | Native GitHub PR rendering |
-| LLM | Claude / GPT-4o (Phase 3+) | Node labels + layout hints from structured graph JSON |
+| LLM | Off by default (`FOCUS_LLM_ENABLED=false`); Phase 3+ opt-in | Node labels + layout hints from structured graph JSON only |
 | GitHub | Actions + REST API | PR comment on open/sync |
 
 ## Commands

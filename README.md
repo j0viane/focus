@@ -52,7 +52,7 @@ flowchart TB
 | AST parsing | Tree-sitter (multi-language grammars) |
 | Graph | NetworkX (dependency + blast radius traversal) |
 | Diagrams | Mermaid.js (native GitHub rendering) |
-| LLM | Labels + layout only — graph topology is computed, not hallucinated |
+| LLM | Off by default (`FOCUS_LLM_ENABLED=false`); optional labels only — topology is computed, not hallucinated |
 | GitHub integration | GitHub Action on PR open/sync |
 
 **Core pipeline:** Full-repo Tree-sitter index → dependency graph → diff/symbol seeds → reverse BFS blast radius → smart triggers (diagram vs summary) → Focus HUD.
