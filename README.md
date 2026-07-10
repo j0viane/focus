@@ -181,9 +181,7 @@ Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## License
 
-Copyright (c) 2026 Joviane Bellegarde.
-
-Focus is free software under the [GNU General Public License v3.0](LICENSE) (**GPL-3.0-only**). You may use, study, and share it; if you distribute a modified version, you must also share that version under GPL-3.0 and keep copyright notices (credit).
+[MIT](LICENSE) © 2026 Joviane Bellegarde. Free to use, modify, and share — keep the copyright notice for credit.
 
 ---
 

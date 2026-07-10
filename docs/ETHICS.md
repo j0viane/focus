@@ -108,7 +108,7 @@ See [`DECISIONS.md`](DECISIONS.md) for full log. Summary:
 
 - **HUD caveat:** frozen default in [`HUD.md`](HUD.md) Block 4
 - **LLM labels:** parked — not building for now (see [`ROADMAP.md`](ROADMAP.md))
-- **Fixtures:** committed under `tests/fixtures/glass_box/` (repo license: GPL-3.0-only)
+- **Fixtures:** MIT, committed under `tests/fixtures/glass_box/`
 
 ---
 
