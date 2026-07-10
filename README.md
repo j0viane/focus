@@ -32,13 +32,13 @@ Existing tools dump 1,000-word summaries onto PRs. Focus replaces text walls wit
 | You're renaming or moving a shared utility | `focus trace`, then `focus audit --local` | Every consumer of that symbol, so the refactor surprises no one |
 | A migration or API route changes | `focus audit` on the branch | Which parts of the app actually reach that schema or endpoint |
 
-Commands land per the roadmap below — `scan` works today; `trace` and `audit` are Phase 1–2; the PR comment is Phase 3.
+Commands: `scan`, `trace`, and `audit` work today; PRs get a Focus HUD comment via the shipped GitHub Action. Walkthrough + saved HUDs: [`docs/DEMO.md`](docs/DEMO.md).
 
 ---
 
 ## Getting started
 
-> Phase 1 core loop is in: `focus scan` indexes a repo, `focus trace` prints a Focus HUD (summary + Mermaid + blast radius). `focus audit` and smart triggers land in Phase 2.
+> Core loop: `focus scan` indexes the repo, `focus trace` prints a Focus HUD, `focus audit --local` checks your working tree before you push.
 
 ```bash
 git clone https://github.com/j0viane/focus.git
@@ -50,6 +50,14 @@ uv run focus trace src/focus/models.py
 uv run focus audit --local
 uv run focus audit --local --out focus-hud.md
 ```
+
+**Try the demo fixtures** (good for screenshots):
+
+```bash
+uv run focus trace tests/fixtures/glass_box/auth_utils.py --root tests/fixtures/glass_box --out focus-hud.md
+```
+
+Open `focus-hud.md` in Markdown preview to see Mermaid. More examples: [`docs/DEMO.md`](docs/DEMO.md).
 
 `focus audit --local` diffs your working tree against `main` and prints a Focus HUD.  
 `--out focus-hud.md` also writes that HUD to a file — open it in the editor and use **Markdown preview** to see the Mermaid diagram (works in Cursor and VS Code).
@@ -160,6 +168,7 @@ Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 | Document | Contents |
 |---|---|
+| [`docs/DEMO.md`](docs/DEMO.md) | Portfolio walkthrough + saved example HUDs |
 | [`docs/HUD.md`](docs/HUD.md) | Frozen HUD output schema (source of truth) |
 | [`docs/STACK.md`](docs/STACK.md) | Locked technology choices |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Phase 0 resolved questions |
@@ -172,7 +181,9 @@ Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## License
 
-[MIT](LICENSE)
+Copyright (c) 2026 Joviane Bellegarde.
+
+Focus is free software under the [GNU General Public License v3.0](LICENSE) (**GPL-3.0-only**). You may use, study, and share it; if you distribute a modified version, you must also share that version under GPL-3.0 and keep copyright notices (credit).
 
 ---
 
