@@ -122,7 +122,7 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 | `focus scan [path]` | Full-repo AST index + dependency map | 🟡 Works today: indexes imports, definitions, and calls per file; dependency map lands next |
 | `focus trace [file]` | Focus HUD for a file: summary, Mermaid map, blast radius | ✅ Works today (text + Mermaid); smart triggers land in Phase 2 |
 | `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ⬜ Phase 2 |
-| `focus audit --local` | Pre-flight against working tree vs `main` | 🟡 Works on this branch — git diff → blast radius HUD |
+| `focus audit --local` | Pre-flight against working tree vs `main` | ✅ Works on this branch — git diff → blast radius HUD |
 | `focus version` | Print the installed version | ✅ |
 
 ---

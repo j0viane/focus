@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 2 in progress on `feat/phase2-audit-local` — `focus audit --local` landed; Danger Zone polish + trigger tuning next
+**Current phase:** Phase 2 on `feat/phase2-audit-local` — audit, fan-out Danger Zones, and smart triggers landed; ready for PR when you are
 
 ---
 
@@ -74,9 +74,9 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 | Feature | Purpose | Status |
 |---|---|---|
-| `focus audit --local` | Git diff → changed files → reverse BFS → HUD | 🟡 on branch |
-| Danger Zone scorer | Flag API routes, schemas, high fan-out nodes | 🟡 path heuristics; fan-out polish next |
-| Smart triggers | Skip diagram for docs-only / isolated non-danger utils | 🟡 first cut |
+| `focus audit --local` | Git diff → changed files → reverse BFS → HUD | ✅ on branch |
+| Danger Zone scorer | Flag API routes, schemas, high fan-out nodes | ✅ path + fan-out |
+| Smart triggers | Skip diagram for docs-only / isolated / test-only | ✅ Phase 2 cut |
 | Focus HUD v1 | Executive summary + Mermaid + bulleted blast radius | ✅ (from Phase 1) |
 
 ---

@@ -1,12 +1,15 @@
 """Heuristics that classify blast-radius files for the HUD.
 
-These are path-based and hop-based only — no LLM, no invented edges.
-Danger Zone paths mirror the Phase 0 trigger table (API / schema / routes).
+Danger Zones come from two evidence sources — never from an LLM:
+1. Path patterns (API / schema / config surfaces)
+2. High fan-out in the computed graph (many files import this one)
 """
 
 from __future__ import annotations
 
 from pathlib import PurePosixPath
+
+import networkx as nx
 
 from focus.models import ImpactNode, RiskTier
 
@@ -16,8 +19,12 @@ _DANGER_FRAGMENTS = (
     "/routes/",
     "/routers/",
     "/migrations/",
+    "/models/",
 )
 _DANGER_NAMES = frozenset({"models.py", "schema.prisma", "settings.py", "config.py"})
+
+# Direct importers (predecessors) at or above this count → shared / high fan-out.
+DEFAULT_FAN_OUT_THRESHOLD = 2
 
 DEFAULT_CAVEAT = (
     "**Caveat:** Static analysis only. Runtime imports, dynamic dispatch, "
@@ -25,11 +32,31 @@ DEFAULT_CAVEAT = (
 )
 
 
-def is_danger_zone(path: str) -> bool:
-    """True when this file path looks like an API/schema/config surface."""
+def importer_count(graph: nx.DiGraph, path: str) -> int:
+    """How many scanned files import `path` (direct predecessors)."""
+    if path not in graph:
+        return 0
+    return graph.in_degree(path)
+
+
+def is_danger_zone(
+    path: str,
+    graph: nx.DiGraph | None = None,
+    *,
+    fan_out_threshold: int = DEFAULT_FAN_OUT_THRESHOLD,
+) -> bool:
+    """True for API/schema/config paths or high-fan-out shared modules."""
+    if is_danger_path(path):
+        return True
+    if graph is not None and importer_count(graph, path) >= fan_out_threshold:
+        return True
+    return False
+
+
+def is_danger_path(path: str) -> bool:
+    """True when the file path alone looks like an API/schema/config surface."""
     posix = PurePosixPath(path)
-    name = posix.name
-    if name in _DANGER_NAMES:
+    if posix.name in _DANGER_NAMES:
         return True
     padded = f"/{path}" if not path.startswith("/") else path
     return any(fragment in padded for fragment in _DANGER_FRAGMENTS)
@@ -37,18 +64,21 @@ def is_danger_zone(path: str) -> bool:
 
 def classify_impacts(
     rings: list[tuple[int, list[str]]],
+    graph: nx.DiGraph | None = None,
+    *,
+    fan_out_threshold: int = DEFAULT_FAN_OUT_THRESHOLD,
 ) -> tuple[list[ImpactNode], list[ImpactNode]]:
     """Split ring files into Danger Zones vs ordinary downstream."""
     danger: list[ImpactNode] = []
     downstream: list[ImpactNode] = []
     for hops, paths in rings:
         for path in paths:
-            if is_danger_zone(path):
+            if is_danger_zone(path, graph, fan_out_threshold=fan_out_threshold):
                 danger.append(
                     ImpactNode(
                         path=path,
                         hops=hops,
-                        reason=_danger_reason(path, hops),
+                        reason=_danger_reason(path, hops, graph),
                     )
                 )
             else:
@@ -69,26 +99,36 @@ def score_risk(
     danger_count: int,
 ) -> RiskTier:
     """Deterministic risk tier from blast-radius size and Danger Zones."""
-    if downstream_count == 0:
+    if downstream_count == 0 and danger_count == 0:
         return "LOW"
     if danger_count > 0 and (downstream_count >= 3 or max_hops >= 2):
         return "CRITICAL"
     if danger_count > 0 or downstream_count >= 3 or max_hops >= 2:
         return "HIGH"
+    if downstream_count == 0 and danger_count > 0:
+        return "HIGH"
     return "MEDIUM"
 
 
-def _danger_reason(path: str, hops: int) -> str:
-    kind = "API/schema surface"
-    padded = f"/{path}"
-    if "/api/" in padded or "/routes/" in padded or "/routers/" in padded:
-        kind = "API route surface"
-    elif PurePosixPath(path).name in {"models.py", "schema.prisma"}:
-        kind = "data model surface"
-    elif PurePosixPath(path).name in {"settings.py", "config.py"}:
-        kind = "config surface"
+def _danger_reason(path: str, hops: int, graph: nx.DiGraph | None) -> str:
     hop_word = "hop" if hops == 1 else "hops"
-    return f"{kind} in blast radius ({hops} {hop_word} from seed)"
+    hop_bit = f" ({hops} {hop_word} from seed)" if hops > 0 else " (seed itself)"
+
+    if is_danger_path(path):
+        kind = "API/schema surface"
+        padded = f"/{path}"
+        if "/api/" in padded or "/routes/" in padded or "/routers/" in padded:
+            kind = "API route surface"
+        elif PurePosixPath(path).name in {"models.py", "schema.prisma"} or "/models/" in padded:
+            kind = "data model surface"
+        elif PurePosixPath(path).name in {"settings.py", "config.py"}:
+            kind = "config surface"
+        elif "/migrations/" in padded:
+            kind = "migration surface"
+        return f"{kind} in blast radius{hop_bit}"
+
+    count = importer_count(graph, path) if graph is not None else 0
+    return f"high fan-out shared module ({count} direct importers){hop_bit}"
 
 
 def _downstream_reason(hops: int) -> str:

@@ -10,6 +10,7 @@ from focus.graph import build_graph, downstream_rings
 from focus.hud.classify import (
     DEFAULT_CAVEAT,
     classify_impacts,
+    is_danger_path,
     is_danger_zone,
     score_risk,
 )
@@ -72,10 +73,13 @@ def audit_local(root: Path, base: str = "main") -> FocusHUD:
     rings = [(hops, paths) for hops, paths in rings if paths]
 
     has_downstream = bool(rings)
+    downstream_file_count = sum(len(paths) for _, paths in rings)
     if not should_emit_diagram(
         changed_paths=all_changed,
         python_seeds=seeds,
         has_downstream=has_downstream,
+        downstream_file_count=downstream_file_count,
+        graph=graph,
     ):
         label = ", ".join(f"`{s}`" for s in seeds)
         return FocusHUD(
@@ -97,15 +101,20 @@ def _full_audit_hud(
     seeds: list[str],
     rings: list[tuple[int, list[str]]],
 ) -> FocusHUD:
-    danger, downstream = classify_impacts(rings)
+    danger, downstream = classify_impacts(rings, graph)
     for seed in seeds:
-        if is_danger_zone(seed):
+        if is_danger_zone(seed, graph):
+            fans = graph.in_degree(seed) if seed in graph else 0
+            if is_danger_path(seed):
+                reason = "changed API/schema/config surface (seed itself)"
+            else:
+                reason = f"changed high fan-out shared module ({fans} direct importers)"
             danger.insert(
                 0,
                 ImpactNode(
                     path=seed,
                     hops=0,
-                    reason="changed API/schema/config surface (seed itself)",
+                    reason=reason,
                 ),
             )
 

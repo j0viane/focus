@@ -33,6 +33,14 @@ def test_auth_utils_full_hud(glass_box_path: Path):
     assert hud.caveat is not None
 
 
+def test_auth_utils_is_high_fan_out_danger(glass_box_path: Path):
+    facts = [parse_module(f) for f in discover_python_files(glass_box_path)]
+    graph = build_graph(facts, glass_box_path)
+    assert is_danger_zone("auth_utils.py", graph) is True
+    assert is_danger_zone("billing/service.py", graph) is False
+    assert is_danger_zone("dashboard/views.py", graph) is False
+
+
 def test_routes_pass_through(glass_box_path: Path):
     _, hud = _hud_for(glass_box_path, "api/routes.py")
     assert hud.mode == "pass_through"
@@ -58,6 +66,7 @@ def test_danger_zone_path_heuristics():
 
 def test_risk_scoring_table():
     assert score_risk(downstream_count=0, max_hops=0, danger_count=0) == "LOW"
+    assert score_risk(downstream_count=0, max_hops=0, danger_count=1) == "HIGH"
     assert score_risk(downstream_count=1, max_hops=1, danger_count=0) == "MEDIUM"
     assert score_risk(downstream_count=3, max_hops=1, danger_count=0) == "HIGH"
     assert score_risk(downstream_count=3, max_hops=2, danger_count=1) == "CRITICAL"

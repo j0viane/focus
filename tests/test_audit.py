@@ -39,6 +39,8 @@ def test_audit_local_auth_change_is_critical(tmp_path: Path, glass_box_path: Pat
     assert hud.risk_tier in {"HIGH", "CRITICAL"}
     assert hud.mermaid is not None
     assert any(n.path == "api/routes.py" for n in hud.danger_zones)
+    assert any(n.path == "auth_utils.py" for n in hud.danger_zones)
+    assert any("fan-out" in n.reason for n in hud.danger_zones if n.path == "auth_utils.py")
 
 
 def test_audit_local_docs_only_is_pass_through(tmp_path: Path, glass_box_path: Path):
@@ -102,6 +104,23 @@ def test_trigger_helper():
             changed_paths=["auth_utils.py"],
             python_seeds=["auth_utils.py"],
             has_downstream=True,
+            downstream_file_count=2,
+        )
+        is True
+    )
+    assert (
+        should_emit_diagram(
+            changed_paths=["tests/test_foo.py"],
+            python_seeds=["tests/test_foo.py"],
+            has_downstream=False,
+        )
+        is False
+    )
+    assert (
+        should_emit_diagram(
+            changed_paths=["api/routes.py"],
+            python_seeds=["api/routes.py"],
+            has_downstream=False,
         )
         is True
     )
