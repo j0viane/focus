@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 0 — **complete** → Phase 1 starting
+**Current phase:** Phase 1 — Steps 1–2 complete (CLI, file discovery, Tree-sitter fact extraction); Step 3 (graph + `trace`) next
 
 ---
 
@@ -45,7 +45,7 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 - [x] Explicit "won't build" list agreed
 - [x] HUD schema frozen (`docs/HUD.md`)
 - [x] Stack confirmation locked (`docs/STACK.md`)
-- [x] Phase 1 week plan agreed (below)
+- [x] Phase 1 step plan agreed (below)
 
 ---
 
@@ -53,14 +53,14 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 **Goal:** Parse a Python repo and emit a dependency map for one file.
 
-| Week | Deliverable | Tests added | Explain-back |
-|---|---|---|---|
-| **1** | `pyproject.toml`, Typer CLI, `focus scan` walks repo + respects `.gitignore` | `glass_box/` fixture, pytest harness, smoke tests | Parse pipeline diagram |
-| **2** | Tree-sitter Python: defs, imports, call sites → in-memory index | `test_parser.py` — parametrize import/def cases | What AST nodes we extract |
-| **3** | NetworkX graph + `focus trace [file]` → text HUD (no Mermaid yet) | `test_graph.py`, `test_triggers.py`, parse → graph integration | Reverse edges, downstream list |
-| **4** | Mermaid renderer + HUD output | `test_hud_golden.py`, Mermaid validator, E2E CLI subprocess | Full HUD walkthrough |
+| Step | Deliverable | Tests added | Explain-back | Status |
+|---|---|---|---|---|
+| **1** | `pyproject.toml`, Typer CLI, `focus scan` walks repo + respects `.gitignore` | `glass_box/` fixture, pytest harness, smoke tests | Parse pipeline diagram | ✅ |
+| **2** | Tree-sitter Python: defs, imports, call sites → in-memory index | `test_parser.py` — parametrize import/def cases | What AST nodes we extract | ✅ |
+| **3** | NetworkX graph + `focus trace [file]` → text HUD (no Mermaid yet) | `test_graph.py`, `test_triggers.py`, parse → graph integration | Reverse edges, downstream list | |
+| **4** | Mermaid renderer + HUD output | `test_hud_golden.py`, Mermaid validator, E2E CLI subprocess | Full HUD walkthrough | |
 
-**Testing principle:** fixture and pytest land Week 1; each week adds tests **with** the feature — see [`TESTING.md`](TESTING.md).
+**Testing principle:** fixture and pytest land at Step 1; each step adds tests **with** the feature — see [`TESTING.md`](TESTING.md).
 
 **Constraints:**
 

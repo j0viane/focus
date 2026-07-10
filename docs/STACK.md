@@ -71,6 +71,6 @@ focus/
 
 ## Related documents
 
-- [`ROADMAP.md`](ROADMAP.md) — week plan
+- [`ROADMAP.md`](ROADMAP.md) — step plan
 - [`HUD.md`](HUD.md) — output schema
 - [`.cursor/rules/focus-engineering.mdc`](../.cursor/rules/focus-engineering.mdc) — constraints

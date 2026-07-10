@@ -3,7 +3,7 @@
 Living document. Defines how Focus is tested without exposing private code or secrets.
 
 **Last updated:** July 2026  
-**Status:** Locked — tests grow with each Phase 1 week (not a Week 4 bolt-on)
+**Status:** Locked — tests grow with each Phase 1 step (not a Step 4 bolt-on)
 
 ---
 
@@ -11,15 +11,15 @@ Living document. Defines how Focus is tested without exposing private code or se
 
 **Prove the graph pipeline on fixtures you control.** Golden repos with known dependency shapes — not random open-source clones with unknown edge cases in CI.
 
-**Testing philosophy:** `glass_box/` fixture lands **Week 1**; each feature week adds tests **with** the feature. Correctness is the product — untested graph logic is unacceptable.
+**Testing philosophy:** `glass_box/` fixture lands **Step 1**; each feature step adds tests **with** the feature. Correctness is the product — untested graph logic is unacceptable.
 
 ---
 
 ## Phased rollout (Phase 1)
 
-Tests accumulate week by week — not a single testing sprint at the end.
+Tests accumulate step by step — not a single testing sprint at the end.
 
-| Week | Test layer | What ships |
+| Step | Test layer | What ships |
 |---|---|---|
 | **1** | Harness + smoke | `pytest` in `pyproject.toml`, `tests/fixtures/glass_box/` committed, `test_cli_smoke.py` |
 | **2** | Parser unit | `test_parser.py` — imports, defs, call sites (`@pytest.mark.parametrize`) |
@@ -28,10 +28,10 @@ Tests accumulate week by week — not a single testing sprint at the end.
 
 ```mermaid
 flowchart LR
-    W1[Week 1<br/>harness + smoke]
-    W2[Week 2<br/>parser units]
-    W3[Week 3<br/>graph + integration]
-    W4[Week 4<br/>HUD golden E2E]
+    W1[Step 1<br/>harness + smoke]
+    W2[Step 2<br/>parser units]
+    W3[Step 3<br/>graph + integration]
+    W4[Step 4<br/>HUD golden E2E]
 
     W1 --> W2 --> W3 --> W4
 ```
@@ -51,11 +51,11 @@ flowchart TB
 
 | Layer | What | When | Runs in CI? |
 |---|---|---|---|
-| **Smoke** | CLI exits 0, `--help` works | Week 1 | ✅ |
-| **Unit** | Pure functions: parser extract, BFS, triggers, validator | Weeks 2–4 | ✅ |
-| **Integration** | Parse fixture → graph → assert edges/downstream | Week 3+ | ✅ |
-| **Golden / snapshot** | HUD string matches `HUD.md` structure | Week 4 | ✅ |
-| **E2E** | `focus trace` subprocess on `glass_box/` | Week 4 | ✅ |
+| **Smoke** | CLI exits 0, `--help` works | Step 1 | ✅ |
+| **Unit** | Pure functions: parser extract, BFS, triggers, validator | Steps 2–4 | ✅ |
+| **Integration** | Parse fixture → graph → assert edges/downstream | Step 3+ | ✅ |
+| **Golden / snapshot** | HUD string matches `HUD.md` structure | Step 4 | ✅ |
+| **E2E** | `focus trace` subprocess on `glass_box/` | Step 4 | ✅ |
 | **Live repo manual** | GhostAgent or personal project locally | Anytime | ❌ Manual |
 | **Live GitHub Action** | PR comment on test repo | Phase 3 | ❌ Manual |
 
@@ -67,29 +67,29 @@ flowchart TB
 tests/
 ├── conftest.py                 # glass_box path fixture
 ├── fixtures/
-│   └── glass_box/              # Week 1 — committed oracle repo
+│   └── glass_box/              # Step 1 — committed oracle repo
 │       ├── auth_utils.py
 │       ├── billing/service.py
 │       ├── api/routes.py
 │       └── dashboard/views.py
-├── test_cli_smoke.py           # Week 1
-├── test_parser.py              # Week 2
-├── test_graph.py               # Week 3
-├── test_triggers.py            # Week 3 — table-driven per TRIGGERS.md
-└── test_hud_golden.py          # Week 4
+├── test_cli_smoke.py           # Step 1
+├── test_parser.py              # Step 2
+├── test_graph.py               # Step 3
+├── test_triggers.py            # Step 3 — table-driven per TRIGGERS.md
+└── test_hud_golden.py          # Step 4
 ```
 
 ---
 
 ## Test categories (by type)
 
-### 1. Smoke tests (Week 1)
+### 1. Smoke tests (Step 1)
 
 - `focus --help` exits 0
 - `focus scan tests/fixtures/glass_box` finds expected `.py` files
 - Respects `.gitignore` when scanning real project root
 
-### 2. Unit tests (Weeks 2–4) — bulk of the suite
+### 2. Unit tests (Steps 2–4) — bulk of the suite
 
 | Target | Assert |
 |---|---|
@@ -102,7 +102,7 @@ tests/
 
 **Trigger tests mirror [`TRIGGERS.md`](TRIGGERS.md)** — doc and code must not drift.
 
-### 3. Integration tests (Week 3+)
+### 3. Integration tests (Step 3+)
 
 Call Python functions directly (no subprocess):
 
@@ -111,7 +111,7 @@ Call Python functions directly (no subprocess):
 # assert auth_utils downstream includes billing, api, dashboard
 ```
 
-### 4. Golden / structural tests (Week 4)
+### 4. Golden / structural tests (Step 4)
 
 Prefer **structural assertions** over brittle full-string snapshots:
 
@@ -120,7 +120,7 @@ Prefer **structural assertions** over brittle full-string snapshots:
 - Mermaid fence present; edge count ≤ 15
 - Optional: snapshot file for final HUD polish (update intentionally)
 
-### 5. E2E CLI tests (Week 4)
+### 5. E2E CLI tests (Step 4)
 
 ```python
 # subprocess: focus trace auth_utils.py --cwd glass_box
@@ -145,7 +145,7 @@ glass_box/
 └── dashboard/views.py # imports auth_utils
 ```
 
-**Golden assertions (full suite by Week 4):**
+**Golden assertions (full suite by Step 4):**
 
 - `focus trace auth_utils.py` → downstream includes billing, api, dashboard
 - `focus audit` (change to `validate_token`) → Danger Zone: API route
@@ -194,6 +194,6 @@ glass_box/
 ## Related documents
 
 - [`PRIVACY.md`](PRIVACY.md) — no real secrets in CI
-- [`ROADMAP.md`](ROADMAP.md) — week-by-week test deliverables
+- [`ROADMAP.md`](ROADMAP.md) — step-by-step test deliverables
 - [`TRIGGERS.md`](TRIGGERS.md) — trigger table-driven tests
 - [`HUD.md`](HUD.md) — golden HUD structure

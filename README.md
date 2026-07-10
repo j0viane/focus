@@ -4,7 +4,7 @@ Focus answers one question before you merge: **what else in this codebase could 
 
 It's an **AR HUD for codebases**: it maps how the pieces of a repository connect — imports, calls, API routes, schemas — and shows the blast radius of a change before it merges.
 
-> **Status:** Phase 1 in progress — CLI scaffold landed; parser, graph, and HUD are being built in the open. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status:** Phase 1 in progress — CLI and Tree-sitter fact extraction landed; dependency graph and HUD are being built in the open. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -38,7 +38,7 @@ Commands land per the roadmap below — `scan` works today; `trace` and `audit` 
 
 ## Getting started
 
-> Phase 1 is in progress. `focus scan` currently discovers the files it will analyze (respecting `.gitignore`); the AST index, graph, and `trace` land as Phase 1 progresses.
+> Phase 1 is in progress. `focus scan` discovers a repo's Python files (respecting `.gitignore`) and indexes each one's imports, definitions, and calls; the dependency graph and `trace` land as Phase 1 progresses.
 
 ```bash
 git clone https://github.com/j0viane/focus.git
@@ -115,7 +115,7 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 
 | Command | Purpose | Status |
 |---|---|---|
-| `focus scan [path]` | Full-repo AST index + dependency map | 🟡 File discovery (`.gitignore`-aware) works today; AST index lands next |
+| `focus scan [path]` | Full-repo AST index + dependency map | 🟡 Works today: indexes imports, definitions, and calls per file; dependency map lands next |
 | `focus trace [file]` | Trace what a file/symbol connects to | ⬜ Phase 1 |
 | `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ⬜ Phase 2 |
 | `focus audit --local` | Pre-flight against working tree vs `main` | ⬜ Phase 2 |
