@@ -30,3 +30,5 @@ These are non-negotiable. If a task appears to require breaking one of these rul
 11. **Privacy-by-design.** Respect `.gitignore` and `.focusignore`. Never parse, log, or transmit `.env`, keys, or credential files. LLM calls (when enabled) receive structured graph JSON only — not full source files. See `docs/PRIVACY.md`.
 
 12. **No surveillance features.** Do not build developer identity tracking, blame metrics, merge gates, or management dashboards. Focus analyzes code structure for review aid only. See `docs/ETHICS.md`.
+
+13. **Stay current — no stale deps or Actions.** Prefer current stable majors for Python packages (`uv lock` / `uv sync`) and GitHub Actions. When adding or touching a workflow, verify `uses:` pins against **tags that actually exist** on the action's releases page (e.g. `actions/checkout@v7`, `astral-sh/setup-uv@v8.3.2`) — do not invent floating majors like `@v8` if the repo only publishes `@v8.x.y`. On dependency or CI work: check for newer stable versions and upgrade unless there is a documented break. Deprecation warnings and "unable to resolve action" failures in CI are defects to fix, not noise to ignore.

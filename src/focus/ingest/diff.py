@@ -1,29 +1,38 @@
 """Git diff ingest — which files changed vs a base ref.
 
-This is the seed source for `focus audit --local`. Focus still builds the
-full-repo graph; the diff only answers "what changed," never "what exists."
+Two modes:
+- ``local`` — working tree + index + untracked vs base (author pre-flight)
+- ``range`` — commits on this branch vs base (``base...HEAD``, PR / CI)
+
+Focus still builds the full-repo graph; the diff only answers "what changed."
 """
 
 from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Literal
+
+DiffMode = Literal["local", "range"]
 
 
 class GitDiffError(RuntimeError):
     """Raised when git is missing, the path is not a repo, or the base ref is unknown."""
 
 
-def changed_files(root: Path, base: str = "main") -> list[str]:
-    """Return sorted posix paths changed vs `base` (working tree + index).
-
-    Includes: modifications vs base, staged changes vs base, and untracked
-    files (so new modules you have not committed yet still get audited).
-    Deletes are omitted — a deleted path is not a graph seed.
-    """
+def changed_files(root: Path, base: str = "main", *, mode: DiffMode = "local") -> list[str]:
+    """Return sorted posix paths changed vs `base` for the given mode."""
     root = root.resolve()
     _require_git_repo(root)
     resolved_base = resolve_base_ref(root, base)
+
+    if mode == "range":
+        return sorted(
+            _git_lines(
+                root,
+                ["diff", "--name-only", "--diff-filter=ACMR", f"{resolved_base}...HEAD"],
+            )
+        )
 
     names: set[str] = set()
     names.update(_git_lines(root, ["diff", "--name-only", "--diff-filter=ACMR", resolved_base]))
@@ -34,13 +43,13 @@ def changed_files(root: Path, base: str = "main") -> list[str]:
     return sorted(names)
 
 
-def changed_python_files(root: Path, base: str = "main") -> list[str]:
+def changed_python_files(root: Path, base: str = "main", *, mode: DiffMode = "local") -> list[str]:
     """Subset of `changed_files` that end in `.py`."""
-    return [path for path in changed_files(root, base) if path.endswith(".py")]
+    return [path for path in changed_files(root, base, mode=mode) if path.endswith(".py")]
 
 
 def resolve_base_ref(root: Path, preferred: str = "main") -> str:
-    """Resolve a usable base ref: preferred, then main, then master."""
+    """Resolve a usable base ref: preferred SHA/branch, then main, then master."""
     candidates = [preferred]
     for name in ("main", "master"):
         if name not in candidates:

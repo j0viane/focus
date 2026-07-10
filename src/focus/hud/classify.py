@@ -111,27 +111,34 @@ def score_risk(
 
 
 def _danger_reason(path: str, hops: int, graph: nx.DiGraph | None) -> str:
-    hop_word = "hop" if hops == 1 else "hops"
-    hop_bit = f" ({hops} {hop_word} from seed)" if hops > 0 else " (seed itself)"
+    distance = _distance_phrase(hops)
 
     if is_danger_path(path):
-        kind = "API/schema surface"
+        kind = "API, schema, or config code"
         padded = f"/{path}"
         if "/api/" in padded or "/routes/" in padded or "/routers/" in padded:
-            kind = "API route surface"
+            kind = "an API route file"
         elif PurePosixPath(path).name in {"models.py", "schema.prisma"} or "/models/" in padded:
-            kind = "data model surface"
+            kind = "a data-model file"
         elif PurePosixPath(path).name in {"settings.py", "config.py"}:
-            kind = "config surface"
+            kind = "a config file"
         elif "/migrations/" in padded:
-            kind = "migration surface"
-        return f"{kind} in blast radius{hop_bit}"
+            kind = "a migration file"
+        return f"This is {kind}{distance}."
 
     count = importer_count(graph, path) if graph is not None else 0
-    return f"high fan-out shared module ({count} direct importers){hop_bit}"
+    return f"Shared module — {count} other files import it directly{distance}."
 
 
 def _downstream_reason(hops: int) -> str:
     if hops == 1:
-        return "imports the seed directly"
-    return f"{hops} imports away from seed"
+        return "Directly imports a file you changed."
+    return f"Depends on a file you changed through {hops} import steps (not a direct import)."
+
+
+def _distance_phrase(hops: int) -> str:
+    if hops <= 0:
+        return " (this is one of the files you changed)"
+    if hops == 1:
+        return " — it directly imports a file you changed"
+    return f" — {hops} import steps away from a file you changed"

@@ -4,7 +4,7 @@ Focus answers one question before you merge: **what else in this codebase could 
 
 It's an **AR HUD for codebases**: it maps how the pieces of a repository connect — imports, calls, API routes, schemas — and shows the blast radius of a change before it merges.
 
-> **Status:** Phase 2 in progress — `focus audit --local` audits your working tree vs `main`. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status:** Phase 3 in progress — GitHub Action posts the Focus HUD on PRs. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -55,6 +55,12 @@ uv run focus audit --local --out focus-hud.md
 `--out focus-hud.md` also writes that HUD to a file — open it in the editor and use **Markdown preview** to see the Mermaid diagram (works in Cursor and VS Code).
 
 Optional repo config: copy [`.focus.toml.example`](.focus.toml.example) to `.focus.toml` to tune `fan_out_threshold` (when a shared module becomes a Danger Zone).
+
+### GitHub Action (PR comments)
+
+This repo ships [`.github/workflows/focus.yml`](.github/workflows/focus.yml). On pull request open/sync it runs `focus audit` against the PR base and posts (or updates) a Focus HUD comment. Permissions are `contents: read` + `pull-requests: write` only — see [`docs/PRIVACY.md`](docs/PRIVACY.md).
+
+Other repos: copy that workflow file, or install Focus and point the `uv sync` step at your package once published.
 
 Requirements: Python 3.12+, [`uv`](https://docs.astral.sh/uv/) (or `pip`). Tree-sitter grammars arrive with the parser in Phase 1.
 
@@ -125,8 +131,8 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 |---|---|---|
 | `focus scan [path]` | Full-repo AST index + dependency map | 🟡 Works today: indexes imports, definitions, and calls per file; dependency map lands next |
 | `focus trace [file]` | Focus HUD for a file: summary, Mermaid map, blast radius | ✅ Works today (text + Mermaid); smart triggers land in Phase 2 |
-| `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ⬜ Phase 2 |
-| `focus audit --local` | Pre-flight against working tree vs `main` | ✅ Works on this branch — git diff → blast radius HUD |
+| `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ✅ `focus audit --base <sha>` (PR range) |
+| `focus audit --local` | Pre-flight against working tree vs `main` | ✅ |
 | `focus version` | Print the installed version | ✅ |
 
 ---
@@ -137,8 +143,8 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 |---|---|
 | **0** *(complete)* | Stack decisions, HUD schema, trigger rules, learning docs |
 | **1** *(complete)* | Python CLI: `focus scan` + `focus trace` with Mermaid HUD |
-| **2** | `focus audit --local`, Danger Zone polish, smart triggers |
-| **3** | JS/TS parsers, GitHub Action, optional LLM labels |
+| **2** *(complete)* | `focus audit --local`, Danger Zone polish, smart triggers |
+| **3** *(now)* | GitHub Action PR comments; JS/TS + LLM labels later |
 
 Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 

@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from focus.audit import audit_local
+from focus.audit import audit_local, audit_pr
 from focus.graph import build_graph, downstream_rings
 from focus.hud import build_hud, render_hud
 from focus.ingest import GitDiffError
@@ -106,13 +106,9 @@ def audit(
         typer.Option("--out", help="Write HUD markdown here (open in IDE preview)."),
     ] = None,
 ) -> None:
-    """Pre-merge blast radius for local changes (Phase 2) or a PR (Phase 3)."""
-    if not local:
-        typer.echo("Pass --local to audit your working tree. PR audit lands in Phase 3.")
-        raise typer.Exit(2)
-
+    """Pre-merge blast radius for local changes or a PR branch vs base."""
     try:
-        hud = audit_local(path, base=base)
+        hud = audit_local(path, base=base) if local else audit_pr(path, base=base)
     except GitDiffError as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from None

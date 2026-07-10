@@ -17,6 +17,7 @@ from focus.hud.classify import (
 )
 from focus.hud.mermaid import render_mermaid, validate_mermaid_edges
 from focus.ingest import changed_files, changed_python_files
+from focus.ingest.diff import DiffMode
 from focus.ingest.symbols import changed_symbols, touches_only_non_symbols
 from focus.models import ChangedSymbolInfo, FocusHUD, ImpactNode
 from focus.scan import discover_python_files, parse_module
@@ -25,11 +26,21 @@ from focus.triggers import should_emit_diagram
 
 def audit_local(root: Path, base: str = "main") -> FocusHUD:
     """Build a HUD for working-tree changes vs `base`."""
+    return run_audit(root, base=base, mode="local")
+
+
+def audit_pr(root: Path, base: str = "main") -> FocusHUD:
+    """Build a HUD for commits on this branch vs `base` (``base...HEAD``)."""
+    return run_audit(root, base=base, mode="range")
+
+
+def run_audit(root: Path, base: str = "main", *, mode: DiffMode = "local") -> FocusHUD:
+    """Build a HUD for changes vs `base` in local or PR-range mode."""
     root = root.resolve()
     config = load_config(root)
     fan_out = config.fan_out_threshold
-    all_changed = changed_files(root, base)
-    py_changed = changed_python_files(root, base)
+    all_changed = changed_files(root, base, mode=mode)
+    py_changed = changed_python_files(root, base, mode=mode)
 
     if not all_changed:
         return FocusHUD(
@@ -52,7 +63,7 @@ def audit_local(root: Path, base: str = "main") -> FocusHUD:
             risk_tier="LOW",
         )
 
-    if touches_only_non_symbols(root, base):
+    if touches_only_non_symbols(root, base, mode=mode):
         label = ", ".join(f"`{p}`" for p in py_changed[:5])
         return FocusHUD(
             mode="pass_through",
@@ -72,7 +83,7 @@ def audit_local(root: Path, base: str = "main") -> FocusHUD:
     graph = build_graph(facts_list, root)
     seeds = [path for path in py_changed if path in graph]
     missing = [path for path in py_changed if path not in graph]
-    symbols = changed_symbols(root, base, facts_by_path=facts_by_rel)
+    symbols = changed_symbols(root, base, mode=mode, facts_by_path=facts_by_rel)
     symbol_infos = [
         ChangedSymbolInfo(path=s.path, name=s.name, kind=s.kind, line=s.line)  # type: ignore[arg-type]
         for s in symbols
@@ -142,11 +153,11 @@ def _full_audit_hud(
         if is_danger_zone(seed, graph, fan_out_threshold=fan_out_threshold):
             fans = graph.in_degree(seed) if seed in graph else 0
             if is_danger_path(seed):
-                reason = "changed API/schema/config surface (seed itself)"
+                reason = "You changed an API, schema, or config file."
             else:
                 reason = (
-                    f"changed high fan-out shared module "
-                    f"({fans} direct importers; threshold {fan_out_threshold})"
+                    f"You changed a shared module — {fans} other files import it "
+                    f"directly (threshold is {fan_out_threshold})."
                 )
             danger.insert(
                 0,
