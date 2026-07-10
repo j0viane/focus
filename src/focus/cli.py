@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from focus.scan import discover_python_files
+from focus.scan import discover_python_files, parse_module
 
 app = typer.Typer(
     name="focus",
@@ -28,9 +28,22 @@ def scan(
         typer.Argument(exists=True, file_okay=False, help="Repository root to scan."),
     ] = Path("."),
 ) -> None:
-    """Discover the Python files Focus will index (respects .gitignore)."""
+    """Index the repo's Python files: imports, definitions, calls per file."""
     files = discover_python_files(path)
     root = path.resolve()
+    total_imports = total_defs = total_calls = 0
     for file in files:
-        typer.echo(file.relative_to(root).as_posix())
-    typer.echo(f"{len(files)} Python file(s) found")
+        facts = parse_module(file)
+        total_imports += len(facts.imports)
+        total_defs += len(facts.definitions)
+        total_calls += len(facts.calls)
+        typer.echo(
+            f"{file.relative_to(root).as_posix()} — "
+            f"{len(facts.imports)} imports · "
+            f"{len(facts.definitions)} defs · "
+            f"{len(facts.calls)} calls"
+        )
+    typer.echo(
+        f"{len(files)} Python file(s) indexed: "
+        f"{total_imports} imports, {total_defs} definitions, {total_calls} calls"
+    )

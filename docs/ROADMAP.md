@@ -107,6 +107,12 @@ Full ethics list: [`docs/ETHICS.md`](ETHICS.md)
 
 ---
 
+## Parking lot — future ideas (unscoped, not promised)
+
+- **IDE extension (Phase 4+ candidate):** show the Focus HUD inline in the editor, next to the code being changed — a third surface after CLI (Phase 1–2) and PR comments (Phase 3). Same engine, same computed graph; only the display changes. Deliberately unscoped until the CLI + Action prove the core loop.
+
+---
+
 ## Updates
 
 - **This file** — phase status and scope
