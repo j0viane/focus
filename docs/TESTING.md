@@ -153,7 +153,7 @@ glass_box/
 - `focus audit` (change to `validate_token`) → Danger Zone: API route
 - README-only change → pass-through, no diagram
 
-**License:** MIT (see [`DECISIONS.md`](DECISIONS.md))
+**License:** GPL-3.0-only (see [`DECISIONS.md`](DECISIONS.md) and [`LICENSE`](../LICENSE))
 
 ### Golden repo: `tests/fixtures/glass_box_js/`
 

@@ -107,8 +107,8 @@ When the LLM label pass is enabled (Phase 3+):
 See [`DECISIONS.md`](DECISIONS.md) for full log. Summary:
 
 - **HUD caveat:** frozen default in [`HUD.md`](HUD.md) Block 4
-- **LLM labels:** opt-in per repo (`FOCUS_LLM_ENABLED=false` by default)
-- **Fixtures:** MIT, committed under `tests/fixtures/glass_box/`
+- **LLM labels:** parked — not building for now (see [`ROADMAP.md`](ROADMAP.md))
+- **Fixtures:** committed under `tests/fixtures/glass_box/` (repo license: GPL-3.0-only)
 
 ---
 

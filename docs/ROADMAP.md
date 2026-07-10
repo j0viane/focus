@@ -123,6 +123,7 @@ Full ethics list: [`docs/ETHICS.md`](ETHICS.md)
 ## Updates
 
 - **This file** — phase status and scope
+- **[`DEMO.md`](DEMO.md)** — dogfood walkthrough + example HUDs for portfolio screenshots
 - **Issues** — architecture decisions and parser edge cases
 
 Questions or blast-radius heuristics? [Open an issue](https://github.com/j0viane/focus/issues/new).
