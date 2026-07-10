@@ -1,6 +1,6 @@
 """File-hash keyed parse cache for ModuleFacts.
 
-Unchanged source bytes reuse the last Tree-sitter extraction. The cache
+Unchanged source bytes reuse the prior Tree-sitter extraction. The cache
 stores derived facts only (safe to delete). Layout::
 
     <root>/.focus-cache/v1/<sha256>.json
