@@ -4,7 +4,7 @@ Focus answers one question before you merge: **what else in this codebase could 
 
 It's an **AR HUD for codebases**: it maps how the pieces of a repository connect — imports, calls, API routes, schemas — and shows the blast radius of a change before it merges.
 
-> **Status:** Phase 3 — GitHub Action posts the Focus HUD on PRs; blast-radius signal polish in progress. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status:** Phase 3 — GitHub Action + blast-radius signal on `main`; JS/TS Tree-sitter next. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 

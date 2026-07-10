@@ -1,9 +1,9 @@
 """Tree-sitter extraction of imports, definitions, and call sites.
 
-Facts are read from source text only: nothing is executed, and nothing
-is recorded that isn't literally written in the file. Resolution of
-imports to files and calls to definitions happens later, in the graph
-layer, where the whole-repo picture exists.
+Dispatches by file suffix to the Python or JS/TS grammar. Facts are read
+from source text only: nothing is executed, and nothing is recorded that
+isn't literally written in the file. Resolution of imports to files
+happens later in the graph layer.
 """
 
 from pathlib import Path
@@ -12,6 +12,8 @@ import tree_sitter_python
 from tree_sitter import Language, Node, Parser, Query, QueryCursor
 
 from focus.models import CallSite, Definition, Import, ModuleFacts
+from focus.scan.js_parser import SOURCE_EXTENSIONS as JS_SOURCE_EXTENSIONS
+from focus.scan.js_parser import parse_js_source
 
 _LANGUAGE = Language(tree_sitter_python.language())
 _PARSER = Parser(_LANGUAGE)
@@ -26,18 +28,30 @@ _DEFINITIONS_QUERY = Query(
 
 _CALLS_QUERY = Query(_LANGUAGE, "(call function: (_) @callee)")
 
+_PYTHON_EXTENSIONS = frozenset({".py"})
+
 
 def parse_module(path: Path) -> ModuleFacts:
-    """Parse one Python file into its observable facts."""
+    """Parse one source file into its observable facts."""
     return parse_source(path.read_bytes(), path)
 
 
 def parse_source(source: bytes, path: Path) -> ModuleFacts:
-    """Parse raw source bytes; `path` is recorded, not read."""
+    """Parse raw source bytes; `path` selects the grammar and is recorded."""
+    suffix = path.suffix.lower()
+    if suffix in JS_SOURCE_EXTENSIONS:
+        return parse_js_source(source, path)
+    if suffix in _PYTHON_EXTENSIONS or suffix == "":
+        return _parse_python(source, path)
+    raise ValueError(f"Unsupported source language for {path}")
+
+
+def _parse_python(source: bytes, path: Path) -> ModuleFacts:
     tree = _PARSER.parse(source)
     root = tree.root_node
     return ModuleFacts(
         path=path,
+        language="python",
         imports=_extract_imports(root),
         definitions=_extract_definitions(root),
         calls=_extract_calls(root),

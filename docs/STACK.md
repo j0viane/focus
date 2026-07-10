@@ -14,7 +14,7 @@ Technology choices for Phase 1–3. **Locked at Phase 0 exit** — change only v
 | **Language** | Python 3.12+ | Go, Rust | Tree-sitter ecosystem, NetworkX, interview fluency, fast MVP |
 | **CLI** | Typer | Click, argparse | Type hints, auto `--help`, minimal boilerplate |
 | **Package manager** | `uv` (primary), pip compatible | poetry, pipenv | Speed; `pyproject.toml` standard |
-| **AST** | Tree-sitter + `tree-sitter-python` | libcst, ast module | Multi-language path, incremental parse, query API |
+| **AST** | Tree-sitter + `tree-sitter-python` + `tree-sitter-javascript` / `tree-sitter-typescript` | libcst, ast module | Multi-language path, incremental parse, query API |
 | **Graph** | NetworkX | Custom adjacency dict, igraph | BFS built-in, readable, sufficient for Phase 1 scale |
 | **Models** | Pydantic v2 | dataclasses | HUD schema, validation, JSON serialization |
 | **Git** | subprocess `git` + `GitPython` (optional) | pygit2 | subprocess sufficient for diff; GitPython if needed for ergonomics |

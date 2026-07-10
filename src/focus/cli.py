@@ -11,7 +11,7 @@ from focus.graph import build_graph, downstream_rings
 from focus.hud import build_hud, render_hud
 from focus.ingest import GitDiffError
 from focus.models import FocusHUD
-from focus.scan import discover_python_files, parse_module
+from focus.scan import discover_source_files, parse_module
 
 app = typer.Typer(
     name="focus",
@@ -33,8 +33,8 @@ def scan(
         typer.Argument(exists=True, file_okay=False, help="Repository root to scan."),
     ] = Path("."),
 ) -> None:
-    """Index the repo's Python files: imports, definitions, calls per file."""
-    files = discover_python_files(path)
+    """Index the repo's source files: imports, definitions, calls per file."""
+    files = discover_source_files(path)
     root = path.resolve()
     total_imports = total_defs = total_calls = 0
     for file in files:
@@ -49,7 +49,7 @@ def scan(
             f"{len(facts.calls)} calls"
         )
     typer.echo(
-        f"{len(files)} Python file(s) indexed: "
+        f"{len(files)} source file(s) indexed: "
         f"{total_imports} imports, {total_defs} definitions, {total_calls} calls"
     )
 
@@ -76,10 +76,10 @@ def trace(
         typer.echo(f"{file} is not inside the scan root {root.resolve()}")
         raise typer.Exit(1) from None
 
-    facts = [parse_module(f) for f in discover_python_files(root)]
+    facts = [parse_module(f) for f in discover_source_files(root)]
     graph = build_graph(facts, root)
     if target not in graph:
-        typer.echo(f"{target} was not among the scanned Python files under {root.resolve()}")
+        typer.echo(f"{target} was not among the scanned source files under {root.resolve()}")
         raise typer.Exit(1)
 
     rings = downstream_rings(graph, target)

@@ -43,9 +43,10 @@ class CallSite(BaseModel):
 
 
 class ModuleFacts(BaseModel):
-    """Everything the parser observed about one Python file."""
+    """Everything the parser observed about one source file."""
 
     path: Path
+    language: Literal["python", "javascript", "typescript"] = "python"
     imports: list[Import] = []
     definitions: list[Definition] = []
     calls: list[CallSite] = []
