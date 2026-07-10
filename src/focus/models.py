@@ -49,3 +49,29 @@ class ModuleFacts(BaseModel):
     imports: list[Import] = []
     definitions: list[Definition] = []
     calls: list[CallSite] = []
+
+
+RiskTier = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+HudMode = Literal["full", "pass_through", "error"]
+
+
+class ImpactNode(BaseModel):
+    """One file in the blast radius, with hop distance from the seed."""
+
+    path: str
+    hops: int
+    reason: str
+
+
+class FocusHUD(BaseModel):
+    """Canonical HUD payload — CLI and (later) PR comments render from this."""
+
+    mode: HudMode
+    seed: str
+    summary: str
+    risk_tier: RiskTier
+    mermaid: str | None = None
+    danger_zones: list[ImpactNode] = []
+    downstream: list[ImpactNode] = []
+    isolated: list[str] = []
+    caveat: str | None = None

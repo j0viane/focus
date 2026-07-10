@@ -4,7 +4,7 @@ Focus answers one question before you merge: **what else in this codebase could 
 
 It's an **AR HUD for codebases**: it maps how the pieces of a repository connect — imports, calls, API routes, schemas — and shows the blast radius of a change before it merges.
 
-> **Status:** Phase 1 in progress — CLI and Tree-sitter fact extraction landed; dependency graph and HUD are being built in the open. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status:** Phase 1 complete — `focus scan` + `focus trace` (HUD with Mermaid) work on Python repos. Phase 2 builds `audit` and smart triggers. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -38,7 +38,7 @@ Commands land per the roadmap below — `scan` works today; `trace` and `audit` 
 
 ## Getting started
 
-> Phase 1 is in progress. `focus scan` indexes a repo's Python files (imports, definitions, calls — respecting `.gitignore`), and `focus trace` shows every file that depends on the one you're about to change. Mermaid diagrams and `audit` land next.
+> Phase 1 core loop is in: `focus scan` indexes a repo, `focus trace` prints a Focus HUD (summary + Mermaid + blast radius). `focus audit` and smart triggers land in Phase 2.
 
 ```bash
 git clone https://github.com/j0viane/focus.git
@@ -119,7 +119,7 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 | Command | Purpose | Status |
 |---|---|---|
 | `focus scan [path]` | Full-repo AST index + dependency map | 🟡 Works today: indexes imports, definitions, and calls per file; dependency map lands next |
-| `focus trace [file]` | Every file that depends on a file, grouped by import distance | 🟡 Works today (text output); Mermaid rendering lands next |
+| `focus trace [file]` | Focus HUD for a file: summary, Mermaid map, blast radius | ✅ Works today (text + Mermaid); smart triggers land in Phase 2 |
 | `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ⬜ Phase 2 |
 | `focus audit --local` | Pre-flight against working tree vs `main` | ⬜ Phase 2 |
 | `focus version` | Print the installed version | ✅ |
@@ -131,9 +131,9 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 | Phase | Goal |
 |---|---|
 | **0** *(complete)* | Stack decisions, HUD schema, trigger rules, learning docs |
-| **1** *(now)* | Python CLI: `focus scan` + `focus trace` on one language (Python) |
-| **2** | Blast radius engine + `focus audit --local` + Mermaid HUD |
-| **3** | JS/TS parsers, smart triggers, GitHub Action |
+| **1** *(complete)* | Python CLI: `focus scan` + `focus trace` with Mermaid HUD |
+| **2** | `focus audit --local`, Danger Zone polish, smart triggers |
+| **3** | JS/TS parsers, GitHub Action, optional LLM labels |
 
 Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 

@@ -7,6 +7,7 @@ from typing import Annotated
 import typer
 
 from focus.graph import build_graph, downstream_rings
+from focus.hud import build_hud, render_hud
 from focus.scan import discover_python_files, parse_module
 
 app = typer.Typer(
@@ -61,7 +62,7 @@ def trace(
         typer.Option(exists=True, file_okay=False, help="Repository root to scan."),
     ] = Path("."),
 ) -> None:
-    """Show every scanned file that depends on FILE, grouped by import distance."""
+    """Show the Focus HUD for FILE: summary, Mermaid map, blast radius rings."""
     try:
         target = file.resolve().relative_to(root.resolve()).as_posix()
     except ValueError:
@@ -75,16 +76,5 @@ def trace(
         raise typer.Exit(1)
 
     rings = downstream_rings(graph, target)
-    if not rings:
-        typer.echo(f"No scanned file imports {target} — changing it touches nothing downstream.")
-        return
-
-    typer.echo(f"Blast radius for {target} (each entry is a file; arrows walked backwards):")
-    total = 0
-    for distance, nodes in rings:
-        label = "imports it directly" if distance == 1 else f"{distance} imports away"
-        typer.echo(f"  ring {distance} — {label}:")
-        for node in nodes:
-            typer.echo(f"    {node}")
-        total += len(nodes)
-    typer.echo(f"{total} downstream file(s)")
+    hud = build_hud(graph, target, rings)
+    typer.echo(render_hud(hud))
