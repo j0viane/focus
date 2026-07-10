@@ -12,8 +12,8 @@ Resolved open questions from ethics, privacy, and planning reviews.
 |---|---|---|
 | Default HUD caveat for partial static analysis | Use frozen text in [`HUD.md`](HUD.md) Block 4; append detected blindspots | Honest without alarming on every PR |
 | LLM label pass opt-in | **Parked — not building for now** | Product value is computed blast radius; avoid model copy that can hallucinate. See [`ROADMAP.md`](ROADMAP.md) parking lot |
-| Fixture repo license | Same as Focus (**GPL-3.0-only**) for `tests/fixtures/` | Fixtures ship with the tool; keep one license for the repo |
-| Project license | **GPL-3.0-only** (switched from MIT, 2026-07) | Attribution + copyleft: derivatives that are distributed must stay open under GPL |
+| Fixture repo license | MIT for `tests/fixtures/` (same as Focus) | Clear redistribution for open-source / portfolio adoption |
+| Project license | **MIT** (briefly tried GPL-3.0 for copyleft, reverted for adoption) | Credit via copyright notice; maximize try/fork friction-free use |
 | Stack: CLI framework | **Typer** | Locked in [`STACK.md`](STACK.md) |
 | Stack: graph library | **NetworkX** | Locked in [`STACK.md`](STACK.md) |
 | HUD schema source of truth | **`docs/HUD.md`** | `focus.mdc` references it; tests assert against it |
