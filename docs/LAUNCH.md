@@ -22,14 +22,6 @@ Focus maps how files in your repo connect (Python + JS/TS imports) and shows the
 ### Topics
 Open Source, Developer Tools, GitHub, Productivity, Artificial Intelligence (adjacent — for AI-assisted PRs)
 
-### Gallery order
-1. `assets/hero-focus.png`
-2. `assets/how-it-works.png`
-3. `assets/hud-glass-box.png`
-4. `assets/pr-comment.png`
-5. `assets/hud-classify.png`
-6. `assets/focus-demo.gif`
-
 ### First comment (maker)
 
 Hey Product Hunt 👋
@@ -90,24 +82,8 @@ Repo: https://github.com/j0viane/focus
 ## Launch checklist
 
 - [ ] Tag `v0.1.0` and push (triggers PyPI publish once Trusted Publishing is set — [`PUBLISH.md`](PUBLISH.md))
-- [ ] Confirm `examples/focus-action.yml` on a throwaway repo (see below)
-- [ ] Upload PH gallery images
 - [ ] Schedule PH (Tue–Thu often better) + Show HN same day or next morning
 - [ ] Pin a GitHub Discussion / Issue for feedback
 - [ ] Triage only launch-blocking bugs for 48h
 
-### Dogfood Action on an external repo
-
-Local simulation (done for launch prep): throwaway tree under `/tmp/focus-action-dogfood` with `examples/focus-action.yml` copied in; `focus scan` / `trace` against that tree via `pip install` of this checkout — MEDIUM HUD for `pkg/util.py` → `pkg/app.py`.
-
-Live GitHub dogfood (you run once the branch is on `main`):
-
-```bash
-# create a tiny public or private test repo, then:
-mkdir -p .github/workflows
-curl -fsSL https://raw.githubusercontent.com/j0viane/focus/main/examples/focus-action.yml \
-  -o .github/workflows/focus.yml
-# commit, open a PR that touches a .py file with imports
-```
-
-Until `focus-hud` is on PyPI, the example installs from git `@main` (see the workflow comments).
+Until `focus-hud` is on PyPI, install from git (see [`examples/focus-action.yml`](../examples/focus-action.yml)).

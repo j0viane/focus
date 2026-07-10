@@ -1,4 +1,4 @@
-# Focus demo (portfolio + Product Hunt gallery)
+# Focus demo (portfolio walkthrough)
 
 **Tagline:** Blast radius you can defend — evidence-only, before you merge.
 
