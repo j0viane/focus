@@ -1,14 +1,28 @@
 # Focus
 
-Focus is an **architectural diagnostic engine** — an "AR HUD for codebases." It transforms opaque legacy repositories into transparent **Glass Box** environments so developers can see the logic strings of a system before they make a change.
+Focus answers one question before you merge: **what else in this codebase could break because of this change?**
+
+It's an **AR HUD for codebases**: it maps how the pieces of a repository connect — imports, calls, API routes, schemas — and shows the blast radius of a change before it merges.
 
 > **Status:** Phase 1 in progress — CLI scaffold landed; parser, graph, and HUD are being built in the open. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
+## Why "Focus"?
+
+The name comes from *Horizon Zero Dawn*. The game's world was built by a civilization that is long gone, and it runs on machines no one alive fully understands. Aloy can navigate it because of her **Focus** — a small AR device that scans that inherited world and reveals what the naked eye can't: machine weak points, hidden paths, danger ahead. Intel first, decisions second.
+
+A legacy codebase is the same kind of world — built by people who have moved on, full of machinery nobody fully understands anymore. This Focus scans it and surfaces what a raw diff can't, so you make the change with intel instead of walking in blind.
+
+In other words: Aloy is the junior engineer handed a legacy codebase. The Focus is how she reads it.
+
+*Horizon Zero Dawn and Aloy belong to Guerrilla Games — no affiliation, just admiration.*
+
+---
+
 ## Why this exists
 
-AI coding assistants generate massive pull requests in seconds, but those PRs wait **4.6× longer** to be reviewed. A standard text diff does not show *blast radius* — who imports this function, which API routes break, which schemas drift.
+AI coding assistants generate massive pull requests in seconds — and then those PRs sit, because reviewing them is the hard part. A standard text diff can't show *blast radius*: who imports this function, which API routes break, which schemas drift.
 
 Existing tools dump 1,000-word summaries onto PRs. Focus replaces text walls with **evidence-based visual clarity**:
 
@@ -48,7 +62,7 @@ flowchart TB
 
 | Layer | Technology |
 |---|---|
-| CLI | Python 3.12+ / Typer or Click |
+| CLI | Python 3.12+ / Typer |
 | AST parsing | Tree-sitter (multi-language grammars) |
 | Graph | NetworkX (dependency + blast radius traversal) |
 | Diagrams | Mermaid.js (native GitHub rendering) |
@@ -61,14 +75,15 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 
 ---
 
-## Commands (planned)
+## Commands
 
-| Command | Purpose |
-|---|---|
-| `focus scan [path]` | Full-repo AST index + dependency map |
-| `focus trace [file]` | Trace what a file/symbol connects to |
-| `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff |
-| `focus audit --local` | Pre-flight against working tree vs `main` |
+| Command | Purpose | Status |
+|---|---|---|
+| `focus scan [path]` | Full-repo AST index + dependency map | 🟡 File discovery (`.gitignore`-aware) works today; AST index lands next |
+| `focus trace [file]` | Trace what a file/symbol connects to | ⬜ Phase 1 |
+| `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ⬜ Phase 2 |
+| `focus audit --local` | Pre-flight against working tree vs `main` | ⬜ Phase 2 |
+| `focus version` | Print the installed version | ✅ |
 
 ---
 
@@ -87,14 +102,14 @@ Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Getting started
 
-> Phase 1 is in progress. The CLI installs and runs; `scan` and `trace` land as Phase 1 progresses — until then `focus scan` exits with "not implemented" rather than pretending to work.
+> Phase 1 is in progress. `focus scan` currently discovers the files it will analyze (respecting `.gitignore`); the AST index, graph, and `trace` land as Phase 1 progresses.
 
 ```bash
 git clone https://github.com/j0viane/focus.git
 cd focus
 uv sync            # or: pip install -e .
 uv run focus --help
-uv run focus version
+uv run focus scan .
 ```
 
 Requirements: Python 3.12+, [`uv`](https://docs.astral.sh/uv/) (or `pip`). Tree-sitter grammars arrive with the parser in Phase 1.
@@ -109,9 +124,7 @@ uv run pytest
 
 ## Ethics & privacy
 
-Focus is **passive enablement** — it informs reviewers; it never blocks merges or quizzes developers.
-
-- **Evidence-based** — graph topology is computed; the LLM labels only, never invents edges
+- **Evidence-based** — graph topology is computed; an LLM (when enabled) only labels nodes, it never invents edges
 - **Privacy-by-design** — respects `.gitignore`; secrets excluded; LLM receives structured graph JSON, not full source (Phase 3+)
 - **No surveillance** — analyzes code structure, not developer identity or velocity
 - **Opt-in GitHub Action** — minimum token scope; repos choose to install
