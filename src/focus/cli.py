@@ -10,6 +10,7 @@ from focus.audit import audit_local
 from focus.graph import build_graph, downstream_rings
 from focus.hud import build_hud, render_hud
 from focus.ingest import GitDiffError
+from focus.models import FocusHUD
 from focus.scan import discover_python_files, parse_module
 
 app = typer.Typer(
@@ -63,6 +64,10 @@ def trace(
         Path,
         typer.Option(exists=True, file_okay=False, help="Repository root to scan."),
     ] = Path("."),
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Write HUD markdown here (open in IDE preview)."),
+    ] = None,
 ) -> None:
     """Show the Focus HUD for FILE: summary, Mermaid map, blast radius rings."""
     try:
@@ -79,7 +84,7 @@ def trace(
 
     rings = downstream_rings(graph, target)
     hud = build_hud(graph, target, rings)
-    typer.echo(render_hud(hud))
+    _emit_hud(hud, out)
 
 
 @app.command()
@@ -96,6 +101,10 @@ def audit(
         Path,
         typer.Option(exists=True, file_okay=False, help="Repository root to audit."),
     ] = Path("."),
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Write HUD markdown here (open in IDE preview)."),
+    ] = None,
 ) -> None:
     """Pre-merge blast radius for local changes (Phase 2) or a PR (Phase 3)."""
     if not local:
@@ -107,4 +116,14 @@ def audit(
     except GitDiffError as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from None
-    typer.echo(render_hud(hud))
+    _emit_hud(hud, out)
+
+
+def _emit_hud(hud: FocusHUD, out: Path | None) -> None:
+    text = render_hud(hud)
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+        typer.echo(f"Wrote Focus HUD to {out.resolve()}")
+        typer.echo("Open that file in the editor and use Markdown preview to see the diagram.")
+    typer.echo(text)

@@ -74,10 +74,12 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 | Feature | Purpose | Status |
 |---|---|---|
-| `focus audit --local` | Git diff → changed files → reverse BFS → HUD | ✅ on branch |
-| Danger Zone scorer | Flag API routes, schemas, high fan-out nodes | ✅ path + fan-out |
-| Smart triggers | Skip diagram for docs-only / isolated / test-only | ✅ Phase 2 cut |
-| Focus HUD v1 | Executive summary + Mermaid + bulleted blast radius | ✅ (from Phase 1) |
+| `focus audit --local` | Git diff → changed files → reverse BFS → HUD | ✅ |
+| Danger Zone scorer | Flag API routes, schemas, high fan-out nodes | ✅ path + fan-out + `.focus.toml` |
+| Smart triggers | Skip diagram for docs/comments/test/isolated | ✅ |
+| Focus HUD v1 | Executive summary + Mermaid + bulleted blast radius | ✅ |
+| IDE preview (`--out`) | Write HUD markdown for editor Mermaid preview | ✅ |
+| Symbol-aware diff | Report touched defs; comments-only → pass-through | ✅ |
 
 ---
 

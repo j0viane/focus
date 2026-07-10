@@ -52,6 +52,7 @@ def should_emit_diagram(
     has_downstream: bool,
     downstream_file_count: int = 0,
     graph=None,
+    fan_out_threshold: int | None = None,
 ) -> bool:
     """Return True when the change set warrants a full Focus HUD + Mermaid."""
     if not changed_paths or not python_seeds:
@@ -61,10 +62,14 @@ def should_emit_diagram(
     if all(_is_test_path(path) for path in python_seeds):
         return False
 
+    danger_kwargs = {}
+    if fan_out_threshold is not None:
+        danger_kwargs["fan_out_threshold"] = fan_out_threshold
+
     # Layer 1 / 4 — path Danger Zone or TRIGGERS path rule on a seed.
     if any(hits_diagram_path_rule(path) for path in python_seeds):
         return True
-    if any(is_danger_zone(path, graph) for path in python_seeds):
+    if any(is_danger_zone(path, graph, **danger_kwargs) for path in python_seeds):
         return True
 
     # Shared package layouts always get a diagram when touched.

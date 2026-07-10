@@ -32,7 +32,12 @@ def _glass_box_repo(tmp_path: Path, glass_box_path: Path) -> Path:
 def test_audit_local_auth_change_is_critical(tmp_path: Path, glass_box_path: Path):
     repo = _glass_box_repo(tmp_path, glass_box_path)
     auth = repo / "auth_utils.py"
-    auth.write_text(auth.read_text() + "\n# touch\n")
+    auth.write_text(
+        auth.read_text().replace(
+            "return token == FIXTURE_SECRET",
+            "return token == FIXTURE_SECRET  # audited",
+        )
+    )
 
     hud = audit_local(repo, base="main")
     assert hud.mode == "full"
@@ -41,6 +46,7 @@ def test_audit_local_auth_change_is_critical(tmp_path: Path, glass_box_path: Pat
     assert any(n.path == "api/routes.py" for n in hud.danger_zones)
     assert any(n.path == "auth_utils.py" for n in hud.danger_zones)
     assert any("fan-out" in n.reason for n in hud.danger_zones if n.path == "auth_utils.py")
+    assert any(s.name == "validate_token" for s in hud.changed_symbols)
 
 
 def test_audit_local_docs_only_is_pass_through(tmp_path: Path, glass_box_path: Path):
@@ -53,10 +59,22 @@ def test_audit_local_docs_only_is_pass_through(tmp_path: Path, glass_box_path: P
     assert hud.mermaid is None
 
 
+def test_audit_local_comment_only_is_pass_through(tmp_path: Path, glass_box_path: Path):
+    repo = _glass_box_repo(tmp_path, glass_box_path)
+    auth = repo / "auth_utils.py"
+    auth.write_text(auth.read_text() + "\n# comment only\n")
+
+    hud = audit_local(repo, base="main")
+    assert hud.mode == "pass_through"
+    assert "comments" in hud.summary.lower()
+
+
 def test_audit_local_isolated_non_danger_is_pass_through(tmp_path: Path, glass_box_path: Path):
     repo = _glass_box_repo(tmp_path, glass_box_path)
     views = repo / "dashboard" / "views.py"
-    views.write_text(views.read_text() + "\n# touch\n")
+    views.write_text(
+        views.read_text().replace('return "Session active"', 'return "Session active!"')
+    )
 
     hud = audit_local(repo, base="main")
     assert hud.mode == "pass_through"
@@ -67,9 +85,13 @@ def test_audit_local_isolated_non_danger_is_pass_through(tmp_path: Path, glass_b
 def test_audit_local_danger_seed_without_downstream_is_full(tmp_path: Path, glass_box_path: Path):
     repo = _glass_box_repo(tmp_path, glass_box_path)
     routes = repo / "api" / "routes.py"
-    routes.write_text(routes.read_text() + "\n# touch\n")
+    routes.write_text(
+        routes.read_text().replace(
+            "return charge_user(user_id, token, amount_cents)",
+            "return charge_user(user_id, token, amount_cents)  # x",
+        )
+    )
 
-    # api/routes.py is a Danger Zone seed → full HUD even with no downstream.
     hud = audit_local(repo, base="main")
     assert hud.mode == "full"
     assert any(n.path == "api/routes.py" for n in hud.danger_zones)
@@ -77,11 +99,23 @@ def test_audit_local_danger_seed_without_downstream_is_full(tmp_path: Path, glas
 
 def test_audit_cli_local(tmp_path: Path, glass_box_path: Path):
     repo = _glass_box_repo(tmp_path, glass_box_path)
-    (repo / "auth_utils.py").write_text((repo / "auth_utils.py").read_text() + "\n# touch\n")
-    result = runner.invoke(app, ["audit", "--local", "--path", str(repo)])
+    auth = repo / "auth_utils.py"
+    auth.write_text(
+        auth.read_text().replace(
+            "return token == FIXTURE_SECRET",
+            "return token == FIXTURE_SECRET  # audited",
+        )
+    )
+    out = tmp_path / "hud.md"
+    result = runner.invoke(
+        app,
+        ["audit", "--local", "--path", str(repo), "--out", str(out)],
+    )
     assert result.exit_code == 0
     assert "## Focus" in result.output
     assert "```mermaid" in result.output
+    assert out.is_file()
+    assert "```mermaid" in out.read_text()
 
 
 def test_audit_requires_local_flag():

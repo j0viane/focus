@@ -48,9 +48,13 @@ uv run focus --help
 uv run focus scan .
 uv run focus trace src/focus/models.py
 uv run focus audit --local
+uv run focus audit --local --out focus-hud.md
 ```
 
-`focus audit --local` diffs your working tree against `main` and prints a Focus HUD for the blast radius of those changes.
+`focus audit --local` diffs your working tree against `main` and prints a Focus HUD.  
+`--out focus-hud.md` also writes that HUD to a file — open it in the editor and use **Markdown preview** to see the Mermaid diagram (works in Cursor and VS Code).
+
+Optional repo config: copy [`.focus.toml.example`](.focus.toml.example) to `.focus.toml` to tune `fan_out_threshold` (when a shared module becomes a Danger Zone).
 
 Requirements: Python 3.12+, [`uv`](https://docs.astral.sh/uv/) (or `pip`). Tree-sitter grammars arrive with the parser in Phase 1.
 
