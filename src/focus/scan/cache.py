@@ -3,7 +3,7 @@
 Unchanged source bytes reuse the prior Tree-sitter extraction. The cache
 stores derived facts only (safe to delete). Layout::
 
-    <root>/.focus-cache/v1/<sha256>.json
+    <root>/.focus-cache/v2/<sha256>.json
 
 ``CACHE_SCHEMA_VERSION`` is part of the path so parser upgrades miss
 stale entries instead of loading incompatible JSON.
@@ -19,7 +19,7 @@ from focus.models import ModuleFacts
 from focus.scan.parser import parse_source
 
 CACHE_DIR_NAME = ".focus-cache"
-CACHE_SCHEMA_VERSION = "v1"
+CACHE_SCHEMA_VERSION = "v2"
 
 
 def cache_dir_for(root: Path) -> Path:
