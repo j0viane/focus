@@ -17,7 +17,11 @@ FOCUS_COMMENT_MARKER = "<!-- focus-hud -->"
 
 
 def render_pr_comment(hud_markdown: str) -> str:
-    """Wrap HUD markdown for a PR comment (docs/HUD.md contract)."""
+    """Wrap HUD markdown for a PR comment (docs/HUD.md contract).
+
+    Always includes ``FOCUS_COMMENT_MARKER`` so CI can find and update
+    the same comment on later runs instead of posting duplicates.
+    """
     body = hud_markdown.strip()
     footer = (
         "\n\n---\n"
