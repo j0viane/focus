@@ -1,0 +1,1 @@
+"""Focus — architectural diagnostic engine."""

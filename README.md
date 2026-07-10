@@ -2,7 +2,7 @@
 
 Focus is an **architectural diagnostic engine** — an "AR HUD for codebases." It transforms opaque legacy repositories into transparent **Glass Box** environments so developers can see the logic strings of a system before they make a change.
 
-> **Status:** Phase 0 complete — Phase 1 starting. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status:** Phase 1 in progress — CLI scaffold landed; parser, graph, and HUD are being built in the open. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -76,8 +76,8 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 
 | Phase | Goal |
 |---|---|
-| **0** *(now)* | Stack decisions, HUD schema, trigger rules, learning docs |
-| **1** | Python CLI: `focus scan` + `focus trace` on one language (Python) |
+| **0** *(complete)* | Stack decisions, HUD schema, trigger rules, learning docs |
+| **1** *(now)* | Python CLI: `focus scan` + `focus trace` on one language (Python) |
 | **2** | Blast radius engine + `focus audit --local` + Mermaid HUD |
 | **3** | JS/TS parsers, smart triggers, GitHub Action |
 
@@ -87,19 +87,23 @@ Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Getting started
 
-> Application code is not yet committed. Check back after Phase 0 completes.
-
-When Phase 1 lands:
+> Phase 1 is in progress. The CLI installs and runs; `scan` and `trace` land as Phase 1 progresses — until then `focus scan` exits with "not implemented" rather than pretending to work.
 
 ```bash
 git clone https://github.com/j0viane/focus.git
 cd focus
-pip install -e ".[dev]"   # or uv sync
-focus scan .
-focus trace path/to/file.py
+uv sync            # or: pip install -e .
+uv run focus --help
+uv run focus version
 ```
 
-Requirements (planned): Python 3.12+, `uv` or `pip`, Tree-sitter language grammars.
+Requirements: Python 3.12+, [`uv`](https://docs.astral.sh/uv/) (or `pip`). Tree-sitter grammars arrive with the parser in Phase 1.
+
+Run the tests:
+
+```bash
+uv run pytest
+```
 
 ---
 
@@ -126,7 +130,7 @@ Focus is **passive enablement** — it informs reviewers; it never blocks merges
 
 ## License
 
-TBD — will add before first application code release.
+[MIT](LICENSE)
 
 ---
 
