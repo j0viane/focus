@@ -6,8 +6,10 @@ from typing import Annotated
 
 import typer
 
+from focus.audit import audit_local
 from focus.graph import build_graph, downstream_rings
 from focus.hud import build_hud, render_hud
+from focus.ingest import GitDiffError
 from focus.scan import discover_python_files, parse_module
 
 app = typer.Typer(
@@ -77,4 +79,32 @@ def trace(
 
     rings = downstream_rings(graph, target)
     hud = build_hud(graph, target, rings)
+    typer.echo(render_hud(hud))
+
+
+@app.command()
+def audit(
+    local: Annotated[
+        bool,
+        typer.Option("--local", help="Audit working tree + index vs a base branch."),
+    ] = False,
+    base: Annotated[
+        str,
+        typer.Option(help="Git base ref to diff against (default: main)."),
+    ] = "main",
+    path: Annotated[
+        Path,
+        typer.Option(exists=True, file_okay=False, help="Repository root to audit."),
+    ] = Path("."),
+) -> None:
+    """Pre-merge blast radius for local changes (Phase 2) or a PR (Phase 3)."""
+    if not local:
+        typer.echo("Pass --local to audit your working tree. PR audit lands in Phase 3.")
+        raise typer.Exit(2)
+
+    try:
+        hud = audit_local(path, base=base)
+    except GitDiffError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1) from None
     typer.echo(render_hud(hud))

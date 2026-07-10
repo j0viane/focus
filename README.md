@@ -4,7 +4,7 @@ Focus answers one question before you merge: **what else in this codebase could 
 
 It's an **AR HUD for codebases**: it maps how the pieces of a repository connect — imports, calls, API routes, schemas — and shows the blast radius of a change before it merges.
 
-> **Status:** Phase 1 complete — `focus scan` + `focus trace` (HUD with Mermaid) work on Python repos. Phase 2 builds `audit` and smart triggers. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status:** Phase 2 in progress — `focus audit --local` audits your working tree vs `main`. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -47,9 +47,10 @@ uv sync            # or: pip install -e .
 uv run focus --help
 uv run focus scan .
 uv run focus trace src/focus/models.py
+uv run focus audit --local
 ```
 
-That last command is Focus tracing its own codebase — every file that depends on `models.py`, ring by ring.
+`focus audit --local` diffs your working tree against `main` and prints a Focus HUD for the blast radius of those changes.
 
 Requirements: Python 3.12+, [`uv`](https://docs.astral.sh/uv/) (or `pip`). Tree-sitter grammars arrive with the parser in Phase 1.
 
@@ -121,7 +122,7 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 | `focus scan [path]` | Full-repo AST index + dependency map | 🟡 Works today: indexes imports, definitions, and calls per file; dependency map lands next |
 | `focus trace [file]` | Focus HUD for a file: summary, Mermaid map, blast radius | ✅ Works today (text + Mermaid); smart triggers land in Phase 2 |
 | `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ⬜ Phase 2 |
-| `focus audit --local` | Pre-flight against working tree vs `main` | ⬜ Phase 2 |
+| `focus audit --local` | Pre-flight against working tree vs `main` | 🟡 Works on this branch — git diff → blast radius HUD |
 | `focus version` | Print the installed version | ✅ |
 
 ---

@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 1 complete (scan + trace HUD); Phase 2 next — `focus audit --local`, Danger Zone polish, smart triggers
+**Current phase:** Phase 2 in progress on `feat/phase2-audit-local` — `focus audit --local` landed; Danger Zone polish + trigger tuning next
 
 ---
 
@@ -72,12 +72,12 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 ## Phase 2 — Blast Radius Engine
 
-| Feature | Purpose |
-|---|---|
-| `focus audit --local` | Git diff → changed symbols → reverse BFS |
-| Danger Zone scorer | Flag API routes, schemas, high fan-out nodes |
-| Smart triggers | Skip diagram for markdown/CSS/isolated utils |
-| Focus HUD v1 | Executive summary + Mermaid + bulleted blast radius |
+| Feature | Purpose | Status |
+|---|---|---|
+| `focus audit --local` | Git diff → changed files → reverse BFS → HUD | 🟡 on branch |
+| Danger Zone scorer | Flag API routes, schemas, high fan-out nodes | 🟡 path heuristics; fan-out polish next |
+| Smart triggers | Skip diagram for docs-only / isolated non-danger utils | 🟡 first cut |
+| Focus HUD v1 | Executive summary + Mermaid + bulleted blast radius | ✅ (from Phase 1) |
 
 ---
 

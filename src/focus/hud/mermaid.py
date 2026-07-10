@@ -16,15 +16,20 @@ import networkx as nx
 MAX_NODES = 15
 
 
-def render_mermaid(graph: nx.DiGraph, seed: str, rings: list[tuple[int, list[str]]]) -> str:
-    """Build a Mermaid flowchart for the seed and its blast radius."""
-    nodes = _select_nodes(seed, rings)
+def render_mermaid(
+    graph: nx.DiGraph,
+    seed: str | list[str],
+    rings: list[tuple[int, list[str]]],
+) -> str:
+    """Build a Mermaid flowchart for seed(s) and blast radius."""
+    seeds = [seed] if isinstance(seed, str) else list(seed)
+    nodes = _select_nodes(seeds, rings)
     impact_edges = _impact_edges(graph, nodes)
     lines = [
         "flowchart LR",
         "  %% Nodes = files. Arrow = change flows to (is used by).",
     ]
-    lines.extend(_subgraph_blocks(nodes, seed))
+    lines.extend(_subgraph_blocks(nodes, set(seeds)))
     for src, dst in impact_edges:
         lines.append(f"  {_node_id(src)} --> {_node_id(dst)}")
     return "\n".join(lines)
@@ -54,19 +59,21 @@ def validate_mermaid_edges(graph: nx.DiGraph, mermaid: str) -> list[str]:
     return invalid
 
 
-def _select_nodes(seed: str, rings: list[tuple[int, list[str]]]) -> list[str]:
-    ordered = [seed]
+def _select_nodes(seeds: list[str], rings: list[tuple[int, list[str]]]) -> list[str]:
+    ordered = list(seeds)
     for _, paths in rings:
-        ordered.extend(paths)
+        for path in paths:
+            if path not in ordered:
+                ordered.append(path)
     if len(ordered) <= MAX_NODES:
         return ordered
-    # Prefer seed + nearer rings; drop farthest files first.
-    kept = [seed]
+    kept = list(seeds)
     for _, paths in rings:
         for path in paths:
             if len(kept) >= MAX_NODES:
                 return kept
-            kept.append(path)
+            if path not in kept:
+                kept.append(path)
     return kept
 
 
@@ -80,7 +87,7 @@ def _impact_edges(graph: nx.DiGraph, nodes: list[str]) -> list[tuple[str, str]]:
     return sorted(edges)
 
 
-def _subgraph_blocks(nodes: list[str], seed: str) -> list[str]:
+def _subgraph_blocks(nodes: list[str], seeds: set[str]) -> list[str]:
     groups: dict[str, list[str]] = defaultdict(list)
     for path in nodes:
         groups[_layer(path)].append(path)
@@ -90,7 +97,7 @@ def _subgraph_blocks(nodes: list[str], seed: str) -> list[str]:
         sid = _safe_id(layer)
         lines.append(f"  subgraph {sid} [{_label(layer)}]")
         for path in sorted(paths):
-            marker = " ⭐" if path == seed else ""
+            marker = " ⭐" if path in seeds else ""
             lines.append(f'    {_node_id(path)}["{path}{marker}"]')
         lines.append("  end")
     return lines
