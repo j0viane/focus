@@ -17,6 +17,7 @@ def test_discovers_all_fixture_files(glass_box_path: Path) -> None:
         "auth_utils.py",
         "billing/service.py",
         "dashboard/views.py",
+        "jobs/worker.py",
     ]
 
 

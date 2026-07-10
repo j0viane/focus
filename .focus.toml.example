@@ -1,6 +1,7 @@
 # Optional Focus config — copy to `.focus.toml` at your repo root.
-# Missing file = defaults (fan_out_threshold = 2).
+# Missing file = defaults (fan_out_threshold = 3).
 
 [focus]
-# A file becomes a Danger Zone when this many other files import it directly.
-fan_out_threshold = 2
+# A file becomes a Danger Zone when this many other files import it directly
+# (package __init__.py files are never Danger Zones via fan-out alone).
+fan_out_threshold = 3

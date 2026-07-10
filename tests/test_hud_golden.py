@@ -30,6 +30,7 @@ def test_auth_utils_full_hud(glass_box_path: Path):
     down_paths = {n.path for n in hud.downstream}
     assert "billing/service.py" in down_paths
     assert "dashboard/views.py" in down_paths
+    assert "jobs/worker.py" in down_paths
     assert hud.caveat is not None
 
 
@@ -39,6 +40,7 @@ def test_auth_utils_is_high_fan_out_danger(glass_box_path: Path):
     assert is_danger_zone("auth_utils.py", graph) is True
     assert is_danger_zone("billing/service.py", graph) is False
     assert is_danger_zone("dashboard/views.py", graph) is False
+    assert is_danger_zone("jobs/worker.py", graph) is False
 
 
 def test_routes_pass_through(glass_box_path: Path):

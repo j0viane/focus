@@ -14,6 +14,7 @@ from focus.hud.classify import (
     is_danger_path,
     is_danger_zone,
     score_risk,
+    shared_hub_reason,
 )
 from focus.hud.mermaid import render_mermaid, validate_mermaid_edges
 from focus.ingest import changed_files, changed_python_files
@@ -148,17 +149,18 @@ def _full_audit_hud(
     *,
     fan_out_threshold: int,
 ) -> FocusHUD:
-    danger, downstream = classify_impacts(rings, graph, fan_out_threshold=fan_out_threshold)
+    danger, downstream = classify_impacts(
+        rings,
+        graph,
+        fan_out_threshold=fan_out_threshold,
+        seeds=seeds,
+    )
     for seed in seeds:
         if is_danger_zone(seed, graph, fan_out_threshold=fan_out_threshold):
-            fans = graph.in_degree(seed) if seed in graph else 0
             if is_danger_path(seed):
                 reason = "You changed an API, schema, or config file."
             else:
-                reason = (
-                    f"You changed a shared module — {fans} other files import it "
-                    f"directly (threshold is {fan_out_threshold})."
-                )
+                reason = shared_hub_reason(graph, seed, changed=True)
             danger.insert(
                 0,
                 ImpactNode(

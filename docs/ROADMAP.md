@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 3 on `feat/phase3-github-action` — GitHub Action posts Focus HUD on PRs; JS/TS + LLM labels still later
+**Current phase:** Phase 3 — Action + PR-range audit on `main`; blast-radius signal polish on `feat/blast-radius-signal`; JS/TS + LLM labels still later
 
 ---
 
@@ -87,8 +87,9 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 | Feature | Purpose | Status |
 |---|---|---|
-| GitHub Action | `focus audit` on PR open/sync → PR comment | 🟡 on this branch |
-| PR-range audit | `focus audit --base <sha>` uses `base...HEAD` | 🟡 on this branch |
+| GitHub Action | `focus audit` on PR open/sync → PR comment | ✅ |
+| PR-range audit | `focus audit --base <sha>` uses `base...HEAD` | ✅ |
+| Blast-radius signal polish | Quieter Danger Zones; reasons name real importers | 🟡 |
 | JS/TS Tree-sitter grammar | Web repo support | ⬜ |
 | LLM label pass | Business-meaningful node names from graph JSON | ⬜ |
 | Parse cache | File-hash keyed AST cache for speed | ⬜ |

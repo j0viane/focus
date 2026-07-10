@@ -18,6 +18,7 @@ def test_glass_box_edges_are_exact(glass_box_path: Path):
     assert set(graph.edges()) == {
         ("billing/service.py", "auth_utils.py"),
         ("dashboard/views.py", "auth_utils.py"),
+        ("jobs/worker.py", "auth_utils.py"),
         ("api/routes.py", "billing/service.py"),
     }
     assert set(graph.nodes()) == {
@@ -25,13 +26,14 @@ def test_glass_box_edges_are_exact(glass_box_path: Path):
         "auth_utils.py",
         "billing/service.py",
         "dashboard/views.py",
+        "jobs/worker.py",
     }
 
 
 def test_blast_radius_rings_for_auth_utils(glass_box_path: Path):
     graph = _glass_box_graph(glass_box_path)
     assert downstream_rings(graph, "auth_utils.py") == [
-        (1, ["billing/service.py", "dashboard/views.py"]),
+        (1, ["billing/service.py", "dashboard/views.py", "jobs/worker.py"]),
         (2, ["api/routes.py"]),
     ]
 
