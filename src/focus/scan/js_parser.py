@@ -1,6 +1,6 @@
 """Tree-sitter extraction for JavaScript and TypeScript.
 
-Maps ESM `import` / `export` and CommonJS `require(...)` into the same
+Maps ESM import/export and CommonJS require(...) into the same
 ``Import`` / ``Definition`` / ``CallSite`` models Python uses. Only
 literals written in the file are recorded — no module resolution here.
 """
