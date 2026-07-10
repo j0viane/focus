@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="320" viewBox="0 0 960 320">
+<rect width="960" height="320" fill="#0f1419"/>
+<text x="40" y="48" fill="#e8eef7" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="24" font-weight="600">How Focus works</text>
+<rect x="40" y="90" width="200" height="160" rx="8" fill="#1a2332" stroke="#2a3a4f"/>
+<text x="140" y="150" text-anchor="middle" fill="#7dd3c0" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="16" font-weight="600">1. Scan</text>
+<text x="140" y="180" text-anchor="middle" fill="#9aa8bc" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="13">Parse imports</text>
+<text x="140" y="200" text-anchor="middle" fill="#9aa8bc" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="13">Python + JS/TS</text>
+<text x="260" y="170" fill="#4a6a8a" font-size="28">→</text>
+<rect x="300" y="90" width="200" height="160" rx="8" fill="#1a2332" stroke="#2a3a4f"/>
+<text x="400" y="150" text-anchor="middle" fill="#7dd3c0" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="16" font-weight="600">2. Graph</text>
+<text x="400" y="180" text-anchor="middle" fill="#9aa8bc" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="13">Evidence-only edges</text>
+<text x="400" y="200" text-anchor="middle" fill="#9aa8bc" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="13">No invented topology</text>
+<text x="520" y="170" fill="#4a6a8a" font-size="28">→</text>
+<rect x="560" y="90" width="200" height="160" rx="8" fill="#1a2332" stroke="#2a3a4f"/>
+<text x="660" y="150" text-anchor="middle" fill="#7dd3c0" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="16" font-weight="600">3. HUD</text>
+<text x="660" y="180" text-anchor="middle" fill="#9aa8bc" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="13">Mermaid + Danger Zones</text>
+<text x="660" y="200" text-anchor="middle" fill="#9aa8bc" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="13">CLI and PR comment</text>
+<text x="780" y="170" fill="#4a6a8a" font-size="28">→</text>
+<rect x="820" y="90" width="100" height="160" rx="8" fill="#2a1810" stroke="#c45c26"/>
+<text x="870" y="165" text-anchor="middle" fill="#e07a3a" font-family="IBM Plex Sans, Helvetica, Arial, sans-serif" font-size="14" font-weight="600">Decide</text>
+</svg>

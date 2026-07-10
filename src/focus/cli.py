@@ -15,7 +15,7 @@ from focus.scan import cache_dir_for, discover_source_files, parse_module_cached
 
 app = typer.Typer(
     name="focus",
-    help="Architectural diagnostic engine — blast radius before merge.",
+    help="Blast radius you can defend — evidence-only, before you merge.",
     no_args_is_help=True,
 )
 
@@ -23,7 +23,7 @@ app = typer.Typer(
 @app.command()
 def version() -> None:
     """Print the installed Focus version."""
-    typer.echo(package_version("focus"))
+    typer.echo(package_version("focus-hud"))
 
 
 @app.command()

@@ -3,13 +3,25 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "focus"
-version = "0.0.1"
-description = "Architectural diagnostic engine — blast radius before merge."
+name = "focus-hud"
+version = "0.1.0"
+description = "Blast radius you can defend — evidence-only, before you merge."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
+authors = [{ name = "Joviane Bellegarde" }]
+keywords = ["blast-radius", "architecture", "code-review", "mermaid", "static-analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "networkx>=3.6.1",
     "pydantic>=2.13.4",
@@ -18,6 +30,12 @@ dependencies = [
     "tree-sitter-typescript>=0.23.2",
     "typer>=0.26",
 ]
+
+[project.urls]
+Homepage = "https://github.com/j0viane/focus"
+Repository = "https://github.com/j0viane/focus"
+Issues = "https://github.com/j0viane/focus/issues"
+Documentation = "https://github.com/j0viane/focus/blob/main/docs/DEMO.md"
 
 [project.scripts]
 focus = "focus.cli:app"

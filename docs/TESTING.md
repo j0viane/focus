@@ -203,11 +203,13 @@ glass_box_js/
 
 ## Manual testing checklist (pre-release)
 
-- [ ] `focus scan .` on fixture repo completes < 30s
-- [ ] `focus trace` HUD matches expected downstream set
-- [ ] `focus audit --local` on branch with auth change → diagram
-- [ ] Markdown-only branch → pass-through
-- [ ] No secrets in stdout at `-v` verbose level
+- [x] `focus scan .` on fixture repo completes < 30s
+- [x] `focus trace` HUD matches expected downstream set
+- [x] `focus audit --local` on branch with auth change → diagram
+- [x] Markdown-only branch → pass-through
+- [x] No secrets in stdout at `-v` verbose level
+- [x] Nested scan root inside a git repo discovers package files (`test_nested_scan_root_inside_git_repo`)
+- [x] Gallery assets under `docs/assets/` for launch
 
 ---
 

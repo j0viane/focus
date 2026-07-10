@@ -4,6 +4,10 @@ Ignore rules are delegated to git itself: `git ls-files` already knows
 every .gitignore semantic (nested files, negations, global excludes),
 so Focus never reimplements them. Outside a git repo, every matching
 source file is included.
+
+When the scan root is a subdirectory of a git work tree, paths from
+``git ls-files`` (repo-relative) are rewritten relative to that root so
+nested packages still resolve.
 """
 
 from __future__ import annotations
@@ -50,8 +54,28 @@ def discover_source_files(
 def _git_listed_files(root: Path) -> list[str] | None:
     """File paths relative to `root` per git, or None outside a git repo."""
     try:
+        top = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return None
+    if top.returncode != 0:
+        return None
+    toplevel = Path(top.stdout.strip()).resolve()
+
+    try:
         result = subprocess.run(
-            ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard"],
+            [
+                "git",
+                "-C",
+                str(toplevel),
+                "ls-files",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+            ],
             capture_output=True,
             text=True,
         )
@@ -59,4 +83,18 @@ def _git_listed_files(root: Path) -> list[str] | None:
         return None
     if result.returncode != 0:
         return None
-    return result.stdout.splitlines()
+
+    rel_root = root.relative_to(toplevel).as_posix() if root != toplevel else ""
+    out: list[str] = []
+    for name in result.stdout.splitlines():
+        if not name:
+            continue
+        if rel_root:
+            prefix = rel_root + "/"
+            if name == rel_root:
+                continue
+            if not name.startswith(prefix):
+                continue
+            name = name[len(prefix) :]
+        out.append(name)
+    return out
