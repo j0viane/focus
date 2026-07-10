@@ -1,0 +1,47 @@
+# Drop-in Focus HUD for any repository.
+# Copy to: .github/workflows/focus.yml
+#
+# Installs the published package (focus-hud) and posts/updates a PR comment.
+# Permissions: contents:read (checkout) + pull-requests:write (comment only).
+# See https://github.com/j0viane/focus/blob/main/docs/PRIVACY.md
+
+name: Focus
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  hud:
+    name: Focus HUD
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Focus
+        # PyPI: pip install "focus-hud>=0.1.0"  (after first publish — see docs/PUBLISH.md)
+        run: pip install "focus-hud @ git+https://github.com/j0viane/focus.git@main"
+
+      - name: Run Focus audit
+        env:
+          FOCUS_BASE: ${{ github.event.pull_request.base.sha }}
+        run: focus audit --base "$FOCUS_BASE" --out focus-hud.md
+
+      - name: Post or update PR comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FOCUS_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python -c "from pathlib import Path; from focus.ci import post_from_env; print(post_from_env(Path('focus-hud.md')))"

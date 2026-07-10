@@ -1,80 +1,83 @@
 # Focus
 
-Focus answers one question before you merge: **what else in this codebase could break because of this change?**
+**Blast radius you can defend — evidence-only, before you merge.**
 
-It's an **AR HUD for codebases**: it maps how the pieces of a repository connect — imports, calls, API routes, schemas — and shows the blast radius of a change before it merges.
+Focus answers one question: **what else in this codebase could break because of this change?**
 
-> **Status:** Phase 3 complete — evidence-based blast radius (Python + JS/TS), GitHub Action, parse cache. No LLM labels. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+It's an **AR HUD for codebases**: a computed import graph (Python + JS/TS) → Mermaid map + Danger Zones. Same HUD in the CLI and on the PR. No LLM inventing edges.
+
+> **Not** another AI PR summary. **Not** a hop inventory that cries wolf on every file. Focus stays quiet when the change is boring, and loud when you touch a shared hub.
+
+---
+
+## Try in 60 seconds
+
+```bash
+pip install "focus-hud @ git+https://github.com/j0viane/focus.git"
+# after PyPI publish:  pip install focus-hud
+
+focus trace path/to/shared_module.py --out focus-hud.md
+# open focus-hud.md → Markdown preview for Mermaid
+
+focus audit --local --out focus-hud.md   # working tree vs main — before you push
+```
+
+**Demo fixture (no app required):**
+
+```bash
+git clone https://github.com/j0viane/focus.git && cd focus
+uv sync
+uv run focus trace tests/fixtures/glass_box/auth_utils.py \
+  --root tests/fixtures/glass_box --out focus-hud.md
+```
+
+Gallery + walkthrough: [`docs/DEMO.md`](docs/DEMO.md) · [`docs/assets/`](docs/assets/)
 
 ---
 
 ## Why this exists
 
-There's a new kind of pressure on developers — and it lands hardest on juniors: walk into a codebase you've never seen, point an AI at it, and ship. Developers used to build a mental map of a system by debugging it the old-fashioned way: tracing calls, breaking things, fixing them. That process has been compressed into a prompt. The code now arrives in seconds. The understanding doesn't.
+There's a new kind of pressure on developers — and it lands hardest on juniors: walk into a codebase you've never seen, point an AI at it, and ship. The code arrives in seconds. The understanding doesn't.
 
-Focus exists for the moment right before you commit and push to a codebase that was there long before you. It shows two things, with evidence: **what the system looks like right now, and what your proposed change will actually touch** — who imports this function, which API routes break, which schemas drift. That's the difference between "the AI wrote it and it seems fine" and "I checked — here's the map." Confidence you can defend in review, whether you're a junior shipping your first AI-assisted PR or a senior reviewing your tenth one today. And the stakes are real: catching a missed dependency before merge costs minutes; catching it after costs the week.
+Focus is for the moment right before you push into a codebase that was there long before you. **What the system looks like, and what your change will actually touch** — with evidence you can defend in review.
 
-Existing tools dump 1,000-word summaries onto PRs. Focus replaces text walls with **evidence-based visual clarity**:
-
-- **Focus Scan** — Tree-sitter parses the full repo and maps structural nodes (imports, calls, routes, schemas).
-- **Blast Radius Engine** — Simulates ripple effects of a proposed change; highlights Danger Zones before merge.
-- **Focus HUD** — Executive summary + Mermaid dependency map + bulleted blast radius report.
-
----
-
-## When you'd use it
-
-| The moment | What you'd do | What you get |
+| Moment | Command | You get |
 |---|---|---|
-| Your AI assistant just rewrote a shared function | `focus audit --local` before you push | The blast radius of your working tree vs `main` — before anyone else sees the PR |
-| An 800-line AI-generated PR lands in your review queue | Read the Focus HUD on the PR | A skim-or-dig decision in one glance: diagram + Danger Zones, or a one-line "low impact" |
-| You inherited a module and need to change it | `focus trace path/to/file.py` | Everything that depends on that file, before you touch it |
-| You're renaming or moving a shared utility | `focus trace`, then `focus audit --local` | Every consumer of that symbol, so the refactor surprises no one |
-| A migration or API route changes | `focus audit` on the branch | Which parts of the app actually reach that schema or endpoint |
-
-Commands: `scan`, `trace`, and `audit` work today; PRs get a Focus HUD comment via the shipped GitHub Action. Walkthrough + saved HUDs: [`docs/DEMO.md`](docs/DEMO.md).
+| AI rewrote a shared function | `focus audit --local` | Blast radius of your working tree vs `main` |
+| Big PR in your queue | Focus Action comment | Skim-or-dig: diagram + Danger Zones, or “low impact” |
+| Inherited a module | `focus trace path/to/file.py` | Everything that depends on it |
 
 ---
 
-## Getting started
+## GitHub Action (any repo)
 
-> Core loop: `focus scan` indexes the repo, `focus trace` prints a Focus HUD, `focus audit --local` checks your working tree before you push.
+Copy [`examples/focus-action.yml`](examples/focus-action.yml) → `.github/workflows/focus.yml`.  
+Details: [`docs/ACTION.md`](docs/ACTION.md). Permissions: `contents: read` + `pull-requests: write` only ([`docs/PRIVACY.md`](docs/PRIVACY.md)).
+
+---
+
+## Already exists? (CodeLayers, Valerian, …)
+
+Editor tools show hop lists while you type. Focus is **pre-merge decision support**: evidence-only topology, Danger Zones + smart triggers, **one HUD** from `audit --local` to the PR comment. Open source, local, no architecture backend required.
+
+---
+
+## Getting started (from this repo)
 
 ```bash
 git clone https://github.com/j0viane/focus.git
 cd focus
-uv sync            # or: pip install -e .
-uv run focus --help
+uv sync
 uv run focus scan .
-uv run focus trace src/focus/models.py
+uv run focus trace src/focus/models.py --out focus-hud.md
 uv run focus audit --local
-uv run focus audit --local --out focus-hud.md
 ```
 
-**Try the demo fixtures** (good for screenshots):
+Unchanged files reuse **`.focus-cache/`** (gitignored). Pass `--no-cache` to force a full re-parse.
 
-```bash
-uv run focus trace tests/fixtures/glass_box/auth_utils.py --root tests/fixtures/glass_box --out focus-hud.md
-```
+Optional: copy [`.focus.toml.example`](.focus.toml.example) → `.focus.toml` to tune `fan_out_threshold` (default **3**).
 
-Open `focus-hud.md` in Markdown preview to see Mermaid. More examples: [`docs/DEMO.md`](docs/DEMO.md).
-
-`focus audit --local` diffs your working tree against `main` and prints a Focus HUD.  
-`--out focus-hud.md` also writes that HUD to a file — open it in the editor and use **Markdown preview** to see the Mermaid diagram (works in Cursor and VS Code).
-
-Unchanged files are re-used from a local **`.focus-cache/`** (gitignored). Pass `--no-cache` on `scan` / `trace` / `audit` to force a full re-parse, or delete the folder anytime.
-
-Optional repo config: copy [`.focus.toml.example`](.focus.toml.example) to `.focus.toml` to tune `fan_out_threshold` (default **3** — when a shared hub becomes a Danger Zone).
-
-### GitHub Action (PR comments)
-
-This repo ships [`.github/workflows/focus.yml`](.github/workflows/focus.yml). On pull request open/sync it runs `focus audit` against the PR base and posts (or updates) a Focus HUD comment. Permissions are `contents: read` + `pull-requests: write` only — see [`docs/PRIVACY.md`](docs/PRIVACY.md).
-
-Other repos: copy that workflow file, or install Focus and point the `uv sync` step at your package once published.
-
-Requirements: Python 3.12+, [`uv`](https://docs.astral.sh/uv/) (or `pip`). Tree-sitter grammars arrive with the parser in Phase 1.
-
-Run the tests:
+Requirements: Python 3.12+. Package name on PyPI: **`focus-hud`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ```bash
 uv run pytest
@@ -84,11 +87,7 @@ uv run pytest
 
 ## Why "Focus"?
 
-The name comes from *Horizon Zero Dawn*. The game's world was built by a civilization that is long gone, and it runs on machines no one alive fully understands. Aloy can navigate it because of her **Focus** — a small AR device that scans that inherited world and reveals what the naked eye can't: machine weak points, hidden paths, danger ahead. Intel first, decisions second.
-
-A legacy codebase is the same kind of world — built by people who have moved on, full of machinery nobody fully understands anymore. This Focus scans it and surfaces what a raw diff can't, so you make the change with intel instead of walking in blind.
-
-In other words: Aloy is the junior engineer handed a legacy codebase. The Focus is how she reads it. And fittingly, in the game's lore, the Focus was originally designed to educate the next generation about the world they inherited.
+The name comes from *Horizon Zero Dawn*. Aloy navigates an inherited world with her **Focus** — an AR device that reveals weak points and danger ahead. A legacy codebase is the same kind of world. This Focus scans it so you change it with intel, not blind faith.
 
 *Horizon Zero Dawn and Aloy belong to Guerrilla Games — no affiliation, just admiration.*
 
@@ -99,7 +98,7 @@ In other words: Aloy is the junior engineer handed a legacy codebase. The Focus 
 ```mermaid
 flowchart TB
     subgraph scan [Focus Scan]
-        TS[Tree-sitter AST Index] --> G[Dependency Graph]
+        TS[AST Index] --> G[Dependency Graph]
         G --> SURF[Surface Detector]
     end
 
@@ -123,68 +122,53 @@ flowchart TB
 | Layer | Technology |
 |---|---|
 | CLI | Python 3.12+ / Typer |
-| AST parsing | Tree-sitter (multi-language grammars) |
-| Graph | NetworkX (dependency + blast radius traversal) |
-| Diagrams | Mermaid.js (native GitHub rendering) |
-| GitHub integration | GitHub Action on PR open/sync |
-
-**Core pipeline:** Full-repo Tree-sitter index → dependency graph → diff/symbol seeds → reverse BFS blast radius → smart triggers (diagram vs summary) → Focus HUD.
-
-See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc) for non-negotiable engineering constraints.
+| AST | Python `ast` + Tree-sitter (JS/TS) |
+| Graph | NetworkX |
+| Diagrams | Mermaid (native on GitHub) |
+| CI | Opt-in GitHub Action |
 
 ---
 
 ## Commands
 
-| Command | Purpose | Status |
-|---|---|---|
-| `focus scan [path]` | Full-repo AST index (Python + JS/TS) | ✅ |
-| `focus trace [file]` | Focus HUD for a file: summary, Mermaid map, blast radius | ✅ |
-| `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ✅ `focus audit --base <sha>` (PR range) |
-| `focus audit --local` | Pre-flight against working tree vs `main` | ✅ |
-| `focus version` | Print the installed version | ✅ |
+| Command | Purpose |
+|---|---|
+| `focus scan [path]` | Index the repo (Python + JS/TS) |
+| `focus trace [file]` | HUD for one file |
+| `focus audit --local` | Working tree vs `main` |
+| `focus audit --base <sha>` | PR / branch range |
+| `focus version` | Installed version |
 
 ---
 
-## Roadmap (summary)
+## Roadmap
 
-| Phase | Goal |
-|---|---|
-| **0** *(complete)* | Stack decisions, HUD schema, trigger rules, learning docs |
-| **1** *(complete)* | Python CLI: `focus scan` + `focus trace` with Mermaid HUD |
-| **2** *(complete)* | `focus audit --local`, Danger Zone polish, smart triggers |
-| **3** *(complete)* | GitHub Action, JS/TS, parse cache — evidence-only HUD (no LLM labels) |
-
-Full detail: [`docs/ROADMAP.md`](docs/ROADMAP.md)
+Phase 3 **complete** (CLI + Action + JS/TS + cache). IDE extension and LLM labels are parked — see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
 ## Ethics & privacy
 
-- **Evidence-based** — graph topology is computed from static analysis; Focus does not use an LLM to invent edges or summarize impact
-- **Privacy-by-design** — respects `.gitignore`; secrets excluded; no source sent to third-party model APIs
-- **No surveillance** — analyzes code structure, not developer identity or velocity
-- **Opt-in GitHub Action** — minimum token scope; repos choose to install
+- **Evidence-based** — no LLM inventing edges
+- **Privacy-by-design** — respects `.gitignore`; no source to model APIs
+- **No surveillance** — structure, not developer identity
+- **Opt-in Action** — minimum token scope
 
-| Document | Contents |
+| Doc | Contents |
 |---|---|
-| [`docs/DEMO.md`](docs/DEMO.md) | Portfolio walkthrough + saved example HUDs |
-| [`docs/HUD.md`](docs/HUD.md) | Frozen HUD output schema (source of truth) |
-| [`docs/STACK.md`](docs/STACK.md) | Locked technology choices |
-| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Phase 0 resolved questions |
-| [`docs/ETHICS.md`](docs/ETHICS.md) | Responsible use, anti-weaponization, LLM ethics |
-| [`docs/PRIVACY.md`](docs/PRIVACY.md) | Data boundaries, secrets, LLM payloads, Action permissions |
-| [`docs/TRIGGERS.md`](docs/TRIGGERS.md) | Smart triggers — diagram vs pass-through |
-| [`docs/TESTING.md`](docs/TESTING.md) | Testing pyramid, golden fixtures, CI constraints |
+| [`docs/DEMO.md`](docs/DEMO.md) | Walkthrough + gallery |
+| [`docs/LAUNCH.md`](docs/LAUNCH.md) | Product Hunt / Show HN drafts |
+| [`docs/ACTION.md`](docs/ACTION.md) | Action install |
+| [`docs/HUD.md`](docs/HUD.md) | HUD schema |
+| [`docs/ETHICS.md`](docs/ETHICS.md) | Responsible use |
+| [`docs/PRIVACY.md`](docs/PRIVACY.md) | Data boundaries |
 
 ---
 
 ## License
 
-[MIT](LICENSE) © 2026 Joviane Bellegarde. Free to use, modify, and share — keep the copyright notice for credit.
-
----
+[MIT](LICENSE) © 2026 Joviane Bellegarde.
 
 ## Author
 
-Built by [Joviane Bellegarde](https://github.com/j0viane). Feedback and architecture review tips welcome via Issues.
+[Joviane Bellegarde](https://github.com/j0viane). Feedback welcome via Issues.

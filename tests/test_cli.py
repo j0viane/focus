@@ -16,7 +16,7 @@ def test_help_runs() -> None:
 def test_version_matches_pyproject() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert result.output.strip() == "0.0.1"
+    assert result.output.strip() == "0.1.0"
 
 
 def test_scan_indexes_fixture_files(glass_box_path) -> None:

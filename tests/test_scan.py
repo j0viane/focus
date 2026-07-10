@@ -32,6 +32,24 @@ def test_gitignored_files_are_excluded(tmp_path: Path) -> None:
     assert relative_names(files, tmp_path) == ["kept.py"]
 
 
+def test_nested_scan_root_inside_git_repo(tmp_path: Path) -> None:
+    """Scanning a package subdir must not join repo-relative paths twice."""
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
+    pkg = tmp_path / "earnings"
+    (pkg / "modules").mkdir(parents=True)
+    (pkg / "config.py").write_text("X = 1\n")
+    (pkg / "modules" / "data_loader.py").write_text("import config\n")
+    (tmp_path / "other.py").write_text("Z = 3\n")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+
+    files = discover_python_files(pkg)
+
+    assert relative_names(files, pkg) == [
+        "config.py",
+        "modules/data_loader.py",
+    ]
+
+
 def test_non_git_directory_falls_back_to_full_walk(tmp_path: Path) -> None:
     (tmp_path / "a.py").write_text("a = 1\n")
     (tmp_path / "pkg").mkdir()
