@@ -118,10 +118,28 @@ def test_audit_cli_local(tmp_path: Path, glass_box_path: Path):
     assert "```mermaid" in out.read_text()
 
 
-def test_audit_requires_local_flag():
-    result = runner.invoke(app, ["audit"])
-    assert result.exit_code == 2
-    assert "--local" in result.output
+def test_audit_without_local_uses_branch_range(tmp_path: Path, glass_box_path: Path):
+    """Without --local, audit diffs base...HEAD (committed PR range)."""
+    repo = _glass_box_repo(tmp_path, glass_box_path)
+    auth = repo / "auth_utils.py"
+    auth.write_text(
+        auth.read_text().replace(
+            "return token == FIXTURE_SECRET",
+            "return token == FIXTURE_SECRET  # audited",
+        )
+    )
+    _git(repo, "add", "auth_utils.py")
+    _git(repo, "commit", "-m", "change auth")
+    # Ensure we are on a branch ahead of main for range mode.
+    # _glass_box_repo already committed on main; create a feature tip.
+    # If the change was made on main, range vs main is empty — move commit to a branch.
+    _git(repo, "branch", "feature-auth")
+    _git(repo, "reset", "--hard", "HEAD~1")
+    _git(repo, "checkout", "feature-auth")
+
+    result = runner.invoke(app, ["audit", "--path", str(repo), "--base", "main"])
+    assert result.exit_code == 0
+    assert "Focus" in result.output or "risk" in result.output.lower()
 
 
 def test_trigger_helper():

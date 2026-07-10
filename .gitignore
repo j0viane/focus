@@ -31,8 +31,9 @@ htmlcov/
 *.so.dSYM/
 tree-sitter-*/
 
-# Focus parse cache (local dev)
-.focus-cache/
+# Generated Focus HUD previews
+focus-hud.md
+
 
 # Focus path exclusions (optional)
 # .focusignore is respected at runtime; not gitignored itself

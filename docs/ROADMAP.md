@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 2 on `feat/phase2-audit-local` — audit, fan-out Danger Zones, and smart triggers landed; ready for PR when you are
+**Current phase:** Phase 3 on `feat/phase3-github-action` — GitHub Action posts Focus HUD on PRs; JS/TS + LLM labels still later
 
 ---
 
@@ -70,7 +70,7 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 ---
 
-## Phase 2 — Blast Radius Engine
+## Phase 2 — Blast Radius Engine *(complete)*
 
 | Feature | Purpose | Status |
 |---|---|---|
@@ -85,12 +85,13 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 ## Phase 3 — GitHub Action + multi-language
 
-| Feature | Purpose |
-|---|---|
-| GitHub Action | `focus audit` on PR open/sync → PR comment |
-| JS/TS Tree-sitter grammar | Web repo support |
-| LLM label pass | Business-meaningful node names from graph JSON |
-| Parse cache | File-hash keyed AST cache for speed |
+| Feature | Purpose | Status |
+|---|---|---|
+| GitHub Action | `focus audit` on PR open/sync → PR comment | 🟡 on this branch |
+| PR-range audit | `focus audit --base <sha>` uses `base...HEAD` | 🟡 on this branch |
+| JS/TS Tree-sitter grammar | Web repo support | ⬜ |
+| LLM label pass | Business-meaningful node names from graph JSON | ⬜ |
+| Parse cache | File-hash keyed AST cache for speed | ⬜ |
 
 ---
 

@@ -12,7 +12,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from focus.ingest.diff import GitDiffError, resolve_base_ref
+from focus.ingest.diff import DiffMode, GitDiffError, resolve_base_ref
 from focus.models import Definition, ModuleFacts
 from focus.scan import parse_module
 
@@ -29,26 +29,37 @@ class ChangedSymbol:
     line: int
 
 
-def changed_line_ranges(root: Path, base: str = "main") -> dict[str, list[tuple[int, int]]]:
+def changed_line_ranges(
+    root: Path, base: str = "main", *, mode: DiffMode = "local"
+) -> dict[str, list[tuple[int, int]]]:
     """New/changed line ranges per file (1-based, inclusive), from unified diffs."""
     root = root.resolve()
     resolved = resolve_base_ref(root, base)
     ranges: dict[str, list[tuple[int, int]]] = {}
-    for args in (
-        ["diff", "-U0", "--diff-filter=ACMR", resolved],
-        ["diff", "-U0", "--cached", "--diff-filter=ACMR", resolved],
-    ):
-        _merge_ranges(ranges, _parse_diff(_git_diff(root, args)))
-    # Untracked files: every line is new.
-    untracked = _git_lines(root, ["ls-files", "--others", "--exclude-standard"])
-    for rel in untracked:
-        if not rel.endswith(".py"):
-            continue
-        path = root / rel
-        if not path.is_file():
-            continue
-        line_count = max(1, len(path.read_text(encoding="utf-8", errors="replace").splitlines()))
-        ranges.setdefault(rel.replace("\\", "/"), []).append((1, line_count))
+    if mode == "range":
+        _merge_ranges(
+            ranges,
+            _parse_diff(
+                _git_diff(root, ["diff", "-U0", "--diff-filter=ACMR", f"{resolved}...HEAD"])
+            ),
+        )
+    else:
+        for args in (
+            ["diff", "-U0", "--diff-filter=ACMR", resolved],
+            ["diff", "-U0", "--cached", "--diff-filter=ACMR", resolved],
+        ):
+            _merge_ranges(ranges, _parse_diff(_git_diff(root, args)))
+        untracked = _git_lines(root, ["ls-files", "--others", "--exclude-standard"])
+        for rel in untracked:
+            if not rel.endswith(".py"):
+                continue
+            path = root / rel
+            if not path.is_file():
+                continue
+            line_count = max(
+                1, len(path.read_text(encoding="utf-8", errors="replace").splitlines())
+            )
+            ranges.setdefault(rel.replace("\\", "/"), []).append((1, line_count))
     return {path: _coalesce(spans) for path, spans in ranges.items()}
 
 
@@ -56,11 +67,12 @@ def changed_symbols(
     root: Path,
     base: str = "main",
     *,
+    mode: DiffMode = "local",
     facts_by_path: dict[str, ModuleFacts] | None = None,
 ) -> list[ChangedSymbol]:
     """Definitions that overlap changed line ranges in `.py` files."""
     root = root.resolve()
-    ranges = changed_line_ranges(root, base)
+    ranges = changed_line_ranges(root, base, mode=mode)
     found: list[ChangedSymbol] = []
     for rel, spans in sorted(ranges.items()):
         if not rel.endswith(".py"):
@@ -75,13 +87,15 @@ def changed_symbols(
     return found
 
 
-def touches_only_non_symbols(root: Path, base: str = "main") -> bool:
+def touches_only_non_symbols(root: Path, base: str = "main", *, mode: DiffMode = "local") -> bool:
     """True when Python files changed but no def/import line was touched.
 
     Used for comments/formatting-only pass-through. Returns False when no
     Python files changed (caller should handle that separately).
     """
-    ranges = {p: s for p, s in changed_line_ranges(root, base).items() if p.endswith(".py")}
+    ranges = {
+        p: s for p, s in changed_line_ranges(root, base, mode=mode).items() if p.endswith(".py")
+    }
     if not ranges:
         return False
     for rel, spans in ranges.items():
@@ -92,7 +106,6 @@ def touches_only_non_symbols(root: Path, base: str = "main") -> bool:
         interesting_lines = {d.line for d in facts.definitions} | {i.line for i in facts.imports}
         if any(_line_in_spans(line, spans) for line in interesting_lines):
             return False
-        # Any changed line that isn't purely blank/comment still counts as code.
         text_lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
         for start, end in spans:
             for line_no in range(start, end + 1):
