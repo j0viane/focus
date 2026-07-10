@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 1 — Steps 1–2 complete (CLI, file discovery, Tree-sitter fact extraction); Step 3 (graph + `trace`) next
+**Current phase:** Phase 1 — Steps 1–3 complete (CLI, file discovery, fact extraction, dependency graph, `focus trace`); Step 4 (Mermaid HUD) next
 
 ---
 
@@ -57,7 +57,7 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 |---|---|---|---|---|
 | **1** | `pyproject.toml`, Typer CLI, `focus scan` walks repo + respects `.gitignore` | `glass_box/` fixture, pytest harness, smoke tests | Parse pipeline diagram | ✅ |
 | **2** | Tree-sitter Python: defs, imports, call sites → in-memory index | `test_parser.py` — parametrize import/def cases | What AST nodes we extract | ✅ |
-| **3** | NetworkX graph + `focus trace [file]` → text HUD (no Mermaid yet) | `test_graph.py`, `test_triggers.py`, parse → graph integration | Reverse edges, downstream list | |
+| **3** | NetworkX graph + `focus trace [file]` → text HUD (no Mermaid yet) | `test_graph.py`, `test_triggers.py`, parse → graph integration | Reverse edges, downstream list | ✅ |
 | **4** | Mermaid renderer + HUD output | `test_hud_golden.py`, Mermaid validator, E2E CLI subprocess | Full HUD walkthrough | |
 
 **Testing principle:** fixture and pytest land at Step 1; each step adds tests **with** the feature — see [`TESTING.md`](TESTING.md).

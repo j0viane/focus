@@ -38,7 +38,7 @@ Commands land per the roadmap below — `scan` works today; `trace` and `audit` 
 
 ## Getting started
 
-> Phase 1 is in progress. `focus scan` discovers a repo's Python files (respecting `.gitignore`) and indexes each one's imports, definitions, and calls; the dependency graph and `trace` land as Phase 1 progresses.
+> Phase 1 is in progress. `focus scan` indexes a repo's Python files (imports, definitions, calls — respecting `.gitignore`), and `focus trace` shows every file that depends on the one you're about to change. Mermaid diagrams and `audit` land next.
 
 ```bash
 git clone https://github.com/j0viane/focus.git
@@ -46,7 +46,10 @@ cd focus
 uv sync            # or: pip install -e .
 uv run focus --help
 uv run focus scan .
+uv run focus trace src/focus/models.py
 ```
+
+That last command is Focus tracing its own codebase — every file that depends on `models.py`, ring by ring.
 
 Requirements: Python 3.12+, [`uv`](https://docs.astral.sh/uv/) (or `pip`). Tree-sitter grammars arrive with the parser in Phase 1.
 
@@ -116,7 +119,7 @@ See [`.cursor/rules/focus-engineering.mdc`](.cursor/rules/focus-engineering.mdc)
 | Command | Purpose | Status |
 |---|---|---|
 | `focus scan [path]` | Full-repo AST index + dependency map | 🟡 Works today: indexes imports, definitions, and calls per file; dependency map lands next |
-| `focus trace [file]` | Trace what a file/symbol connects to | ⬜ Phase 1 |
+| `focus trace [file]` | Every file that depends on a file, grouped by import distance | 🟡 Works today (text output); Mermaid rendering lands next |
 | `focus audit [pr\|branch]` | Pre-merge blast radius for a PR or branch diff | ⬜ Phase 2 |
 | `focus audit --local` | Pre-flight against working tree vs `main` | ⬜ Phase 2 |
 | `focus version` | Print the installed version | ✅ |

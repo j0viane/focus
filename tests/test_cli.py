@@ -29,3 +29,33 @@ def test_scan_indexes_fixture_files(glass_box_path) -> None:
 def test_scan_rejects_missing_path() -> None:
     result = runner.invoke(app, ["scan", "does/not/exist"])
     assert result.exit_code != 0
+
+
+def test_trace_reports_rings(glass_box_path) -> None:
+    result = runner.invoke(
+        app,
+        ["trace", str(glass_box_path / "auth_utils.py"), "--root", str(glass_box_path)],
+    )
+    assert result.exit_code == 0
+    assert "ring 1 — imports it directly:" in result.output
+    assert "billing/service.py" in result.output
+    assert "dashboard/views.py" in result.output
+    assert "ring 2" in result.output
+    assert "api/routes.py" in result.output
+    assert "3 downstream file(s)" in result.output
+
+
+def test_trace_isolated_file(glass_box_path) -> None:
+    result = runner.invoke(
+        app,
+        ["trace", str(glass_box_path / "api" / "routes.py"), "--root", str(glass_box_path)],
+    )
+    assert result.exit_code == 0
+    assert "touches nothing downstream" in result.output
+
+
+def test_trace_file_outside_root_fails(glass_box_path, tmp_path) -> None:
+    outside = tmp_path / "outside.py"
+    outside.write_text("")
+    result = runner.invoke(app, ["trace", str(outside), "--root", str(glass_box_path)])
+    assert result.exit_code == 1

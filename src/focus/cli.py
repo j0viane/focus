@@ -6,6 +6,7 @@ from typing import Annotated
 
 import typer
 
+from focus.graph import build_graph, downstream_rings
 from focus.scan import discover_python_files, parse_module
 
 app = typer.Typer(
@@ -47,3 +48,43 @@ def scan(
         f"{len(files)} Python file(s) indexed: "
         f"{total_imports} imports, {total_defs} definitions, {total_calls} calls"
     )
+
+
+@app.command()
+def trace(
+    file: Annotated[
+        Path,
+        typer.Argument(exists=True, dir_okay=False, help="File to trace dependents of."),
+    ],
+    root: Annotated[
+        Path,
+        typer.Option(exists=True, file_okay=False, help="Repository root to scan."),
+    ] = Path("."),
+) -> None:
+    """Show every scanned file that depends on FILE, grouped by import distance."""
+    try:
+        target = file.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        typer.echo(f"{file} is not inside the scan root {root.resolve()}")
+        raise typer.Exit(1) from None
+
+    facts = [parse_module(f) for f in discover_python_files(root)]
+    graph = build_graph(facts, root)
+    if target not in graph:
+        typer.echo(f"{target} was not among the scanned Python files under {root.resolve()}")
+        raise typer.Exit(1)
+
+    rings = downstream_rings(graph, target)
+    if not rings:
+        typer.echo(f"No scanned file imports {target} — changing it touches nothing downstream.")
+        return
+
+    typer.echo(f"Blast radius for {target} (each entry is a file; arrows walked backwards):")
+    total = 0
+    for distance, nodes in rings:
+        label = "imports it directly" if distance == 1 else f"{distance} imports away"
+        typer.echo(f"  ring {distance} — {label}:")
+        for node in nodes:
+            typer.echo(f"    {node}")
+        total += len(nodes)
+    typer.echo(f"{total} downstream file(s)")
