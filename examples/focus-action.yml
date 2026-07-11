@@ -31,8 +31,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Focus
-        # PyPI: pip install "focus-hud>=0.1.0"  (after first publish — see docs/PUBLISH.md)
-        run: pip install "focus-hud @ git+https://github.com/j0viane/focus.git@main"
+        run: pip install "focus-hud>=0.1.0"
 
       - name: Run Focus audit
         env:

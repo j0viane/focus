@@ -9,11 +9,10 @@
 2. Merge to your default branch.
 3. Open a PR — Focus posts (and updates in place) a HUD comment.
 
-Installs from git until PyPI Trusted Publishing is configured ([`PUBLISH.md`](PUBLISH.md)):
+Install from PyPI ([`PUBLISH.md`](PUBLISH.md)):
 
 ```bash
-pip install "focus-hud @ git+https://github.com/j0viane/focus.git@main"
-# later: pip install focus-hud
+pip install focus-hud
 ```
 
 CLI entry point remains `focus`.

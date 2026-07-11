@@ -22,7 +22,7 @@ Vector sources (editable): `assets/*.svg`.
 ## Try in 60 seconds
 
 ```bash
-pip install "focus-hud @ git+https://github.com/j0viane/focus.git"
+pip install focus-hud
 focus audit --local --out focus-hud.md
 # open focus-hud.md → Markdown preview
 ```

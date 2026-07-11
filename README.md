@@ -13,8 +13,8 @@ It's an **AR HUD for codebases**: a computed import graph (Python + JS/TS) → M
 ## Try in 60 seconds
 
 ```bash
-pip install "focus-hud @ git+https://github.com/j0viane/focus.git"
-# after PyPI publish:  pip install focus-hud
+pip install focus-hud
+# or: uv tool install focus-hud
 
 focus trace path/to/shared_module.py --out focus-hud.md
 # open focus-hud.md → Markdown preview for Mermaid
@@ -77,7 +77,7 @@ Unchanged files reuse **`.focus-cache/`** (gitignored). Pass `--no-cache` to for
 
 Optional: copy [`.focus.toml.example`](.focus.toml.example) → `.focus.toml` to tune `fan_out_threshold` (default **3**).
 
-Requirements: Python 3.12+. Package name on PyPI: **`focus-hud`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
+Requirements: Python 3.12+. Install: **`pip install focus-hud`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ```bash
 uv run pytest
