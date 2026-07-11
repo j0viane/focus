@@ -33,7 +33,7 @@ When an assistant rewrites a shared util, juniors (and tired seniors) still have
 **Try it**
 
 ```bash
-pip install "focus-hud @ git+https://github.com/j0viane/focus.git"
+pip install focus-hud
 focus audit --local --out focus-hud.md
 ```
 
@@ -68,7 +68,7 @@ Not an editor hop-list product. Aimed at the AI-PR moment: skim vs dig
 with evidence you can defend in review.
 
 Install:
-  pip install "focus-hud @ git+https://github.com/j0viane/focus.git"
+  pip install focus-hud
   focus audit --local --out focus-hud.md
 
 Action (any repo):
@@ -86,4 +86,4 @@ Repo: https://github.com/j0viane/focus
 - [ ] Pin a GitHub Discussion / Issue for feedback
 - [ ] Triage only launch-blocking bugs for 48h
 
-Until `focus-hud` is on PyPI, install from git (see [`examples/focus-action.yml`](../examples/focus-action.yml)).
+Install: `pip install focus-hud` · Action: [`examples/focus-action.yml`](../examples/focus-action.yml).

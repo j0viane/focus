@@ -34,4 +34,4 @@ uv build
 uv publish --token "$PYPI_TOKEN"
 ```
 
-Until the first successful publish, other repos should install from git (see [`examples/focus-action.yml`](../examples/focus-action.yml)).
+Install the published package: `pip install focus-hud`.
