@@ -143,7 +143,8 @@ flowchart TB
 
 ## Roadmap
 
-Phase 3 **complete** (CLI + Action + JS/TS + cache). IDE extension and LLM labels are parked — see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Phase 3 **complete** — CLI + Action + JS/TS + cache + **`focus-hud` on PyPI**.  
+Next product candidate: **IDE extension** (parked until scoped). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 

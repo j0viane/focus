@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 3 **complete** (evidence-only). IDE and LLM labels parked — no AI copy that can hallucinate.
+**Current phase:** Phase 3 **complete**. Public package **`focus-hud` 0.1.0** on PyPI. Next product candidate: **IDE extension** (parking lot — unscoped).
 
 ---
 
@@ -19,6 +19,7 @@ Living document for project progress. Updated as phases complete.
 | Smart triggers (no diagram fatigue) | ML-based trigger classifier |
 | Evidence-based Danger Zones | Full points-to / data-flow analysis |
 | Parse cache | LLM label pass (parked — hallucination risk) |
+| PyPI (`focus-hud`) + drop-in Action | Marketplace IDE extension |
 
 ---
 
@@ -50,16 +51,18 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 
 ---
 
-## Phase 1 — Focus Scan (Python only)
+## Phase 1 — Focus Scan (Python only) *(complete)*
 
 **Goal:** Parse a Python repo and emit a dependency map for one file.
 
 | Step | Deliverable | Tests added | Explain-back | Status |
 |---|---|---|---|---|
 | **1** | `pyproject.toml`, Typer CLI, `focus scan` walks repo + respects `.gitignore` | `glass_box/` fixture, pytest harness, smoke tests | Parse pipeline diagram | ✅ |
-| **2** | Tree-sitter Python: defs, imports, call sites → in-memory index | `test_parser.py` — parametrize import/def cases | What AST nodes we extract | ✅ |
+| **2** | Python facts: defs, imports, call sites → in-memory index | `test_parser.py` — parametrize import/def cases | What AST nodes we extract | ✅ |
 | **3** | NetworkX graph + `focus trace [file]` → text HUD (no Mermaid yet) | `test_graph.py`, `test_triggers.py`, parse → graph integration | Reverse edges, downstream list | ✅ |
 | **4** | Mermaid renderer + HUD output | `test_hud_golden.py`, Mermaid validator, E2E CLI subprocess | Full HUD walkthrough | ✅ |
+
+**Parser note (post–Phase 3):** Python extraction uses the stdlib **`ast`** module (Tree-sitter Python was dropped after real-repo segfaults). JS/TS still use Tree-sitter.
 
 **Testing principle:** fixture and pytest land at Step 1; each step adds tests **with** the feature — see [`TESTING.md`](TESTING.md).
 
@@ -93,6 +96,8 @@ All exit criteria met. See [`DECISIONS.md`](DECISIONS.md) for resolved open ques
 | Blast-radius signal polish | Quieter Danger Zones; reasons name real importers | ✅ |
 | JS/TS Tree-sitter grammar | Web repo support | ✅ |
 | Parse cache | File-hash keyed AST cache for speed | ✅ |
+| PyPI publish (`focus-hud`) | `pip install focus-hud` — CLI remains `focus` | ✅ 0.1.0 |
+| Drop-in Action for any repo | [`examples/focus-action.yml`](../examples/focus-action.yml) | ✅ |
 
 LLM label pass was **removed from Phase 3** and parked (see below): Focus ships evidence-only HUDs so we never add model-generated copy that can hallucinate.
 
@@ -115,15 +120,19 @@ Full ethics list: [`docs/ETHICS.md`](ETHICS.md)
 
 ## Parking lot — future ideas (unscoped, not promised)
 
-- **IDE extension (Phase 4+ candidate):** show the Focus HUD inline in the editor, next to the code being changed — a third surface after CLI (Phase 1–2) and PR comments (Phase 3). Same engine, same computed graph; only the display changes. Deliberately unscoped until the CLI + Action prove the core loop.
-- **LLM label pass (parked):** optional plain-English node names / short summaries from graph JSON only. **Not scheduled.** Focus’s value is computed topology; we will not add an LLM layer “for show” if it can invent wording that outruns the evidence. Revisit only with a clear user need and a design that cannot hallucinate edges (labels strictly validated against the graph).
+- **IDE extension (Phase 4 candidate — highest next product value):** show the Focus HUD inline in the editor (Cursor / VS Code), next to the code being changed — a third surface after CLI and PR comments. Same engine, same computed graph; only the display changes. Thin MVP = command + panel running `audit --local` / `trace`; deep diff chrome later. Deliberately unscoped until you open a Phase 4 slice.
+- **LLM label pass (parked):** optional plain-English node names / short summaries from graph JSON only. **Not scheduled.** Focus’s value is computed topology; we will not add an LLM layer “for show” if it can invent wording that outruns the evidence.
+- **More languages (Go / Rust / Java):** adoption breadth only — not the differentiator. Revisit when a real user is blocked without them.
+- **Auditable “why this edge”:** click from HUD claim → import evidence (line). Trust theater → trust proof; good follow-on once IDE or CLI HUD is the daily surface.
 
 ---
 
 ## Updates
 
 - **This file** — phase status and scope
-- **[`DEMO.md`](DEMO.md)** — dogfood walkthrough + example HUDs for portfolio screenshots
+- **[`DEMO.md`](DEMO.md)** — walkthrough + gallery assets
+- **[`LAUNCH.md`](LAUNCH.md)** — Product Hunt / Show HN copy (optional)
+- **[`PUBLISH.md`](PUBLISH.md)** — PyPI Trusted Publishing
 - **Issues** — architecture decisions and parser edge cases
 
 Questions or blast-radius heuristics? [Open an issue](https://github.com/j0viane/focus/issues/new).
