@@ -56,12 +56,6 @@ Details: [`docs/ACTION.md`](docs/ACTION.md). Permissions: `contents: read` + `pu
 
 ---
 
-## Already exists? (CodeLayers, Valerian, …)
-
-Editor tools show hop lists while you type. Focus is **pre-merge decision support**: evidence-only topology, Danger Zones + smart triggers, **one HUD** from `audit --local` to the PR comment. Open source, local, no architecture backend required.
-
----
-
 ## Getting started (from this repo)
 
 ```bash
