@@ -16,7 +16,7 @@ def test_help_runs() -> None:
 def test_version_matches_pyproject() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert result.output.strip() == "0.1.0"
+    assert result.output.strip() == "0.2.0"
 
 
 def test_scan_indexes_fixture_files(glass_box_path) -> None:
@@ -45,6 +45,29 @@ def test_trace_reports_rings(glass_box_path) -> None:
     assert "api/routes.py" in result.output
     assert "Danger Zones" in result.output
     assert "Caveat" in result.output
+
+
+def test_trace_json_format(glass_box_path) -> None:
+    import json
+
+    result = runner.invoke(
+        app,
+        [
+            "trace",
+            str(glass_box_path / "auth_utils.py"),
+            "--root",
+            str(glass_box_path),
+            "--format",
+            "json",
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["seed"] == "auth_utils.py"
+    assert payload["risk_tier"] == "CRITICAL"
+    assert isinstance(payload["downstream"], list)
+    assert isinstance(payload["danger_zones"], list)
+    assert payload["mermaid"]
 
 
 def test_trace_isolated_file(glass_box_path) -> None:

@@ -99,23 +99,29 @@ Append specific blindspots when detected (e.g., `importlib`, `eval`, star import
 
 ---
 
-## Machine-readable schema (Pydantic target)
+## Machine-readable schema (Pydantic + CLI JSON)
 
-Phase 1 implements this model; HUD renders from it.
+Implemented as `FocusHUD` in `src/focus/models.py`. CLI:
 
-```python
-# Conceptual — not yet in codebase
-class FocusHUD:
-    mode: Literal["full", "pass_through", "error"]
-    summary: str                    # Block 1
-    risk_tier: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-    mermaid: str | None             # Block 2
-    danger_zones: list[ImpactNode]  # Block 3
-    downstream: list[ImpactEdge]
-    isolated: list[str]
-    caveat: str | None              # Block 4
-    graph_evidence: GraphPayload    # source of truth for validation
+```bash
+focus trace path/to/file.py --format json
+focus audit --local --format json
 ```
+
+Emits `FocusHUD.model_dump(mode="json")` — the VS Code / Cursor extension consumes this (do not scrape markdown).
+
+| Field | Type | Notes |
+|---|---|---|
+| `mode` | `full` \| `pass_through` \| `error` | Smart-trigger outcome |
+| `seed` | string | Primary file / symbol seed |
+| `summary` | string | Block 1 |
+| `risk_tier` | `LOW` \| `MEDIUM` \| `HIGH` \| `CRITICAL` | |
+| `mermaid` | string \| null | Block 2 source |
+| `danger_zones` | `ImpactNode[]` | path, hops, reason |
+| `downstream` | `ImpactNode[]` | |
+| `isolated` | string[] | |
+| `changed_symbols` | `ChangedSymbolInfo[]` | audit only |
+| `caveat` | string \| null | Block 4 |
 
 ---
 

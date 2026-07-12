@@ -1,0 +1,60 @@
+{
+  "name": "focus-hud",
+  "displayName": "Focus",
+  "description": "Blast radius you can defend — evidence-only Focus HUD in the editor.",
+  "version": "0.2.0",
+  "publisher": "j0viane",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other", "SCM Providers"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "focus.auditLocal",
+        "title": "Focus: Audit Local Changes"
+      },
+      {
+        "command": "focus.traceCurrentFile",
+        "title": "Focus: Trace Current File"
+      },
+      {
+        "command": "focus.showHud",
+        "title": "Focus: Show HUD"
+      },
+      {
+        "command": "focus.refresh",
+        "title": "Focus: Refresh"
+      }
+    ],
+    "configuration": {
+      "title": "Focus",
+      "properties": {
+        "focus.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the focus executable. Empty = search PATH."
+        },
+        "focus.base": {
+          "type": "string",
+          "default": "main",
+          "description": "Git base ref for focus audit --local."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}

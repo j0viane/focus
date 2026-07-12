@@ -3,7 +3,28 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 3 **complete**. Public package **`focus-hud` 0.1.0** on PyPI. Next product candidate: **IDE extension** (parking lot — unscoped).
+**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0**. Phase 3 complete on PyPI.
+
+---
+
+## Product surfaces (agreed)
+
+One computed `FocusHUD` — multiple renderers. **No committed HUD files in git.**
+
+| Surface | What the user sees | In the repo? |
+|---|---|---|
+| **A — PR comment** | Full HUD markdown (summary + Mermaid + Danger Zones) on every PR | **No** — posted/updated via GitHub Action |
+| **C — Inline in the diff** | Risk + hop context on changed / blast-radius files while reviewing | **No** — IDE CodeLens today; GitHub diff annotations in Phase 5 |
+| **B — Committed `.md`** | `focus-hud.md` checked into the tree | **Out of scope** — local/CI scratch only; gitignored |
+
+```
+pip install focus-hud
+        │
+        ├─ Before push (IDE)     → C: CodeLens + HUD panel in your working diff
+        │
+        └─ On PR (GitHub Action) → A: HUD comment (ship now)
+                                 → C: inline diff annotations (Phase 5)
+```
 
 ---
 
@@ -16,10 +37,12 @@ Living document for project progress. Updated as phases complete.
 | Python + JS/TS AST + dependency graph | Go, Rust, Java parsers |
 | `focus trace` + `focus audit --local` | Cloud-hosted graph store |
 | Mermaid HUD in CLI + PR comments | Interactive D2/SVG viewer |
+| PR comment (A) + inline diff (C) | Committed `focus-hud.md` in git (B) |
 | Smart triggers (no diagram fatigue) | ML-based trigger classifier |
 | Evidence-based Danger Zones | Full points-to / data-flow analysis |
 | Parse cache | LLM label pass (parked — hallucination risk) |
-| PyPI (`focus-hud`) + drop-in Action | Marketplace IDE extension |
+| PyPI (`focus-hud`) + drop-in Action | Marketplace listing polish |
+| CLI `--format json` + IDE CodeLens MVP | GitHub inline diff annotations (Phase 5) |
 
 ---
 
@@ -103,8 +126,39 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 
 ---
 
+## Phase 4 — IDE (diff-first) *(in progress)*
+
+**Goal:** Surface **C** locally — blast-radius context *in the diff you're editing*, not only in a side panel.
+
+| Feature | Purpose | Status |
+|---|---|---|
+| `focus … --format json` | Machine-readable `FocusHUD` for tools | ✅ 0.2.0 |
+| VS Code / Cursor extension | Install via VSIX or `scripts/install-extension.sh` | ✅ MVP |
+| CodeLens on changed / blast-radius files | Risk + downstream count at top of file | ✅ MVP |
+| HUD webview panel | Same Mermaid + Danger Zones as CLI / PR comment | ✅ MVP |
+| CodeLens on changed **lines/symbols** | True inline diff context (not just file header) | Pending |
+| Gutter hop markers + “why this edge” | Click claim → import evidence | Pending |
+| Marketplace publish | Easy install for strangers | Pending |
+
+---
+
+## Phase 5 — GitHub inline diff *(next bet after 0.2.0)*
+
+**Goal:** Surface **C** on GitHub — pins on the PR **Files changed** tab, alongside existing **A** PR comment.
+
+| Feature | Purpose | Status |
+|---|---|---|
+| Per-file review comments | Danger Zone / hop count on changed files in blast radius | Planned |
+| Check-run annotations (optional) | File-level signals in Checks UI | Explore |
+| Same `FocusHUD` as Action | Reuse `focus audit --format json`; A comment stays the overview | Planned |
+
+**A** (PR comment block) ships now via [`examples/focus-action.yml`](../examples/focus-action.yml). **C** on GitHub layers on top — not a replacement.
+
+---
+
 ## Explicitly out of scope (for now)
 
+- **Committed HUD markdown in git** (`focus-hud.md` as a tracked artifact) — use PR comment (A) + inline diff (C) instead
 - Diff-only analysis without full-repo graph context
 - LLM inventing dependency edges not in the computed graph
 - Blocking PR merges or developer quizzes
@@ -120,10 +174,11 @@ Full ethics list: [`docs/ETHICS.md`](ETHICS.md)
 
 ## Parking lot — future ideas (unscoped, not promised)
 
-- **IDE extension (Phase 4 candidate — highest next product value):** show the Focus HUD inline in the editor (Cursor / VS Code), next to the code being changed — a third surface after CLI and PR comments. Same engine, same computed graph; only the display changes. Thin MVP = command + panel running `audit --local` / `trace`; deep diff chrome later. Deliberately unscoped until you open a Phase 4 slice.
+- **IDE extension (Phase 4 — deepen C):** symbol-level CodeLens, gutter hop colors, always-on watch, auditable “why this edge” deep links.
+- **GitHub inline diff (Phase 5):** review comments / annotations on PR diff — companion to PR comment (A).
 - **LLM label pass (parked):** optional plain-English node names / short summaries from graph JSON only. **Not scheduled.** Focus’s value is computed topology; we will not add an LLM layer “for show” if it can invent wording that outruns the evidence.
 - **More languages (Go / Rust / Java):** adoption breadth only — not the differentiator. Revisit when a real user is blocked without them.
-- **Auditable “why this edge”:** click from HUD claim → import evidence (line). Trust theater → trust proof; good follow-on once IDE or CLI HUD is the daily surface.
+- **Auditable “why this edge”:** click from HUD claim → import evidence (line). Trust theater → trust proof.
 
 ---
 

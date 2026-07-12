@@ -1,0 +1,11 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.analysis.extraPaths": ["./src"],
+    "focus.path": "${workspaceFolder}/.venv/bin/focus"
+  }
+}
