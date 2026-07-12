@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import * as vscode from "vscode";
 
 import { FocusCodeLensProvider } from "./codeLens";
@@ -8,11 +9,24 @@ import { InlineExplanation } from "./inlineExplanation";
 import { watchLensFontSize } from "./lensFont";
 import type { FocusHUD } from "./types";
 
+const SOURCE_LANGUAGE_IDS = new Set([
+  "python",
+  "javascript",
+  "javascriptreact",
+  "typescript",
+  "typescriptreact",
+]);
+
+/** Debounce saves so rapid Cmd+S / format-on-save doesn't stack audits. */
+const AUTO_AUDIT_DEBOUNCE_MS = 400;
+
 let lastHud: FocusHUD | undefined;
 let statusBar: vscode.StatusBarItem;
 let lenses: FocusCodeLensProvider;
 let gutter: FocusGutter;
 let inlineExplanation: InlineExplanation;
+let auditInFlight: Promise<void> | undefined;
+let autoAuditTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   const extVersion = context.extension.packageJSON.version as string;
@@ -22,6 +36,13 @@ export function activate(context: vscode.ExtensionContext): void {
   watchLensFontSize(context);
   context.subscriptions.push({ dispose: () => gutter.dispose() });
   context.subscriptions.push({ dispose: () => inlineExplanation.dispose() });
+  context.subscriptions.push({
+    dispose: () => {
+      if (autoAuditTimer) {
+        clearTimeout(autoAuditTimer);
+      }
+    },
+  });
   const hintLanguages = [
     { language: "python" },
     { language: "javascript" },
@@ -83,6 +104,10 @@ export function activate(context: vscode.ExtensionContext): void {
         inlineExplanation.apply(editor);
       }
     }),
+    // Focus reads git/disk — refresh after save so rails update in place (no Reload).
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      scheduleAutoAudit(document, extVersion);
+    }),
   );
 
   whenWorkspaceReady(context, (version) => runAudit(true, version));
@@ -110,6 +135,38 @@ export function deactivate(): void {
   // noop
 }
 
+function autoAuditOnSaveEnabled(): boolean {
+  return vscode.workspace.getConfiguration("focus").get<boolean>("autoAuditOnSave", true);
+}
+
+function scheduleAutoAudit(document: vscode.TextDocument, extVersion: string): void {
+  if (!autoAuditOnSaveEnabled()) {
+    return;
+  }
+  if (document.uri.scheme !== "file") {
+    return;
+  }
+  if (!SOURCE_LANGUAGE_IDS.has(document.languageId)) {
+    return;
+  }
+  const root = workspaceRoot();
+  if (!root) {
+    return;
+  }
+  const rel = path.relative(root, document.uri.fsPath);
+  if (!rel || rel.startsWith("..")) {
+    return;
+  }
+
+  if (autoAuditTimer) {
+    clearTimeout(autoAuditTimer);
+  }
+  autoAuditTimer = setTimeout(() => {
+    autoAuditTimer = undefined;
+    void runAudit(true, extVersion);
+  }, AUTO_AUDIT_DEBOUNCE_MS);
+}
+
 function setHud(hud: FocusHUD, root: string, extVersion: string): void {
   lastHud = hud;
   lenses.refresh(hud, root);
@@ -127,21 +184,33 @@ async function runAudit(quiet = false, extVersion = "dev"): Promise<void> {
     }
     return;
   }
-  try {
-    const hud = await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Window,
-        title: "Focus: auditing local changes…",
-      },
-      () => auditLocal(root),
-    );
-    setHud(hud, root, extVersion);
-    if (!quiet) {
-      HudPanel.show(hud);
-    }
-  } catch (err) {
-    reportError(err, quiet);
+  // Serialize audits — overlapping save/audit races leave stale CodeLens.
+  if (auditInFlight) {
+    await auditInFlight;
   }
+  const work = (async () => {
+    try {
+      const hud = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Window,
+          title: "Focus: auditing local changes…",
+        },
+        () => auditLocal(root),
+      );
+      setHud(hud, root, extVersion);
+      if (!quiet) {
+        HudPanel.show(hud);
+      }
+    } catch (err) {
+      reportError(err, quiet);
+    }
+  })();
+  auditInFlight = work.finally(() => {
+    if (auditInFlight === work) {
+      auditInFlight = undefined;
+    }
+  });
+  await auditInFlight;
 }
 
 async function runTrace(extVersion = "dev"): Promise<void> {

@@ -159,6 +159,10 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **Evidence in IDE** | Proven vs heuristic bullets on CodeLens tooltip / hover (`evidence` on HUD symbols) | ✅ slice 4 |
 | **Verbose / low-ROA copy** | Hard caps: max chars for ℹ️ / summary; one idea per lens; no restating the header | Planned (ROA) |
 | **Tiny diff, huge output** | Stronger triggers: tiny + low blast radius → pass-through or *tiny* HUD (see [`TRIGGERS.md`](TRIGGERS.md)) | Planned (ROA) |
+| **Auto-refresh on save** | Quiet re-audit after saving a source file; CodeLens/gutters update in place (`focus.autoAuditOnSave`) | ✅ extension 0.5.1 |
+| **Live-as-you-type** | Debounced refresh from the **unsaved buffer** (not only disk/git) — pin: dogfood must not require Save or Audit Local | **Next (pinned)** |
+
+**Pinned UX (IDE):** Rails and ℹ️ must feel live while editing. Today Focus reads git/disk, so Save→auto-audit is the bridge. True live typing needs a CLI **buffer overlay** (pass dirty editor text into audit/diff without writing the repo). Do not ship Marketplace polish before this feels instant in dogfood.
 
 **Trust model:** every caption labels evidence as **proven** (parse/graph/diff) or **heuristic** (name/path rules). `focus explain --why` shows the cite list today; IDE surfacing is next.
 
