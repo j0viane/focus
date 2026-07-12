@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 
-import type { FocusHUD } from "./types";
+import type { ChangedSymbolInfo, FocusHUD, ImpactNode } from "./types";
 
 export class FocusCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChange = new vscode.EventEmitter<void>();
@@ -22,47 +22,91 @@ export class FocusCodeLensProvider implements vscode.CodeLensProvider {
     if (!this.hud || !this.root) {
       return [];
     }
-    const rel = path.relative(this.root, document.uri.fsPath).split(path.sep).join("/");
-    if (!rel || rel.startsWith("..")) {
+    const rel = relPath(this.root, document.uri.fsPath);
+    if (!rel) {
       return [];
     }
 
-    const label = lensLabel(this.hud, rel);
-    if (!label) {
-      return [];
+    const lenses: vscode.CodeLens[] = [];
+    const symbols = this.hud.changed_symbols.filter((s) => s.path === rel);
+
+    for (const sym of symbols) {
+      lenses.push(symbolLens(this.hud, sym));
     }
 
-    const range = new vscode.Range(0, 0, 0, 0);
-    return [
-      new vscode.CodeLens(range, {
-        title: label,
-        command: "focus.showHud",
-        tooltip: this.hud.summary,
-      }),
-    ];
+    if (symbols.length > 0) {
+      return lenses;
+    }
+
+    const fileLens = blastRadiusLens(this.hud, rel);
+    if (fileLens) {
+      lenses.push(fileLens);
+    }
+    return lenses;
   }
 }
 
-function lensLabel(hud: FocusHUD, rel: string): string | undefined {
-  const n = hud.downstream.length;
-  const dangerPaths = new Set(hud.danger_zones.map((z) => z.path));
-  const downPaths = new Set(hud.downstream.map((z) => z.path));
+function relPath(root: string, fsPath: string): string | undefined {
+  const rel = path.relative(root, fsPath).split(path.sep).join("/");
+  if (!rel || rel.startsWith("..")) {
+    return undefined;
+  }
+  return rel;
+}
 
+function symbolLens(hud: FocusHUD, sym: ChangedSymbolInfo): vscode.CodeLens {
+  const line = Math.max(0, sym.line - 1);
+  const n = hud.downstream.length;
+  return new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
+    title: `Focus · changed · ${sym.name} · ${hud.risk_tier} · ${n} downstream`,
+    command: "focus.showHud",
+    tooltip: `${sym.kind} ${sym.name} — ${hud.summary}`,
+  });
+}
+
+function blastRadiusLens(hud: FocusHUD, rel: string): vscode.CodeLens | undefined {
+  const danger = lookupNode(hud.danger_zones, rel);
+  const downstream = lookupNode(hud.downstream, rel);
+  const n = hud.downstream.length;
   const isSeed =
     hud.seed === rel ||
     hud.seed.endsWith("/" + rel) ||
     rel.endsWith(hud.seed) ||
-    hud.changed_symbols.some((s) => s.path === rel);
+    seedPaths(hud.seed).includes(rel);
+
+  let title: string | undefined;
+  let reason: string | undefined;
 
   if (isSeed) {
-    return `Focus · ${hud.risk_tier} · ${n} downstream`;
+    title = `Focus · ${hud.risk_tier} · ${n} downstream`;
+    reason = hud.summary;
+  } else if (danger) {
+    title = `Focus · Danger Zone · ${hud.risk_tier}`;
+    reason = danger.reason;
+  } else if (downstream) {
+    title = `Focus · ${downstream.hops} hops from change`;
+    reason = downstream.reason;
   }
-  if (dangerPaths.has(rel)) {
-    return `Focus · Danger Zone · ${hud.risk_tier}`;
+
+  if (!title) {
+    return undefined;
   }
-  if (downPaths.has(rel)) {
-    const node = hud.downstream.find((z) => z.path === rel);
-    return `Focus · ${node?.hops ?? "?"} hops from change`;
+
+  return new vscode.CodeLens(new vscode.Range(0, 0, 0, 0), {
+    title,
+    command: reason ? "focus.showWhy" : "focus.showHud",
+    arguments: reason ? [reason] : undefined,
+    tooltip: reason ?? hud.summary,
+  });
+}
+
+function lookupNode(nodes: ImpactNode[], rel: string): ImpactNode | undefined {
+  return nodes.find((n) => n.path === rel);
+}
+
+function seedPaths(seed: string): string[] {
+  if (!seed || seed.startsWith("(")) {
+    return [];
   }
-  return undefined;
+  return seed.split(",").map((s) => s.trim()).filter(Boolean);
 }

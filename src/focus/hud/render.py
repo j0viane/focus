@@ -19,10 +19,10 @@ def render_hud(hud: FocusHUD) -> str:
     if hud.changed_symbols:
         parts.extend(
             [
-                "### Changed symbols",
+                "### Your changes",
                 "",
                 *(
-                    f"- `{s.path}` → `{s.name}` ({s.kind}, line {s.line})"
+                    f"- `{s.path}` → **`{s.name}`** ({s.kind}, line {s.line})"
                     for s in hud.changed_symbols
                 ),
                 "",
