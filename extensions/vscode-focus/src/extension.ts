@@ -1,16 +1,20 @@
 import * as vscode from "vscode";
 
 import { FocusCodeLensProvider } from "./codeLens";
-import { auditLocal, FocusCliError, traceFile, workspaceRoot } from "./focusCli";
+import { auditLocal, FocusCliError, traceFile, workspaceRoot, workspaceRootError } from "./focusCli";
+import { FocusGutter } from "./gutter";
 import { HudPanel } from "./hudPanel";
 import type { FocusHUD } from "./types";
 
 let lastHud: FocusHUD | undefined;
 let statusBar: vscode.StatusBarItem;
 let lenses: FocusCodeLensProvider;
+let gutter: FocusGutter;
 
 export function activate(context: vscode.ExtensionContext): void {
   lenses = new FocusCodeLensProvider();
+  gutter = new FocusGutter();
+  context.subscriptions.push({ dispose: () => gutter.dispose() });
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
       [
@@ -43,7 +47,28 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       HudPanel.show(lastHud);
     }),
+    vscode.commands.registerCommand("focus.showWhy", (reason?: string) => {
+      if (reason) {
+        void vscode.window.showInformationMessage(`Focus: ${reason}`, "Open HUD").then((pick) => {
+          if (pick === "Open HUD" && lastHud) {
+            HudPanel.show(lastHud);
+          }
+        });
+        return;
+      }
+      if (lastHud) {
+        HudPanel.show(lastHud);
+      }
+    }),
     vscode.commands.registerCommand("focus.refresh", () => runAudit(true)),
+  );
+
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor) {
+        gutter.apply(editor);
+      }
+    }),
   );
 
   whenWorkspaceReady(context, () => runAudit(true));
@@ -73,6 +98,7 @@ export function deactivate(): void {
 function setHud(hud: FocusHUD, root: string): void {
   lastHud = hud;
   lenses.refresh(hud, root);
+  gutter.refresh(hud, root);
   statusBar.text = `Focus · ${hud.risk_tier}`;
   statusBar.tooltip = hud.summary;
 }
@@ -81,9 +107,7 @@ async function runAudit(quiet = false): Promise<void> {
   const root = workspaceRoot();
   if (!root) {
     if (!quiet) {
-      void vscode.window.showWarningMessage(
-        "Focus: open a folder workspace first (File → Open Folder → your repo).",
-      );
+      void vscode.window.showWarningMessage(workspaceRootError());
     }
     return;
   }

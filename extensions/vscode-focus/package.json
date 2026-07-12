@@ -2,7 +2,7 @@
   "name": "focus-hud",
   "displayName": "Focus",
   "description": "Blast radius you can defend — evidence-only Focus HUD in the editor.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "j0viane",
   "engines": {
     "vscode": "^1.85.0"
@@ -27,6 +27,10 @@
         "title": "Focus: Show HUD"
       },
       {
+        "command": "focus.showWhy",
+        "title": "Focus: Show Why (blast radius reason)"
+      },
+      {
         "command": "focus.refresh",
         "title": "Focus: Refresh"
       }
@@ -43,6 +47,11 @@
           "type": "string",
           "default": "main",
           "description": "Git base ref for focus audit --local."
+        },
+        "focus.gutter": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show gutter highlights on changed symbols and blast-radius files."
         }
       }
     }

@@ -136,8 +136,8 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | VS Code / Cursor extension | Install via VSIX or `scripts/install-extension.sh` | ✅ MVP |
 | CodeLens on changed / blast-radius files | Risk + downstream count at top of file | ✅ MVP |
 | HUD webview panel | Same Mermaid + Danger Zones as CLI / PR comment | ✅ MVP |
-| CodeLens on changed **lines/symbols** | True inline diff context (not just file header) | Pending |
-| Gutter hop markers + “why this edge” | Click claim → import evidence | Pending |
+| CodeLens on changed **lines/symbols** | True inline diff context (not just file header) | ✅ 0.2.1 |
+| Gutter hop markers + “why this edge” | Click claim → import evidence | 🔄 MVP (gutter + showWhy; import jump pending) |
 | Marketplace publish | Easy install for strangers | Pending |
 
 ---

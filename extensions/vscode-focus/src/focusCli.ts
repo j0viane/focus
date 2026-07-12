@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { promisify } from "node:util";
 import * as vscode from "vscode";
 
@@ -25,7 +27,40 @@ export function resolveFocusBinary(): string {
 }
 
 export function workspaceRoot(): string | undefined {
-  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!folder) {
+    return undefined;
+  }
+  const gitRoot = findGitRoot(folder);
+  if (!gitRoot) {
+    return undefined;
+  }
+  return gitRoot;
+}
+
+export function workspaceRootError(): string {
+  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!folder) {
+    return "Focus: open a folder workspace first (File → Open Folder → your repo).";
+  }
+  return (
+    `Focus: "${folder}" is not a git repository. ` +
+    "Open the project root (the folder that contains `.git`), e.g. `…/Focus` — not the parent `Cursor` folder."
+  );
+}
+
+function findGitRoot(start: string): string | undefined {
+  let dir = path.resolve(start);
+  while (true) {
+    if (fs.existsSync(path.join(dir, ".git"))) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      return undefined;
+    }
+    dir = parent;
+  }
 }
 
 async function runFocus(args: string[], cwd: string): Promise<string> {
@@ -41,14 +76,14 @@ async function runFocus(args: string[], cwd: string): Promise<string> {
     }
     return stdout;
   } catch (err: unknown) {
-    const e = err as { code?: string; message?: string; stderr?: string };
+    const e = err as { code?: string; message?: string; stderr?: string; stdout?: string };
     if (e.code === "ENOENT") {
       throw new FocusCliError(
         "focus not found on PATH. Install with: pip install \"focus-hud>=0.2.0\" " +
           "(or set focus.path). See https://pypi.org/project/focus-hud/",
       );
     }
-    const detail = (e.stderr || e.message || String(err)).trim();
+    const detail = (e.stderr || e.stdout || e.message || String(err)).trim();
     throw new FocusCliError(detail || "focus command failed");
   }
 }
