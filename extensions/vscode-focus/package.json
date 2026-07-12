@@ -2,7 +2,7 @@
   "name": "focus-hud",
   "displayName": "Focus",
   "description": "Blast radius you can defend — evidence-only Focus HUD in the editor.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "publisher": "j0viane",
   "engines": {
     "vscode": "^1.85.0"
@@ -67,6 +67,11 @@
           "type": "number",
           "default": 0,
           "description": "CodeLens font size in px for Focus rows. 0 = editor default (~90% of editor font). -1 = match editor.fontSize. Otherwise sets editor.codeLensFontSize in this workspace."
+        },
+        "focus.autoAuditOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "After you save a source file, quietly re-run Focus audit and refresh CodeLens / gutters in place (no HUD pop)."
         }
       }
     }

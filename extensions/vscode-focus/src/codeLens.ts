@@ -17,7 +17,9 @@ export class FocusCodeLensProvider implements vscode.CodeLensProvider {
   refresh(hud: FocusHUD | undefined, root: string | undefined): void {
     this.hud = hud;
     this.root = root;
+    // Fire twice: some editors keep stale CodeLens titles until a second invalidate.
     this._onDidChange.fire();
+    queueMicrotask(() => this._onDidChange.fire());
   }
 
   provideCodeLenses(
