@@ -3,7 +3,7 @@
 Living document. Defines when Focus emits a full **Focus HUD** (with Mermaid diagram) vs a **pass-through summary** (one sentence, no diagram).
 
 **Last updated:** July 2026  
-**Status:** Phase 0 — rule table locked; thresholds tuned in Phase 2
+**Status:** Phase 2 shipped; Phase 4b ROA extensions planned (tiny-diff → tiny output)
 
 ---
 
@@ -12,6 +12,8 @@ Living document. Defines when Focus emits a full **Focus HUD** (with Mermaid dia
 Avoid **diagram fatigue**. Developers ignore tools that comment on every PR with a spaghetti chart. Focus generates diagrams only when structural impact warrants visual navigation.
 
 **Default bias:** false negatives (skip diagram) over false positives (noisy diagram).
+
+**Return on Attention (ROA):** every word Focus asks a human to read must earn its cost. Prefer silence or one sentence over filler. Never become the anti-pattern of a one-line diff with a novel-length summary.
 
 ---
 
@@ -86,6 +88,20 @@ All must be true:
 > **Focus:** Updated CSS variables in `theme.css` — no downstream code dependencies detected.
 
 No Mermaid block.
+
+---
+
+## ROA extensions (Phase 4b — planned)
+
+These sharpen triggers and copy caps so Focus stays high-signal when AI-era PR volume rises.
+
+| Rule | Intent | Status |
+|---|---|---|
+| **Tiny diff + low blast radius → tiny output** | If changed lines are few *and* downstream count / Danger Zones are empty, force **pass-through** (or a one-line summary) — no Mermaid, no essay | Planned |
+| **Output size ≤ impact** | Cap executive summary and inline ℹ️ length; one idea per lens; never restate the Focus header in the detail row | Planned |
+| **Virtual UI only** | Explainers stay in CodeLens / HUD — never written into source or committed markdown | Done (protect) |
+
+Wire into `should_emit_diagram` / pass-through paths and `expand_acronyms_for_juniors` / hunk detail emitters when implementing. Tests: parametrize `(tiny_diff, zero_downstream) → pass_through`.
 
 ---
 

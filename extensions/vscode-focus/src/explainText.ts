@@ -1,4 +1,5 @@
 import { EXPLAIN_PREFIX } from "./icons";
+import type { ChangedSymbolInfo, EvidenceItem } from "./types";
 
 /** Readable line width for stacked CodeLens rows (full text, word-wrapped). */
 const WRAP_WIDTH = 96;
@@ -51,4 +52,32 @@ export function explanationLensTitle(text: string): string {
     return EXPLAIN_PREFIX;
   }
   return [EXPLAIN_PREFIX + " " + lines[0], ...lines.slice(1)].join("\n");
+}
+
+/** Markdown for CodeLens tooltip / hover — proof stays off the visible line. */
+export function evidenceMarkdown(sym: ChangedSymbolInfo, purpose?: string): string {
+  const parts: string[] = [];
+  const implication = sym.implication || sym.summary;
+  if (implication) {
+    parts.push(`**Implication**\n\n${implication}`);
+  }
+  if (purpose) {
+    parts.push(`**Purpose**\n\n${EXPLAIN_PREFIX} ${stripMarkdown(purpose)}`);
+  }
+  const evidence = sym.evidence ?? [];
+  if (evidence.length) {
+    parts.push(
+      evidence
+        .slice(0, 8)
+        .map((item) => formatEvidenceBullet(item))
+        .join("\n\n"),
+    );
+  }
+  parts.push("Open Focus HUD for the full map");
+  return parts.filter(Boolean).join("\n\n");
+}
+
+function formatEvidenceBullet(item: EvidenceItem): string {
+  const label = item.confidence === "proven" ? "Proven" : "Heuristic";
+  return `**${label}** · ${item.fact}`;
 }

@@ -15,6 +15,7 @@ from focus.hud.classify import (
     shared_hub_reason,
 )
 from focus.models import (
+    CallSite,
     ChangedSymbolInfo,
     EvidenceItem,
     ExplanationClause,
@@ -27,7 +28,15 @@ from focus.models import (
 
 MAX_EXPLANATION_CHARS = 260
 MAX_SUMMARY_CHARS = 110
+MAX_IMPLICATION_BODY = 110
 MAX_CALL_EVIDENCE_PER_FILE = 2
+
+_RISK_EMOJI: dict[RiskTier, str] = {
+    "CRITICAL": "🔴",
+    "HIGH": "🟠",
+    "MEDIUM": "🟡",
+    "LOW": "🟢",
+}
 
 
 @dataclass(frozen=True)
@@ -90,26 +99,37 @@ def explain_symbol_with_evidence(
         )
 
     purpose_inline = _scrub_self_file_noise(purpose_text, symbol.path)
-    # Impact first in full text; summary is high-level only (IDE header above `def`).
+    implication = _implication_for_symbol(
+        symbol,
+        graph=context.graph,
+        seeds=context.seeds,
+        danger_paths=context.danger_paths,
+        downstream_count=context.downstream_count,
+        risk=context.risk,
+        facts_by_path=context.facts_by_path,
+    )
+    # Full text keeps impact + purpose (CLI / explain). Implication is IDE-only rail.
     display_parts = [impact_text, purpose_inline] if impact_text else [purpose_inline]
     text = expand_acronyms_for_juniors(" ".join(display_parts))
     if len(text) > MAX_EXPLANATION_CHARS:
         text = text[: MAX_EXPLANATION_CHARS - 1].rstrip() + "…"
-    summary = expand_acronyms_for_juniors(
-        _inline_summary(
-            symbol,
-            impact_text,
-            downstream_count=context.downstream_count,
-            risk=context.risk,
-            seeds=context.seeds,
-        )
+    # summary mirrors implication so older IDE paths keep working.
+    summary = implication
+    purpose_is_curated = any(
+        item.kind in {"docstring", "symbol_registry"} for item in purpose_evidence
     )
-    hunk_details = _build_hunk_details(symbol, facts, purpose_inline)
+    hunk_details = _build_hunk_details(
+        symbol,
+        facts,
+        purpose_inline,
+        purpose_is_curated=purpose_is_curated,
+    )
     detail = (
         hunk_details[0].detail
         if hunk_details
         else expand_acronyms_for_juniors(_inline_detail(purpose_inline))
     )
+    evidence = _dedupe_evidence([overlap, *purpose_evidence, *impact_evidence])
 
     return SymbolExplanation(
         symbol=symbol.model_copy(
@@ -117,7 +137,9 @@ def explain_symbol_with_evidence(
                 "explanation": text,
                 "summary": summary,
                 "detail": detail,
+                "implication": implication,
                 "hunk_details": hunk_details,
+                "evidence": evidence,
             }
         ),
         text=text,
@@ -175,10 +197,7 @@ def _inline_summary(
     risk: RiskTier,
     seeds: list[str],
 ) -> str:
-    """Short IDE header above `def` — symbol-specific impact or blast-radius tier only.
-
-    Module import lists belong in the HUD Mermaid map, not inline.
-    """
+    """Deprecated path — prefer `_implication_for_symbol`. Kept for tests/callers."""
     if impact_text and _impact_belongs_inline(impact_text):
         return impact_text
     if downstream_count > 0 and symbol.path in seeds:
@@ -188,6 +207,196 @@ def _inline_summary(
             f"{file_word} may be affected."
         )
     return ""
+
+
+def _implication_for_symbol(
+    symbol: ChangedSymbolInfo,
+    *,
+    graph: nx.DiGraph,
+    seeds: list[str],
+    danger_paths: set[str],
+    downstream_count: int,
+    risk: RiskTier,
+    facts_by_path: dict[str, ModuleFacts],
+) -> str:
+    """Risk rail: ``{emoji} {RISK} — {who} — {what goes wrong}``. Empty when quiet.
+
+    Quiet when LOW, or when we can't name both who and what goes wrong (ROA).
+    Never punch with raw hop/file counts or restating the symbol name.
+    """
+    if risk == "LOW":
+        return ""
+    slots = _implication_who_what(
+        symbol,
+        graph=graph,
+        seeds=seeds,
+        danger_paths=danger_paths,
+        downstream_count=downstream_count,
+        facts_by_path=facts_by_path,
+    )
+    if slots is None:
+        return ""
+    who, goes_wrong = slots
+    body = f"{who} — {goes_wrong}"
+    if len(body) > MAX_IMPLICATION_BODY:
+        body = body[: MAX_IMPLICATION_BODY - 1].rstrip() + "…"
+    return expand_acronyms_for_juniors(f"{_RISK_EMOJI[risk]} {risk} — {body}")
+
+
+def _implication_who_what(
+    symbol: ChangedSymbolInfo,
+    *,
+    graph: nx.DiGraph,
+    seeds: list[str],
+    danger_paths: set[str],
+    downstream_count: int,
+    facts_by_path: dict[str, ModuleFacts],
+) -> tuple[str, str] | None:
+    """Fill the two implication slots, or None if we should stay quiet."""
+    path = symbol.path
+    # Tests never get a risk rail — CRITICAL on a test_*.py is theater, not signal.
+    if _is_test_path(path):
+        return None
+
+    snake = _snake_name(symbol.name)
+    for key in (symbol.name.lower(), snake, snake.lstrip("_")):
+        exact = _EXACT_SYMBOL_IMPLICATION.get(key)
+        if exact:
+            return exact
+
+    facts = facts_by_path.get(path)
+    if path in graph and path in seeds:
+        importers = list_importers(graph, path)
+        if importers:
+            callers, _ = _users_with_evidence(
+                symbol.name,
+                path,
+                importers,
+                facts_by_path,
+                kind=symbol.kind,
+            )
+            if callers:
+                return _implication_from_callers(symbol, callers)
+
+    # Same-file callers beat file-level "Shared hub" for helpers only used here.
+    local_callers = _same_file_callers(symbol, facts)
+    if local_callers:
+        return _implication_from_local_callers(local_callers)
+
+    # File-level hub/danger rails are for *public* symbols. Private helpers with
+    # no named victim stay quiet (ROA) instead of repeating "Shared hub" 20×.
+    if symbol.name.startswith("_"):
+        return None
+
+    if path in graph and path in seeds:
+        if path in danger_paths and is_danger_path(path):
+            return (
+                "API, schema, or config surface",
+                "external callers may depend on the current shape",
+            )
+        if path in danger_paths:
+            return (
+                "Shared hub in the import graph",
+                "many modules depend on this staying stable",
+            )
+
+    if downstream_count > 0 and path in seeds:
+        return (
+            "Downstream dependents of this seed",
+            "a bad change can break code outside this file",
+        )
+    return None
+
+
+def _same_file_callers(
+    symbol: ChangedSymbolInfo,
+    facts: ModuleFacts | None,
+) -> list[str]:
+    """Names of other defs in this file that call ``symbol`` (proven CallSites)."""
+    if facts is None:
+        return []
+    defs = sorted(facts.definitions, key=lambda d: d.line)
+    if not defs:
+        return []
+    callers: list[str] = []
+    seen: set[str] = set()
+    for index, definition in enumerate(defs):
+        if definition.name == symbol.name:
+            continue
+        end = defs[index + 1].line if index + 1 < len(defs) else 10**9
+        for call in facts.calls:
+            bare = call.callee.rsplit(".", 1)[-1]
+            if bare != symbol.name:
+                continue
+            if definition.line <= call.line < end and definition.name not in seen:
+                seen.add(definition.name)
+                callers.append(definition.name)
+    return callers
+
+
+def _implication_from_local_callers(callers: list[str]) -> tuple[str, str]:
+    if len(callers) == 1:
+        return (
+            f"`{callers[0]}`",
+            "a bad change breaks that path inside this file",
+        )
+    return (
+        f"`{callers[0]}` and {len(callers) - 1} more in this file",
+        "a bad change breaks those paths first",
+    )
+
+
+def _implication_from_callers(
+    symbol: ChangedSymbolInfo,
+    callers: list[str],
+) -> tuple[str, str]:
+    if len(callers) == 1:
+        who = f"`{_short_path(callers[0])}`"
+        cons = _caller_consequence(callers[0])
+        goes = _consequence_as_failure(cons) if cons else "a bad change breaks that caller first"
+        return who, goes
+    who = f"`{_short_path(callers[0])}` and {len(callers) - 1} more"
+    return who, "a bad change breaks those callers first"
+
+
+def _short_path(path: str) -> str:
+    """Prefer a short, readable path for the who slot."""
+    name = PurePosixPath(path).name
+    if name in {"cli.py", "main.py", "__main__.py"}:
+        return name
+    stem = PurePosixPath(path).stem
+    parent = PurePosixPath(path).parent.name
+    if parent and parent not in {".", "src"}:
+        return f"{parent}/{name}"
+    return name if name else stem
+
+
+def _consequence_as_failure(tail: str) -> str:
+    """Turn a caller-consequence suffix into a 'what goes wrong' clause."""
+    t = tail.strip()
+    if t.startswith("before "):
+        return f"a bad change fails {t[len('before '):]}"
+    if t.startswith("from "):
+        return f"a bad change breaks work {t}"
+    if t.startswith("on "):
+        return f"a bad change fails {t}"
+    if t.startswith("in "):
+        return f"a bad change shows up {t}"
+    if t.startswith("when "):
+        return f"a bad change breaks {t}"
+    return f"a bad change fails{t}" if t.startswith(" ") else "a bad change fails there"
+
+
+def _dedupe_evidence(items: list[EvidenceItem]) -> list[EvidenceItem]:
+    seen: set[tuple[str, str, str]] = set()
+    out: list[EvidenceItem] = []
+    for item in items:
+        key = (item.confidence, item.kind, item.fact)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(item)
+    return out
 
 
 def _impact_belongs_inline(impact_text: str) -> bool:
@@ -265,6 +474,56 @@ _BUILTIN_CALLS = frozenset(
     },
 )
 
+# Method/plumbing names — true calls, but rarely the *subject* of an edit.
+# Owner-tunable: prefer project functions (snake_case) over these.
+_PLUMBING_CALLEES = frozenset(
+    {
+        "rsplit",
+        "split",
+        "join",
+        "strip",
+        "lstrip",
+        "rstrip",
+        "replace",
+        "format",
+        "encode",
+        "decode",
+        "lower",
+        "upper",
+        "title",
+        "startswith",
+        "endswith",
+        "append",
+        "extend",
+        "insert",
+        "pop",
+        "get",
+        "items",
+        "keys",
+        "values",
+        "copy",
+        "update",
+        "sort",
+        "add",
+        "remove",
+        "discard",
+        "clear",
+        "read",
+        "write",
+        "readline",
+        "readlines",
+        "seek",
+        "tell",
+        "close",
+        "sub",
+        "subn",
+        "search",
+        "match",
+        "findall",
+        "fullmatch",
+    },
+)
+
 
 def _contiguous_line_runs(lines: list[int]) -> list[list[int]]:
     if not lines:
@@ -301,27 +560,73 @@ def _detail_without_symbol_name(text: str, name: str) -> str:
     return out.strip()
 
 
+def _code_blob_for_cues(lines: list[str]) -> str:
+    """Hunk text with docstrings/comments removed so prose can't fake structural cues.
+
+    Why: a docstring that mentions ``kind="class"`` was making `_hybrid_detail_for_hunk`
+    look like a class-recording edit. Cues must come from code, not comments.
+    """
+    text = "\n".join(lines)
+    text = re.sub(r'"""[\s\S]*?"""', "", text)
+    text = re.sub(r"'''[\s\S]*?'''", "", text)
+    text = re.sub(r"#.*?$", "", text, flags=re.MULTILINE)
+    return text
+
+
+def _structural_detail_for_hunk(lines: list[str]) -> str | None:
+    """Strong cues only: isinstance(AST types) or kind= in real code (not docs)."""
+    if not lines:
+        return None
+    blob = _code_blob_for_cues(lines)
+    if not blob.strip():
+        return None
+
+    if re.search(r"isinstance\s*\([^)]*ClassDef", blob):
+        return "Records this as a class in the AST."
+    if re.search(r"isinstance\s*\([^)]*FunctionDef", blob):
+        return "Records this as a function in the AST."
+    if re.search(r"isinstance\s*\([^)]*AsyncFunctionDef", blob):
+        return "Records this as a function in the AST."
+
+    if re.search(r"""kind\s*=\s*['"]class['"]""", blob):
+        return "Records this as a class in the AST."
+    if re.search(r"""kind\s*=\s*['"]function['"]""", blob):
+        return "Records this as a function in the AST."
+    return None
+
+
+def _bare_callee(callee: str) -> str:
+    return callee.rsplit(".", 1)[-1]
+
+
+def _is_plumbing_callee(bare: str) -> bool:
+    return bare.lower() in _BUILTIN_CALLS or bare.lower() in _PLUMBING_CALLEES
+
+
+def _call_rank(bare: str) -> int:
+    """Higher = better primary subject. Snake_case > constructors > plumbing."""
+    if _is_plumbing_callee(bare):
+        return -1
+    if bare[:1].isupper():
+        return 0
+    return 1
+
+
 def _detail_for_hunk(
     lines: list[str],
     *,
     symbol_name: str,
     fallback: str,
 ) -> str:
+    """Heuristic detail from hunk *text* (no AST). Used when proven facts miss."""
     if not lines:
         return _detail_without_symbol_name(fallback, symbol_name)
 
-    blob = "\n".join(lines)
-    compact = re.sub(r"\s+", "", blob.lower())
+    structural = _structural_detail_for_hunk(lines)
+    if structural:
+        return structural
 
-    if re.search(r"isinstance\s*\([^)]*classdef", blob, re.IGNORECASE):
-        return "Saves this class (name, line, docstring) into `definitions` from the AST."
-    if re.search(r"isinstance\s*\([^)]*functiondef", blob, re.IGNORECASE):
-        return "Saves this function (name, line, docstring) into `definitions` from the AST."
-
-    if re.search(r"""kind\s*=\s*['"]class['"]""", blob):
-        return "Records this as a class in the AST."
-    if re.search(r"""kind\s*=\s*['"]function['"]""", blob):
-        return "Records this as a function in the AST."
+    blob = _code_blob_for_cues(lines)
 
     if re.search(r"name\s*=\s*node\.name", blob):
         return "Uses the node's name as the definition name."
@@ -343,28 +648,111 @@ def _detail_for_hunk(
         return "Changes what this function returns."
 
     calls = re.findall(r"(?<!\.)([a-z_][\w]*)\s*\(", blob, re.IGNORECASE)
-    for callee in reversed(calls):
-        if callee.lower() not in _BUILTIN_CALLS and callee != symbol_name:
-            return f"Calls `{callee}(…)` here."
+    ranked: list[tuple[int, str]] = []
+    for callee in calls:
+        if callee == symbol_name or _is_plumbing_callee(callee):
+            continue
+        ranked.append((_call_rank(callee), callee))
+    if ranked:
+        top_rank = max(r for r, _ in ranked)
+        # Prefer the last top-rank call in the hunk (usually the edit's payload).
+        top = [c for r, c in ranked if r == top_rank]
+        return f"Calls `{top[-1]}(…)` here."
 
     assign_m = re.match(r"\s*(\w+)\s*=", lines[0])
     if assign_m and assign_m.group(1) not in ("if", "elif", "for", "while"):
         return f"Updates `{assign_m.group(1)}` here."
 
-    if "classdef" in compact and "functiondef" not in compact:
-        return "Records this as a class in the AST."
-    if "functiondef" in compact or "asyncfunctiondef" in compact:
-        return "Records this as a function in the AST."
-
     return _detail_without_symbol_name(fallback, symbol_name)
+
+
+def _calls_overlapping_hunk(
+    facts: ModuleFacts | None,
+    hunk_lines: list[int],
+    *,
+    symbol_name: str,
+) -> list[CallSite]:
+    """Proven call sites whose line sits inside this hunk (from ModuleFacts)."""
+    if facts is None or not hunk_lines:
+        return []
+    line_set = set(hunk_lines)
+    out: list[CallSite] = []
+    for call in facts.calls:
+        if call.line not in line_set:
+            continue
+        bare = _bare_callee(call.callee)
+        if bare == symbol_name or bare.lower() in _BUILTIN_CALLS:
+            continue
+        out.append(call)
+    return out
+
+
+def _pick_primary_call(calls: list[CallSite]) -> CallSite | None:
+    """Choose the hunk's subject call — skip plumbing when a better call exists."""
+    best: CallSite | None = None
+    best_rank = -1
+    for call in calls:
+        bare = _bare_callee(call.callee)
+        rank = _call_rank(bare)
+        if rank < 0:
+            continue
+        if best is None or rank > best_rank or (rank == best_rank and call.line >= best.line):
+            best = call
+            best_rank = rank
+    return best
+
+
+def _proven_detail_for_hunk(
+    facts: ModuleFacts | None,
+    hunk_lines: list[int],
+    *,
+    symbol_name: str,
+) -> str | None:
+    """AST/fact-backed detail when a meaningful call site overlaps the hunk."""
+    calls = _calls_overlapping_hunk(facts, hunk_lines, symbol_name=symbol_name)
+    primary = _pick_primary_call(calls)
+    if primary is None:
+        return None
+    bare = _bare_callee(primary.callee)
+    return f"Calls `{bare}(…)` here."
+
+
+def _hybrid_detail_for_hunk(
+    run_text: list[str],
+    *,
+    facts: ModuleFacts | None,
+    hunk_lines: list[int],
+    symbol_name: str,
+    purpose_fallback: str,
+) -> str:
+    """Hybrid (Phase 4b): structural cues → proven CallSite → weaker text heuristics.
+
+    Why this order: ``Definition(…)`` is a CallSite, but ``kind="function"`` vs
+    ``kind="class"`` is what juniors need to distinguish. Structural beats a
+    generic constructor call; real callees like ``enrich_changed_symbols`` still
+    win when there is no stronger cue.
+    """
+    structural = _structural_detail_for_hunk(run_text)
+    if structural:
+        return structural
+    proven = _proven_detail_for_hunk(facts, hunk_lines, symbol_name=symbol_name)
+    if proven:
+        return proven
+    return _detail_for_hunk(
+        run_text,
+        symbol_name=symbol_name,
+        fallback=purpose_fallback,
+    )
 
 
 def _build_hunk_details(
     symbol: ChangedSymbolInfo,
     facts: ModuleFacts | None,
     purpose_fallback: str,
+    *,
+    purpose_is_curated: bool = False,
 ) -> list[HunkDetail]:
-    """One site-specific detail per contiguous edit block (no parent symbol name)."""
+    """Build ℹ️ rows: one outcome per symbol unless hunks teach different outcomes."""
     fallback = expand_acronyms_for_juniors(
         _detail_without_symbol_name(purpose_fallback, symbol.name)
     )
@@ -381,10 +769,192 @@ def _build_hunk_details(
             run_text = [source[line - 1] for line in run if 0 < line <= len(source)]
         else:
             run_text = []
-        detail = _detail_for_hunk(run_text, symbol_name=symbol.name, fallback=purpose_fallback)
+        detail = _hybrid_detail_for_hunk(
+            run_text,
+            facts=facts,
+            hunk_lines=run,
+            symbol_name=symbol.name,
+            purpose_fallback=purpose_fallback,
+        )
         detail = expand_acronyms_for_juniors(detail)
         out.append(HunkDetail(line=anchor, changed_lines=run, detail=detail))
-    return out
+    return _collapse_hunk_details_to_outcomes(
+        out,
+        purpose_outcome=fallback,
+        symbol_name=symbol.name,
+        symbol_line=symbol.line,
+        purpose_is_curated=purpose_is_curated,
+    )
+
+
+def _structural_family(detail: str) -> str | None:
+    """Return 'class' / 'function' when the ℹ️ is a structural AST outcome."""
+    lower = detail.lower()
+    if "as a class" in lower:
+        return "class"
+    if "as a function" in lower:
+        return "function"
+    return None
+
+
+def _is_call_site_detail(detail: str) -> bool:
+    lower = detail.lower()
+    return lower.startswith("calls `") or "names the function this edit calls" in lower
+
+
+def _call_bare_from_detail(detail: str) -> str | None:
+    match = re.search(r"Calls `([^`(]+)", detail)
+    return match.group(1) if match else None
+
+
+# Calls that are plumbing relative to a curated purpose — don't steal the ℹ️ line.
+_PURPOSE_UTILITY_CALLEES = frozenset(
+    {
+        "expand_acronyms_for_juniors",
+        "expand_acronyms",
+        "PurePosixPath",
+        "Path",
+        "model_copy",
+        "format",
+        "join",
+        "strip",
+        "lower",
+    }
+)
+
+
+def _call_should_beat_curated_purpose(detail: str) -> bool:
+    """Public project calls (enrich_…) beat parent registry copy; private helpers don't."""
+    bare = _call_bare_from_detail(detail)
+    if not bare or bare.startswith("_"):
+        return False
+    return bare not in _PURPOSE_UTILITY_CALLEES
+
+
+def _purpose_is_strong_outcome(text: str, symbol_name: str) -> bool:
+    """True when symbol purpose is worth showing as the single ℹ️ (not generic filler)."""
+    if not text:
+        return False
+    lower = text.lower()
+    weak_markers = (
+        "other code may call",
+        "on the call path to other modules",
+        "see implementation",
+        "is defined here",
+    )
+    if any(marker in lower for marker in weak_markers):
+        return False
+    # Bare restatement of the name is not an outcome.
+    human = _humanize_name(symbol_name)
+    if human and lower.strip("` .") == human:
+        return False
+    return True
+
+
+def _pick_primary_hunk(details: list[HunkDetail], symbol_line: int) -> HunkDetail:
+    """Anchor the single ℹ️ on the main body edit, not the def line when possible."""
+    body = [d for d in details if d.line != symbol_line]
+    candidates = body or details
+    return max(candidates, key=lambda d: (len(d.changed_lines or []), -d.line))
+
+
+def _collapse_hunk_details_to_outcomes(
+    details: list[HunkDetail],
+    *,
+    purpose_outcome: str,
+    symbol_name: str,
+    symbol_line: int,
+    purpose_is_curated: bool = False,
+) -> list[HunkDetail]:
+    """One ℹ️ per symbol unless hunks teach different structural outcomes.
+
+    Litmus (Phase 4b): if deleting an ℹ️ loses no new fact → delete it.
+    Exception: function-vs-class structural cues on the same symbol stay separate.
+
+    Curated docstring / registry outcomes may replace call-site chrome. Heuristic
+    file/name purpose must not — that stole ``enrich_changed_symbols`` in dogfood.
+    """
+    if not details:
+        return []
+    if len(details) == 1:
+        return [
+            _finalize_single_hunk_detail(
+                details[0],
+                purpose_outcome=purpose_outcome,
+                symbol_name=symbol_name,
+                purpose_is_curated=purpose_is_curated,
+            )
+        ]
+
+    # Keep one row per distinct structural family (function vs class).
+    structural_rows: list[HunkDetail] = []
+    seen_families: set[str] = set()
+    for detail in details:
+        family = _structural_family(detail.detail)
+        if family and family not in seen_families:
+            seen_families.add(family)
+            structural_rows.append(detail)
+    if len(structural_rows) >= 2:
+        return structural_rows
+
+    primary = _pick_primary_hunk(details, symbol_line)
+    call_rows = [d for d in details if _is_call_site_detail(d.detail)]
+    use_outcome = purpose_is_curated and _purpose_is_strong_outcome(
+        purpose_outcome, symbol_name
+    )
+    if (
+        use_outcome
+        and call_rows
+        and _call_should_beat_curated_purpose(call_rows[0].detail)
+    ):
+        chosen = call_rows[0].detail
+    elif use_outcome:
+        chosen = purpose_outcome
+    else:
+        if call_rows:
+            chosen = call_rows[0].detail
+        elif structural_rows:
+            chosen = structural_rows[0].detail
+        elif _purpose_is_strong_outcome(purpose_outcome, symbol_name):
+            chosen = purpose_outcome
+        else:
+            chosen = primary.detail or purpose_outcome
+    return [
+        HunkDetail(
+            line=primary.line,
+            changed_lines=primary.changed_lines,
+            detail=chosen,
+        )
+    ]
+
+
+def _finalize_single_hunk_detail(
+    hunk: HunkDetail,
+    *,
+    purpose_outcome: str,
+    symbol_name: str,
+    purpose_is_curated: bool = False,
+) -> HunkDetail:
+    """Single edit block: structural first; curated outcome; else call/heuristic."""
+    if _structural_family(hunk.detail):
+        return hunk
+    if _is_call_site_detail(hunk.detail) and _call_should_beat_curated_purpose(hunk.detail):
+        return hunk
+    if purpose_is_curated and _purpose_is_strong_outcome(purpose_outcome, symbol_name):
+        return HunkDetail(
+            line=hunk.line,
+            changed_lines=hunk.changed_lines,
+            detail=purpose_outcome,
+        )
+    if _is_call_site_detail(hunk.detail):
+        return hunk
+    if _purpose_is_strong_outcome(purpose_outcome, symbol_name):
+        return HunkDetail(
+            line=hunk.line,
+            changed_lines=hunk.changed_lines,
+            detail=purpose_outcome,
+        )
+    return hunk
 
 
 def _scrub_self_file_noise(text: str, path: str) -> str:
@@ -445,11 +1015,37 @@ def _symbol_purpose_with_evidence(
     path: str,
     facts: ModuleFacts | None,
 ) -> tuple[str, list[EvidenceItem]]:
+    name = symbol.name
+    lower = name.lower()
+    snake = _snake_name(name)
+    snake_core = snake.lstrip("_")
+    padded = f"/{path}"
+    posix = PurePosixPath(path)
+
     doc = _definition_docstring(facts, symbol)
-    if doc and _docstring_adds_value(symbol.name, doc):
+    doc_usable = bool(doc and _docstring_adds_value(name, doc))
+    # Curated product copy beats developer-voice docstrings (Phase notes, RST, etc.).
+    for key in (lower, snake, snake_core):
+        exact = _EXACT_SYMBOL_PURPOSE.get(key)
+        if not exact:
+            continue
+        if not doc_usable or (doc and _docstring_is_developer_voice(doc)):
+            return (
+                exact.format(name=name, path=path),
+                [
+                    EvidenceItem(
+                        confidence="heuristic",
+                        kind="symbol_registry",
+                        location=path,
+                        fact=f'matched built-in symbol rule "{key}"',
+                    ),
+                ],
+            )
+
+    if doc_usable and doc:
         line = _definition_line(facts, symbol)
         return (
-            _purpose_from_docstring(symbol.name, doc),
+            _purpose_from_docstring(name, doc),
             [
                 EvidenceItem(
                     confidence="proven",
@@ -460,14 +1056,7 @@ def _symbol_purpose_with_evidence(
             ],
         )
 
-    name = symbol.name
-    lower = name.lower()
-    snake = _snake_name(name)
-    snake_core = snake.lstrip("_")
-    padded = f"/{path}"
-    posix = PurePosixPath(path)
-
-    for key in (lower, snake):
+    for key in (lower, snake, snake_core):
         exact = _EXACT_SYMBOL_PURPOSE.get(key)
         if exact:
             return (
@@ -876,12 +1465,48 @@ def _definition_docstring(
 
 
 def _purpose_from_docstring(name: str, doc: str) -> str:
-    first = doc.strip().rstrip(".")
+    first = _juniorize_doc_outcome(doc.strip().rstrip("."))
     if not first:
         return f"`{name}` is defined here."
     if first[0].islower():
         first = first[0].upper() + first[1:]
     return f"`{name}` — {first}."
+
+
+def _docstring_is_developer_voice(doc: str) -> bool:
+    """True when a docstring reads like an implementation note, not junior product copy."""
+    lower = doc.lower()
+    markers = (
+        "phase ",
+        "callsite",
+        "call site",
+        "``",
+        "{emoji}",
+        "{risk}",
+        "hybrid (",
+        "structural cue",
+        "heuristic",
+        "ast/fact",
+        "modulefacts",
+        "hunk_details",
+        "hunk ",
+        "ℹ️",
+        "→",
+    )
+    return any(marker in lower for marker in markers)
+
+
+def _juniorize_doc_outcome(text: str) -> str:
+    """Strip RST / template / roadmap voice so ℹ️ reads as an outcome."""
+    out = text.strip()
+    # Drop RST double-backticks but keep the inner word when simple.
+    out = re.sub(r"``([^`]+)``", r"\1", out)
+    out = re.sub(r"Phase\s+\d+[a-z]?\s*[:\-—]?\s*", "", out, flags=re.IGNORECASE)
+    out = re.sub(r"\{[a-z_]+\}", "", out, flags=re.IGNORECASE)
+    out = re.sub(r"\s+", " ", out).strip(" :-—")
+    # "Return X when Y" → keep the useful clause.
+    out = re.sub(r"^(Returns?|Returning)\s+", "", out, flags=re.IGNORECASE)
+    return out
 
 
 _DOCSTRING_STOP_WORDS = frozenset(
@@ -1167,7 +1792,61 @@ _EXACT_SYMBOL_PURPOSE: dict[str, str] = {
     ),
     "explain_symbols": "`{name}` builds traced explanations for every changed symbol in an audit.",
     "explain_symbol_with_evidence": (
-        "`{name}` explains one changed symbol and records proven vs heuristic evidence."
+        "`{name}` attaches implication, purpose, and evidence onto one changed symbol for the IDE."
+    ),
+    "_build_hunk_details": (
+        "`{name}` builds each edit's caption (plain English above the changed lines)."
+    ),
+    "_hybrid_detail_for_hunk": (
+        "`{name}` picks the best caption for this edit block (facts first, then text cues)."
+    ),
+    "_proven_detail_for_hunk": (
+        "`{name}` names the function this edit actually calls, when the parser recorded it."
+    ),
+    "_implication_for_symbol": (
+        "`{name}` builds the risk rail: who depends on this, and what goes wrong if it's bad."
+    ),
+    "_collapse_hunk_details_to_outcomes": (
+        "`{name}` keeps one ℹ️ per symbol unless two edits teach different outcomes."
+    ),
+    "_implication_who_what": (
+        "`{name}` fills the who / what-goes-wrong slots for the risk rail (or stays quiet)."
+    ),
+}
+
+# who, what-goes-wrong — used by the IDE risk rail (never restates the symbol name).
+_EXACT_SYMBOL_IMPLICATION: dict[str, tuple[str, str]] = {
+    "explain_symbol_with_evidence": (
+        "every changed-symbol CodeLens",
+        "bad wiring drops implication or evidence",
+    ),
+    "_build_hunk_details": (
+        "`focus audit` → IDE captions",
+        "bad copy misleads every local review",
+    ),
+    "_hybrid_detail_for_hunk": (
+        "each ℹ️ line",
+        "wrong choice mislabels real edits",
+    ),
+    "_proven_detail_for_hunk": (
+        "proven call captions",
+        "wrong pick shows junk like `rsplit`",
+    ),
+    "_implication_for_symbol": (
+        "IDE risk rail",
+        "wrong who/what misleads severity",
+    ),
+    "_collapse_hunk_details_to_outcomes": (
+        "ℹ️ count on each symbol",
+        "too many lines drown the real story",
+    ),
+    "_implication_who_what": (
+        "risk-rail who/what slots",
+        "empty or wrong slots hide real blast radius",
+    ),
+    "enrich_changed_symbols": (
+        "`focus audit` inline explanations",
+        "missing captions leave reviewers guessing",
     ),
 }
 

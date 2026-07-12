@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 
 import { definitionLine, editorLine, hunkDetailsForSymbol } from "./symbolLayout";
 import { FOCUS_BADGE, riskEmoji } from "./icons";
-import { explanationLensTitle, summaryLensTitle } from "./explainText";
+import { evidenceMarkdown, explanationLensTitle, summaryLensTitle } from "./explainText";
 import { inlineExplanationsEnabled } from "./inlineExplanation";
 import type { ChangedSymbolInfo, FocusHUD, ImpactNode, LineExplanation, RiskTier } from "./types";
 
@@ -70,17 +70,19 @@ function symbolLenses(
   sym: ChangedSymbolInfo,
 ): vscode.CodeLens[] {
   const defLine = definitionLine(sym);
-  const n = hud.downstream.length;
-  const badge = `${FOCUS_BADGE} Focus · ${sym.name} · ${riskEmoji(hud.risk_tier)} ${hud.risk_tier} · ${n} downstream`;
-  const headerTitle = sym.summary ? `${badge}\n${summaryLensTitle(sym.summary)}` : badge;
+  const lenses: vscode.CodeLens[] = [];
+  const implication = sym.implication || "";
 
-  const lenses: vscode.CodeLens[] = [
-    new vscode.CodeLens(new vscode.Range(defLine, 0, defLine, 0), {
-      title: headerTitle,
-      command: "focus.noop",
-      tooltip: sym.summary ?? sym.explanation ?? `${sym.kind} ${sym.name} — ${hud.summary}`,
-    }),
-  ];
+  // Risk rail above `def` — quiet when LOW / empty implication (Phase 4b).
+  if (implication) {
+    lenses.push(
+      new vscode.CodeLens(new vscode.Range(defLine, 0, defLine, 0), {
+        title: summaryLensTitle(implication),
+        command: "focus.noop",
+        tooltip: evidenceMarkdown(sym),
+      }),
+    );
+  }
 
   if (inlineExplanationsEnabled()) {
     for (const hunk of hunkDetailsForSymbol(sym)) {
@@ -92,10 +94,23 @@ function symbolLenses(
         new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
           title: explanationLensTitle(hunk.detail),
           command: "focus.noop",
-          tooltip: sym.explanation ?? hunk.detail,
+          tooltip: evidenceMarkdown(sym, hunk.detail),
         }),
       );
     }
+  }
+
+  // Fallback chrome when no implication and no purpose lenses (rare).
+  if (!lenses.length) {
+    const n = hud.downstream.length;
+    const badge = `${FOCUS_BADGE} Focus · ${sym.name} · ${riskEmoji(hud.risk_tier as RiskTier)} ${hud.risk_tier} · ${n} downstream`;
+    lenses.push(
+      new vscode.CodeLens(new vscode.Range(defLine, 0, defLine, 0), {
+        title: badge,
+        command: "focus.noop",
+        tooltip: sym.explanation ?? `${sym.kind} ${sym.name} — ${hud.summary}`,
+      }),
+    );
   }
 
   return lenses;

@@ -88,6 +88,15 @@ class HunkDetail(BaseModel):
     detail: str = ""
 
 
+class EvidenceItem(BaseModel):
+    """One verifiable or heuristic fact behind an explanation clause."""
+
+    confidence: Confidence
+    kind: EvidenceKind
+    location: str
+    fact: str
+
+
 class ChangedSymbolInfo(BaseModel):
     """A definition the diff actually touched (line overlap with a hunk)."""
 
@@ -99,16 +108,11 @@ class ChangedSymbolInfo(BaseModel):
     summary: str = ""
     detail: str = ""
     explanation: str = ""
+    # Risk rail: "{emoji} {RISK} — {who} — {what goes wrong}". Empty when quiet (LOW).
+    implication: str = ""
     hunk_details: list[HunkDetail] = []
-
-
-class EvidenceItem(BaseModel):
-    """One verifiable or heuristic fact behind an explanation clause."""
-
-    confidence: Confidence
-    kind: EvidenceKind
-    location: str
-    fact: str
+    # Proven/heuristic facts for IDE hover (not shown on the CodeLens line).
+    evidence: list[EvidenceItem] = []
 
 
 class ExplanationClause(BaseModel):
