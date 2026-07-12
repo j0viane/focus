@@ -3,7 +3,7 @@ Sideload this extension to see Focus **in the diff**: CodeLens on changed **symb
 ## Prerequisites
 
 ```bash
-pip install "focus-hud>=0.3.0"
+pip install "focus-hud>=0.3.1"
 # or: uv tool install focus-hud --force --python 3.13
 focus version   # must support --format json
 ```

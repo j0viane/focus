@@ -79,7 +79,7 @@ async function runFocus(args: string[], cwd: string): Promise<string> {
     const e = err as { code?: string; message?: string; stderr?: string; stdout?: string };
     if (e.code === "ENOENT") {
       throw new FocusCliError(
-        "focus not found on PATH. Install with: pip install \"focus-hud>=0.2.0\" " +
+        "focus not found on PATH. Install with: pip install \"focus-hud>=0.3.1\" " +
           "(or set focus.path). See https://pypi.org/project/focus-hud/",
       );
     }

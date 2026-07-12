@@ -2,7 +2,7 @@
   "name": "focus-hud",
   "displayName": "Focus",
   "description": "Blast radius you can defend — evidence-only Focus HUD in the editor.",
-  "version": "0.4.9",
+  "version": "0.5.0",
   "publisher": "j0viane",
   "engines": {
     "vscode": "^1.85.0"

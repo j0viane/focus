@@ -25,7 +25,7 @@ Focus shows **what else that change touches** — with evidence you can point at
 ## Try in 60 seconds
 
 ```bash
-pip install "focus-hud>=0.3.0"
+pip install "focus-hud>=0.3.1"
 # or: uv tool install focus-hud
 
 focus trace path/to/shared_module.py --out focus-hud.md
@@ -104,7 +104,7 @@ CodeLens on changed symbols + per-hunk explainers + click for the full HUD panel
 | ℹ️ Detail | Above each edit block | Hunk-local plain English (acronyms expanded for juniors) |
 
 ```bash
-pip install "focus-hud>=0.3.0"
+pip install "focus-hud>=0.3.1"
 ./scripts/install-extension.sh   # or: cd extensions/vscode-focus && npm run compile
 ```
 

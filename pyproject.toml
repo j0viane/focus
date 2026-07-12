@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "focus-hud"
-version = "0.3.0"
+version = "0.3.1"
 description = "Blast radius you can defend — evidence-only, before you merge."
 readme = "README.md"
 license = "MIT"
