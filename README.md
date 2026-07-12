@@ -77,7 +77,7 @@ CodeLens on changed symbols + per-hunk explainers + click for the full HUD panel
         definitions: list[Definition] = []
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-ℹ️ Records this as a function in the AST (Abstract Syntax Tree).
+                ℹ️ Records this as a function in the AST (Abstract Syntax Tree).
                 definitions.append(
                     Definition(
                         name=node.name,
@@ -87,7 +87,7 @@ CodeLens on changed symbols + per-hunk explainers + click for the full HUD panel
                     )
                 )
             elif isinstance(node, ast.ClassDef):
-ℹ️ Records this as a class in the AST (Abstract Syntax Tree).
+                ℹ️ Records this as a class in the AST (Abstract Syntax Tree).
                 definitions.append(
                     Definition(
                         name=node.name,

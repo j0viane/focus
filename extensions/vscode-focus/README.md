@@ -45,9 +45,9 @@ Virtual UI only — **not** written to disk or git.
 
     def _extract_definitions(tree: ast.AST) -> list[Definition]:
         ...
-ℹ️ Records this as a function in the AST (Abstract Syntax Tree).
+                ℹ️ Records this as a function in the AST (Abstract Syntax Tree).
                 Definition(..., kind="function", ...)
-ℹ️ Records this as a class in the AST (Abstract Syntax Tree).
+                ℹ️ Records this as a class in the AST (Abstract Syntax Tree).
                 Definition(..., kind="class", ...)
 ```
 
