@@ -2,25 +2,40 @@
 
 **Blast radius you can defend — evidence-only, before you merge.**
 
-Focus answers one question: **what else in this codebase could break because of this change?**
+When a senior asks *why* on an AI-assisted PR, “the model wrote it” isn’t an answer.  
+Focus shows **what else that change touches** — with evidence you can point at in review.
 
-It's an **AR HUD for codebases**: a computed import graph (Python + JS/TS) → Mermaid map + Danger Zones. Same HUD in the CLI and on the PR. No LLM inventing edges.
+---
 
-> **Not** another AI PR summary. **Not** a hop inventory that cries wolf on every file. Focus stays quiet when the change is boring, and loud when you touch a shared hub.
+## Who · What · When · Where · Why · How
+
+| | |
+|---|---|
+| **Who** | Juniors shipping AI-assisted PRs, and seniors who have to review them — anyone who must **defend** a change |
+| **What** | An evidence-only blast-radius HUD: import graph → Mermaid map + Danger Zones. No LLM inventing edges |
+| **When** | Right before you push, and on every PR — the moment someone asks “what else breaks?” or “why this?” |
+| **Where** | **A:** GitHub PR comment (full HUD). **C:** inline in the diff — IDE CodeLens + HUD panel now; GitHub file annotations next. **Not** committed `.md` files |
+| **Why** | AI made teams faster at generating code and slower at shared understanding. The feedback loop breaks when the answer is silence |
+| **How** | Parse the repo → dependency graph → reverse-BFS from the diff → quiet unless it matters. Same `FocusHUD` everywhere (`--format json` for the IDE) |
+
+> Not another AI PR summary. Not a hop inventory that cries wolf on every file.
 
 ---
 
 ## Try in 60 seconds
 
 ```bash
-pip install focus-hud
+pip install "focus-hud>=0.2.0"
 # or: uv tool install focus-hud
 
 focus trace path/to/shared_module.py --out focus-hud.md
 # open focus-hud.md → Markdown preview for Mermaid
 
-focus audit --local --out focus-hud.md   # working tree vs main — before you push
+focus audit --local --out focus-hud.md   # local preview only (gitignored — not committed)
+focus audit --local --format json        # machine-readable HUD (IDE / tools)
 ```
+
+`focus-hud.md` is a **scratch file** for local Mermaid preview. Focus does **not** ask you to commit HUD output — reviewers get **A** (PR comment) and **C** (inline in the diff).
 
 **Demo fixture (no app required):**
 
@@ -35,24 +50,46 @@ Gallery + walkthrough: [`docs/DEMO.md`](docs/DEMO.md) · [`docs/assets/`](docs/a
 
 ---
 
-## Why this exists
+## Where Focus shows up
 
-There's a new kind of pressure on developers — and it lands hardest on juniors: walk into a codebase you've never seen, point an AI at it, and ship. The code arrives in seconds. The understanding doesn't.
-
-Focus is for the moment right before you push into a codebase that was there long before you. **What the system looks like, and what your change will actually touch** — with evidence you can defend in review.
-
-| Moment | Command | You get |
+| Surface | When | What you get |
 |---|---|---|
-| AI rewrote a shared function | `focus audit --local` | Blast radius of your working tree vs `main` |
-| Big PR in your queue | Focus Action comment | Skim-or-dig: diagram + Danger Zones, or “low impact” |
-| Inherited a module | `focus trace path/to/file.py` | Everything that depends on it |
+| **A — PR comment** | Every PR (GitHub Action) | Full architecture HUD — summary, Mermaid, Danger Zones. Updates in place on new pushes |
+| **C — IDE diff** | Before you push (Cursor / VS Code) | CodeLens on changed + blast-radius files; click for HUD panel |
+| **C — GitHub diff** | PR review (planned) | Inline pins on **Files changed** — companion to the PR comment |
+| ~~**B — git**~~ | — | **Not supported** — no committed `focus-hud.md` |
+
+Same evidence everywhere: parse → graph → `FocusHUD` → renderer (markdown comment, webview, CodeLens, future GitHub annotations).
 
 ---
 
-## GitHub Action (any repo)
+## In Cursor / VS Code (diff-first · surface C)
+
+CodeLens on changed files (`Focus · CRITICAL · N downstream`) + click for the full HUD panel — blast radius **in the diff you're editing**.
+
+```bash
+pip install "focus-hud>=0.2.0"
+./scripts/install-extension.sh   # or: cd extensions/vscode-focus && npm run compile
+```
+
+Then open your repo, set `focus.path` if needed, and run **Focus: Audit Local Changes**. Details: [`extensions/vscode-focus/README.md`](extensions/vscode-focus/README.md).
+
+| Moment | Command | You get |
+|---|---|---|
+| AI rewrote a shared function | `focus audit --local` or **Focus: Audit Local Changes** | **C** — blast radius in your working diff |
+| Big PR in your queue | Focus Action comment | **A** — diagram + Danger Zones on the PR |
+| Inherited a module | `focus trace path/to/file.py` | Downstream map for one file |
+
+---
+
+## GitHub Action (surface A · any repo)
 
 Copy [`examples/focus-action.yml`](examples/focus-action.yml) → `.github/workflows/focus.yml`.  
+On every PR open/sync, Focus posts (and updates) a HUD **comment** — not a file in the commit.
+
 Details: [`docs/ACTION.md`](docs/ACTION.md). Permissions: `contents: read` + `pull-requests: write` only ([`docs/PRIVACY.md`](docs/PRIVACY.md)).
+
+**Phase 5:** inline annotations on the PR diff (**C** on GitHub) — see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -110,16 +147,17 @@ flowchart TB
 
     scan --> preflight
     preflight --> hud
-    hud --> OUT[CLI stdout / GitHub PR comment]
+    hud --> OUT["A: PR comment · C: IDE / GitHub diff"]
 ```
 
 | Layer | Technology |
 |---|---|
-| CLI | Python 3.12+ / Typer |
+| CLI | Python 3.12+ / Typer (`--format markdown\|json`) |
 | AST | Python `ast` + Tree-sitter (JS/TS) |
 | Graph | NetworkX |
-| Diagrams | Mermaid (native on GitHub) |
-| CI | Opt-in GitHub Action |
+| Diagrams | Mermaid (GitHub + IDE webview) |
+| CI | Opt-in GitHub Action — PR comment (A); inline diff (C) planned |
+| IDE | VS Code / Cursor — CodeLens + HUD panel (C) |
 
 ---
 
@@ -128,7 +166,7 @@ flowchart TB
 | Command | Purpose |
 |---|---|
 | `focus scan [path]` | Index the repo (Python + JS/TS) |
-| `focus trace [file]` | HUD for one file |
+| `focus trace [file]` | HUD for one file (`--format json` for tools) |
 | `focus audit --local` | Working tree vs `main` |
 | `focus audit --base <sha>` | PR / branch range |
 | `focus version` | Installed version |
@@ -137,8 +175,7 @@ flowchart TB
 
 ## Roadmap
 
-Phase 3 **complete** — CLI + Action + JS/TS + cache + **`focus-hud` on PyPI**.  
-Next product candidate: **IDE extension** (parked until scoped). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Phase 3 **complete**. Phase 4 **in progress** (IDE **C**). Phase 5 **next** (GitHub diff **C** + **A** comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -154,7 +191,7 @@ Next product candidate: **IDE extension** (parked until scoped). See [`docs/ROAD
 | [`docs/DEMO.md`](docs/DEMO.md) | Walkthrough + gallery |
 | [`docs/LAUNCH.md`](docs/LAUNCH.md) | Product Hunt / Show HN drafts |
 | [`docs/ACTION.md`](docs/ACTION.md) | Action install |
-| [`docs/HUD.md`](docs/HUD.md) | HUD schema |
+| [`docs/HUD.md`](docs/HUD.md) | HUD schema + JSON contract |
 | [`docs/ETHICS.md`](docs/ETHICS.md) | Responsible use |
 | [`docs/PRIVACY.md`](docs/PRIVACY.md) | Data boundaries |
 

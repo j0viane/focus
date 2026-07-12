@@ -1,5 +1,9 @@
 """Typer entrypoint for the Focus CLI."""
 
+from __future__ import annotations
+
+import json
+from enum import Enum
 from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Annotated
@@ -18,6 +22,11 @@ app = typer.Typer(
     help="Blast radius you can defend — evidence-only, before you merge.",
     no_args_is_help=True,
 )
+
+
+class OutputFormat(str, Enum):
+    markdown = "markdown"
+    json = "json"
 
 
 @app.command()
@@ -71,8 +80,12 @@ def trace(
     ] = Path("."),
     out: Annotated[
         Path | None,
-        typer.Option("--out", help="Write HUD markdown here (open in IDE preview)."),
+        typer.Option("--out", help="Write HUD output here (markdown or JSON)."),
     ] = None,
+    output_format: Annotated[
+        OutputFormat,
+        typer.Option("--format", help="HUD output format (markdown or json)."),
+    ] = OutputFormat.markdown,
     no_cache: Annotated[
         bool,
         typer.Option("--no-cache", help="Bypass .focus-cache/ and re-parse every file."),
@@ -97,7 +110,7 @@ def trace(
 
     rings = downstream_rings(graph, target)
     hud = build_hud(graph, target, rings)
-    _emit_hud(hud, out)
+    _emit_hud(hud, out, output_format)
 
 
 @app.command()
@@ -116,8 +129,12 @@ def audit(
     ] = Path("."),
     out: Annotated[
         Path | None,
-        typer.Option("--out", help="Write HUD markdown here (open in IDE preview)."),
+        typer.Option("--out", help="Write HUD output here (markdown or JSON)."),
     ] = None,
+    output_format: Annotated[
+        OutputFormat,
+        typer.Option("--format", help="HUD output format (markdown or json)."),
+    ] = OutputFormat.markdown,
     no_cache: Annotated[
         bool,
         typer.Option("--no-cache", help="Bypass .focus-cache/ and re-parse every file."),
@@ -133,14 +150,20 @@ def audit(
     except GitDiffError as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from None
-    _emit_hud(hud, out)
+    _emit_hud(hud, out, output_format)
 
 
-def _emit_hud(hud: FocusHUD, out: Path | None) -> None:
-    text = render_hud(hud)
+def _emit_hud(hud: FocusHUD, out: Path | None, fmt: OutputFormat) -> None:
+    if fmt is OutputFormat.json:
+        text = json.dumps(hud.model_dump(mode="json"), indent=2)
+    else:
+        text = render_hud(hud)
     if out is not None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text + "\n", encoding="utf-8")
         typer.echo(f"Wrote Focus HUD to {out.resolve()}")
-        typer.echo("Open that file in the editor and use Markdown preview to see the diagram.")
+        if fmt is OutputFormat.markdown:
+            typer.echo(
+                "Open that file in the editor and use Markdown preview to see the diagram."
+            )
     typer.echo(text)
