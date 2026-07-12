@@ -23,6 +23,7 @@ def render_hud(hud: FocusHUD) -> str:
                 "",
                 *(
                     f"- `{s.path}` → **`{s.name}`** ({s.kind}, line {s.line})"
+                    + (f" — {s.explanation}" if s.explanation else "")
                     for s in hud.changed_symbols
                 ),
                 "",

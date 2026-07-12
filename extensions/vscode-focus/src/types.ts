@@ -9,11 +9,30 @@ export interface ImpactNode {
   reason: string;
 }
 
+export interface HunkDetail {
+  line: number;
+  changed_lines?: number[];
+  detail: string;
+}
+
 export interface ChangedSymbolInfo {
   path: string;
   name: string;
   kind: "function" | "class";
   line: number;
+  changed_lines?: number[];
+  summary?: string;
+  detail?: string;
+  explanation?: string;
+  hunk_details?: HunkDetail[];
+}
+
+/** Inline explainer for diff hunks outside any changed symbol body. */
+export interface LineExplanation {
+  path: string;
+  line: number;
+  changed_lines?: number[];
+  detail: string;
 }
 
 export interface FocusHUD {
@@ -26,5 +45,6 @@ export interface FocusHUD {
   downstream: ImpactNode[];
   isolated: string[];
   changed_symbols: ChangedSymbolInfo[];
+  line_explanations?: LineExplanation[];
   caveat: string | null;
 }

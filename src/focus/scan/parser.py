@@ -88,13 +88,31 @@ def _extract_definitions(tree: ast.AST) -> list[Definition]:
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             definitions.append(
-                Definition(name=node.name, kind="function", line=node.lineno)
+                Definition(
+                    name=node.name,
+                    kind="function",
+                    line=node.lineno,
+                    docstring=_first_docstring_line(node),
+                )
             )
         elif isinstance(node, ast.ClassDef):
             definitions.append(
-                Definition(name=node.name, kind="class", line=node.lineno)
+                Definition(
+                    name=node.name,
+                    kind="class",
+                    line=node.lineno,
+                    docstring=_first_docstring_line(node),
+                )
             )
     return sorted(definitions, key=lambda d: d.line)
+
+
+def _first_docstring_line(node: ast.AST) -> str | None:
+    raw = ast.get_docstring(node)
+    if not raw:
+        return None
+    line = raw.strip().splitlines()[0].strip()
+    return line or None
 
 
 def _extract_calls(tree: ast.AST) -> list[CallSite]:

@@ -6,6 +6,7 @@ Project-specific rules loaded by Cursor when you work in this repo.
 |---|---|
 | `focus-project.mdc` | Product context, architecture, tech stack *(public, committed)* |
 | `focus-engineering.mdc` | Non-negotiable engineering constraints *(public, committed)* |
+| `focus-explanation-voice.mdc` | Junior-facing explainer voice — expand acronyms, intent over jargon |
 | `focus.mdc` | Diagnostic engine identity, HUD contract, directives *(symlink → `cursor-rules/focus/`)* |
 | `focus-learning.mdc` | Learn-while-building technology map *(symlink → `cursor-rules/focus/`)* |
 | `focus-mentorship.mdc` | Mentorship protocol *(symlink → `cursor-rules/focus/`)* |

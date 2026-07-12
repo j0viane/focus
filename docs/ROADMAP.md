@@ -138,7 +138,24 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | HUD webview panel | Same Mermaid + Danger Zones as CLI / PR comment | ✅ MVP |
 | CodeLens on changed **lines/symbols** | True inline diff context (not just file header) | ✅ 0.2.1 |
 | Gutter hop markers + “why this edge” | Click claim → import evidence | 🔄 MVP (gutter + showWhy; import jump pending) |
+| Inline symbol explanations | Stacked CodeLens `↳` captions on changed defs | ✅ branch |
+| `focus explain --why` | CLI evidence trail (proven vs heuristic) per caption | ✅ branch |
 | Marketplace publish | Easy install for strangers | Pending |
+
+---
+
+## Phase 4b — Explanation depth *(planned after inline captions ship)*
+
+**Goal:** Close the known gaps in deterministic explanations — still **no LLM** for dependency edges or captions.
+
+| Limitation today | Planned improvement | Status |
+|---|---|---|
+| **File-level blast radius** | Symbol-level downstream (who calls *this* def, not just the file) | Planned |
+| **Static-only graph** | Best-effort dynamic import / string-literal hints where parseable | Explore |
+| **Heuristic captions** when no docstring | JSDoc/TSDoc extraction for JS/TS; Typer `@app.command` metadata for CLI | Planned |
+| **Evidence in IDE** | `focus explain --why` in CodeLens tooltip or command palette | Planned |
+
+**Trust model:** every caption labels evidence as **proven** (parse/graph/diff) or **heuristic** (name/path rules). `focus explain --why` shows the cite list today; IDE surfacing is next.
 
 ---
 
@@ -178,7 +195,7 @@ Full ethics list: [`docs/ETHICS.md`](ETHICS.md)
 - **GitHub inline diff (Phase 5):** review comments / annotations on PR diff — companion to PR comment (A).
 - **LLM label pass (parked):** optional plain-English node names / short summaries from graph JSON only. **Not scheduled.** Focus’s value is computed topology; we will not add an LLM layer “for show” if it can invent wording that outruns the evidence.
 - **More languages (Go / Rust / Java):** adoption breadth only — not the differentiator. Revisit when a real user is blocked without them.
-- **Auditable “why this edge”:** click from HUD claim → import evidence (line). Trust theater → trust proof.
+- **Auditable “why this edge”:** click from HUD claim → import evidence (line). Trust theater → trust proof. **`focus explain --why`** ships on the inline-explanations branch; IDE deep-link next.
 
 ---
 

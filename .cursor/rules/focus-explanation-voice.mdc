@@ -1,0 +1,40 @@
+---
+description: Junior-facing Focus explanation voice — expand acronyms, intent over jargon
+globs: src/focus/hud/explain.py,extensions/vscode-focus/src/**/*.ts,docs/**/*.md
+alwaysApply: false
+---
+
+# Focus — Explanation Voice (Juniors First)
+
+Inline explainers ship through the **Focus extension + Python backend**, not Cursor rules.
+VS Code and Cursor users both see the same HUD JSON. Claude Code / Codex are out of scope
+for this extension UX.
+
+## Runtime (product)
+
+Acronym teaching lives in `expand_acronyms_for_juniors()` in `src/focus/hud/explain.py`.
+Any summary / detail / explanation string goes through that helper before it reaches the IDE.
+Add new product terms there — do not rely on `.cursor/rules` for end-user copy.
+
+## Expand acronyms on first use
+
+Write bare acronyms in generators when natural (`AST`, `BFS`); the helper expands the first
+occurrence to **`ACRONYM (Full Name)`**. Skip if already expanded.
+
+| Bad | Good |
+|---|---|
+| Sets `kind="function"` on the Definition record being built. | Records this as a function in the AST. |
+| (generator output) Records this as a function in the AST. | (end user sees) Records this as a function in the AST (Abstract Syntax Tree). |
+
+## Prefer intent over machinery
+
+Explain **what this change does for the reader**, not what the syntax does.
+
+## Do not repeat the enclosing function name
+
+The Focus header above `def` already names the symbol. Inline 💡 detail should name
+**what’s in the hunk** (variable, kind, call), not restating `_extract_definitions`.
+
+## Litmus test
+
+Read the 💡 line out loud. If *you* pause to ask “what does that mean?”, rewrite it.

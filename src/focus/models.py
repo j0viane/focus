@@ -33,6 +33,7 @@ class Definition(BaseModel):
     name: str
     kind: Literal["function", "class"]
     line: int
+    docstring: str | None = None
 
 
 class CallSite(BaseModel):
@@ -54,6 +55,21 @@ class ModuleFacts(BaseModel):
 
 RiskTier = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 HudMode = Literal["full", "pass_through", "error"]
+Confidence = Literal["proven", "heuristic"]
+EvidenceKind = Literal[
+    "diff_overlap",
+    "docstring",
+    "import",
+    "call",
+    "graph_importer",
+    "downstream_count",
+    "danger_path",
+    "shared_hub",
+    "heuristic_name",
+    "heuristic_path",
+    "symbol_registry",
+    "test_module",
+]
 
 
 class ImpactNode(BaseModel):
@@ -64,6 +80,14 @@ class ImpactNode(BaseModel):
     reason: str
 
 
+class HunkDetail(BaseModel):
+    """Inline explainer for one contiguous edit block inside a changed symbol."""
+
+    line: int
+    changed_lines: list[int] = []
+    detail: str = ""
+
+
 class ChangedSymbolInfo(BaseModel):
     """A definition the diff actually touched (line overlap with a hunk)."""
 
@@ -71,6 +95,45 @@ class ChangedSymbolInfo(BaseModel):
     name: str
     kind: Literal["function", "class"]
     line: int
+    changed_lines: list[int] = []
+    summary: str = ""
+    detail: str = ""
+    explanation: str = ""
+    hunk_details: list[HunkDetail] = []
+
+
+class EvidenceItem(BaseModel):
+    """One verifiable or heuristic fact behind an explanation clause."""
+
+    confidence: Confidence
+    kind: EvidenceKind
+    location: str
+    fact: str
+
+
+class ExplanationClause(BaseModel):
+    """Purpose or impact sentence plus the evidence that produced it."""
+
+    role: Literal["purpose", "impact"]
+    text: str
+    evidence: list[EvidenceItem] = []
+
+
+class SymbolExplanation(BaseModel):
+    """Full explanation for one changed symbol, optionally with evidence trail."""
+
+    symbol: ChangedSymbolInfo
+    text: str
+    clauses: list[ExplanationClause] = []
+
+
+class LineExplanation(BaseModel):
+    """Inline explainer for a diff hunk outside any changed symbol body."""
+
+    path: str
+    line: int
+    changed_lines: list[int] = []
+    detail: str = ""
 
 
 class FocusHUD(BaseModel):
@@ -85,4 +148,5 @@ class FocusHUD(BaseModel):
     downstream: list[ImpactNode] = []
     isolated: list[str] = []
     changed_symbols: list[ChangedSymbolInfo] = []
+    line_explanations: list[LineExplanation] = []
     caveat: str | None = None

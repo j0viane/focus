@@ -1,7 +1,11 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 
-import type { ChangedSymbolInfo, FocusHUD, ImpactNode } from "./types";
+import { definitionLine, editorLine, hunkDetailsForSymbol } from "./symbolLayout";
+import { FOCUS_BADGE, riskEmoji } from "./icons";
+import { explanationLensTitle, summaryLensTitle } from "./explainText";
+import { inlineExplanationsEnabled } from "./inlineExplanation";
+import type { ChangedSymbolInfo, FocusHUD, ImpactNode, LineExplanation, RiskTier } from "./types";
 
 export class FocusCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChange = new vscode.EventEmitter<void>();
@@ -31,7 +35,13 @@ export class FocusCodeLensProvider implements vscode.CodeLensProvider {
     const symbols = this.hud.changed_symbols.filter((s) => s.path === rel);
 
     for (const sym of symbols) {
-      lenses.push(symbolLens(this.hud, sym));
+      lenses.push(...symbolLenses(document, this.hud, sym));
+    }
+
+    for (const note of this.hud.line_explanations ?? []) {
+      if (note.path === rel) {
+        lenses.push(...orphanLineLenses(document, note));
+      }
     }
 
     if (symbols.length > 0) {
@@ -54,14 +64,61 @@ function relPath(root: string, fsPath: string): string | undefined {
   return rel;
 }
 
-function symbolLens(hud: FocusHUD, sym: ChangedSymbolInfo): vscode.CodeLens {
-  const line = Math.max(0, sym.line - 1);
+function symbolLenses(
+  document: vscode.TextDocument,
+  hud: FocusHUD,
+  sym: ChangedSymbolInfo,
+): vscode.CodeLens[] {
+  const defLine = definitionLine(sym);
   const n = hud.downstream.length;
-  return new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
-    title: `Focus · changed · ${sym.name} · ${hud.risk_tier} · ${n} downstream`,
-    command: "focus.showHud",
-    tooltip: `${sym.kind} ${sym.name} — ${hud.summary}`,
-  });
+  const badge = `${FOCUS_BADGE} Focus · ${sym.name} · ${riskEmoji(hud.risk_tier)} ${hud.risk_tier} · ${n} downstream`;
+  const headerTitle = sym.summary ? `${badge}\n${summaryLensTitle(sym.summary)}` : badge;
+
+  const lenses: vscode.CodeLens[] = [
+    new vscode.CodeLens(new vscode.Range(defLine, 0, defLine, 0), {
+      title: headerTitle,
+      command: "focus.noop",
+      tooltip: sym.summary ?? sym.explanation ?? `${sym.kind} ${sym.name} — ${hud.summary}`,
+    }),
+  ];
+
+  if (inlineExplanationsEnabled()) {
+    for (const hunk of hunkDetailsForSymbol(sym)) {
+      const line = editorLine(hunk.line);
+      if (line >= document.lineCount || !hunk.detail) {
+        continue;
+      }
+      lenses.push(
+        new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
+          title: explanationLensTitle(hunk.detail),
+          command: "focus.noop",
+          tooltip: sym.explanation ?? hunk.detail,
+        }),
+      );
+    }
+  }
+
+  return lenses;
+}
+
+function orphanLineLenses(
+  document: vscode.TextDocument,
+  note: LineExplanation,
+): vscode.CodeLens[] {
+  if (!inlineExplanationsEnabled() || !note.detail) {
+    return [];
+  }
+  const line = editorLine(note.line);
+  if (line >= document.lineCount) {
+    return [];
+  }
+  return [
+    new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
+      title: explanationLensTitle(note.detail),
+      command: "focus.noop",
+      tooltip: note.detail,
+    }),
+  ];
 }
 
 function blastRadiusLens(hud: FocusHUD, rel: string): vscode.CodeLens | undefined {
@@ -78,13 +135,13 @@ function blastRadiusLens(hud: FocusHUD, rel: string): vscode.CodeLens | undefine
   let reason: string | undefined;
 
   if (isSeed) {
-    title = `Focus · ${hud.risk_tier} · ${n} downstream`;
+    title = `${FOCUS_BADGE} Focus · ${riskEmoji(hud.risk_tier)} ${hud.risk_tier} · ${n} downstream`;
     reason = hud.summary;
   } else if (danger) {
-    title = `Focus · Danger Zone · ${hud.risk_tier}`;
+    title = `⚠️ Focus · Danger Zone · ${riskEmoji(hud.risk_tier)} ${hud.risk_tier}`;
     reason = danger.reason;
   } else if (downstream) {
-    title = `Focus · ${downstream.hops} hops from change`;
+    title = `➡️ Focus · ${downstream.hops} hops from change`;
     reason = downstream.reason;
   }
 

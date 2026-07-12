@@ -10,9 +10,11 @@ from typing import Annotated
 
 import typer
 
-from focus.audit import audit_local, audit_pr
+from focus.audit import audit_local, audit_pr, build_explain_context
 from focus.graph import build_graph, downstream_rings
 from focus.hud import build_hud, render_hud
+from focus.hud.explain import ExplainContext, explain_symbols
+from focus.hud.explain_render import render_explanations_json, render_explanations_markdown
 from focus.ingest import GitDiffError
 from focus.models import FocusHUD
 from focus.scan import cache_dir_for, discover_source_files, parse_module_cached
@@ -151,6 +153,87 @@ def audit(
         typer.echo(str(exc))
         raise typer.Exit(1) from None
     _emit_hud(hud, out, output_format)
+
+
+@app.command()
+def explain(
+    local: Annotated[
+        bool,
+        typer.Option("--local", help="Explain working-tree + index changes vs a base branch."),
+    ] = False,
+    base: Annotated[
+        str,
+        typer.Option(help="Git base ref to diff against (default: main)."),
+    ] = "main",
+    path: Annotated[
+        Path,
+        typer.Option(exists=True, file_okay=False, help="Repository root to explain."),
+    ] = Path("."),
+    symbol: Annotated[
+        str | None,
+        typer.Option("--symbol", help="Only explain this symbol name."),
+    ] = None,
+    file: Annotated[
+        str | None,
+        typer.Option("--file", help="Only explain symbols in this repo-relative file path."),
+    ] = None,
+    why: Annotated[
+        bool,
+        typer.Option("--why", help="Show proven vs heuristic evidence for each sentence."),
+    ] = False,
+    output_format: Annotated[
+        OutputFormat,
+        typer.Option("--format", help="Output format (markdown or json)."),
+    ] = OutputFormat.markdown,
+    no_cache: Annotated[
+        bool,
+        typer.Option("--no-cache", help="Bypass .focus-cache/ and re-parse every file."),
+    ] = False,
+) -> None:
+    """Plain-English captions for changed symbols, with optional evidence trail."""
+    mode = "local" if local else "range"
+    try:
+        context = build_explain_context(
+            path,
+            base=base,
+            mode=mode,
+            use_cache=not no_cache,
+        )
+    except GitDiffError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1) from None
+
+    if context is None:
+        typer.echo(f"No changed symbols to explain vs `{base}`.")
+        raise typer.Exit(0)
+
+    symbols = context.symbols
+    if file:
+        normalized = file.replace("\\", "/")
+        symbols = [s for s in symbols if s.path == normalized]
+    if symbol:
+        symbols = [s for s in symbols if s.name == symbol]
+
+    if not symbols:
+        typer.echo("No symbols matched your filters.")
+        raise typer.Exit(1)
+
+    filtered = ExplainContext(
+        symbols=symbols,
+        graph=context.graph,
+        seeds=context.seeds,
+        danger_paths=context.danger_paths,
+        downstream_count=context.downstream_count,
+        risk=context.risk,
+        facts_by_path=context.facts_by_path,
+    )
+    explanations = explain_symbols(filtered)
+
+    if output_format is OutputFormat.json:
+        text = render_explanations_json(explanations, show_why=why)
+    else:
+        text = render_explanations_markdown(explanations, show_why=why)
+    typer.echo(text.rstrip())
 
 
 def _emit_hud(hud: FocusHUD, out: Path | None, fmt: OutputFormat) -> None:

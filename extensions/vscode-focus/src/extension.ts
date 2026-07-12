@@ -4,27 +4,39 @@ import { FocusCodeLensProvider } from "./codeLens";
 import { auditLocal, FocusCliError, traceFile, workspaceRoot, workspaceRootError } from "./focusCli";
 import { FocusGutter } from "./gutter";
 import { HudPanel } from "./hudPanel";
+import { InlineExplanation } from "./inlineExplanation";
+import { watchLensFontSize } from "./lensFont";
 import type { FocusHUD } from "./types";
 
 let lastHud: FocusHUD | undefined;
 let statusBar: vscode.StatusBarItem;
 let lenses: FocusCodeLensProvider;
 let gutter: FocusGutter;
+let inlineExplanation: InlineExplanation;
 
 export function activate(context: vscode.ExtensionContext): void {
+  const extVersion = context.extension.packageJSON.version as string;
   lenses = new FocusCodeLensProvider();
   gutter = new FocusGutter();
+  inlineExplanation = new InlineExplanation();
+  watchLensFontSize(context);
   context.subscriptions.push({ dispose: () => gutter.dispose() });
+  context.subscriptions.push({ dispose: () => inlineExplanation.dispose() });
+  const hintLanguages = [
+    { language: "python" },
+    { language: "javascript" },
+    { language: "javascriptreact" },
+    { language: "typescript" },
+    { language: "typescriptreact" },
+  ];
+
   context.subscriptions.push(
-    vscode.languages.registerCodeLensProvider(
-      [
-        { language: "python" },
-        { language: "javascript" },
-        { language: "javascriptreact" },
-        { language: "typescript" },
-        { language: "typescriptreact" },
-      ],
-      lenses,
+    vscode.languages.registerCodeLensProvider(hintLanguages, lenses),
+    vscode.languages.registerHoverProvider(
+      hintLanguages,
+      {
+        provideHover: (doc, pos) => inlineExplanation.provideHover(doc, pos),
+      },
     ),
   );
 
@@ -36,8 +48,8 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(statusBar);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("focus.auditLocal", () => runAudit()),
-    vscode.commands.registerCommand("focus.traceCurrentFile", () => runTrace()),
+    vscode.commands.registerCommand("focus.auditLocal", () => runAudit(false, extVersion)),
+    vscode.commands.registerCommand("focus.traceCurrentFile", () => runTrace(extVersion)),
     vscode.commands.registerCommand("focus.showHud", () => {
       if (!lastHud) {
         void vscode.window.showInformationMessage(
@@ -60,32 +72,35 @@ export function activate(context: vscode.ExtensionContext): void {
         HudPanel.show(lastHud);
       }
     }),
-    vscode.commands.registerCommand("focus.refresh", () => runAudit(true)),
+    vscode.commands.registerCommand("focus.noop", () => undefined),
+    vscode.commands.registerCommand("focus.refresh", () => runAudit(true, extVersion)),
   );
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor) {
         gutter.apply(editor);
+        inlineExplanation.apply(editor);
       }
     }),
   );
 
-  whenWorkspaceReady(context, () => runAudit(true));
+  whenWorkspaceReady(context, (version) => runAudit(true, version));
 }
 
 function whenWorkspaceReady(
   context: vscode.ExtensionContext,
-  fn: () => void | Promise<void>,
+  fn: (extVersion: string) => void | Promise<void>,
 ): void {
+  const extVersion = context.extension.packageJSON.version as string;
   if (vscode.workspace.workspaceFolders?.length) {
-    void fn();
+    void fn(extVersion);
     return;
   }
   const sub = vscode.workspace.onDidChangeWorkspaceFolders(() => {
     if (vscode.workspace.workspaceFolders?.length) {
       sub.dispose();
-      void fn();
+      void fn(extVersion);
     }
   });
   context.subscriptions.push(sub);
@@ -95,15 +110,16 @@ export function deactivate(): void {
   // noop
 }
 
-function setHud(hud: FocusHUD, root: string): void {
+function setHud(hud: FocusHUD, root: string, extVersion: string): void {
   lastHud = hud;
   lenses.refresh(hud, root);
   gutter.refresh(hud, root);
+  inlineExplanation.refresh(hud, root);
   statusBar.text = `Focus · ${hud.risk_tier}`;
-  statusBar.tooltip = hud.summary;
+  statusBar.tooltip = `${hud.summary}\n\nFocus extension v${extVersion}`;
 }
 
-async function runAudit(quiet = false): Promise<void> {
+async function runAudit(quiet = false, extVersion = "dev"): Promise<void> {
   const root = workspaceRoot();
   if (!root) {
     if (!quiet) {
@@ -119,7 +135,7 @@ async function runAudit(quiet = false): Promise<void> {
       },
       () => auditLocal(root),
     );
-    setHud(hud, root);
+    setHud(hud, root, extVersion);
     if (!quiet) {
       HudPanel.show(hud);
     }
@@ -128,7 +144,7 @@ async function runAudit(quiet = false): Promise<void> {
   }
 }
 
-async function runTrace(): Promise<void> {
+async function runTrace(extVersion = "dev"): Promise<void> {
   const root = workspaceRoot();
   const editor = vscode.window.activeTextEditor;
   if (!root || !editor) {
@@ -143,7 +159,7 @@ async function runTrace(): Promise<void> {
       },
       () => traceFile(root, editor.document.uri.fsPath),
     );
-    setHud(hud, root);
+    setHud(hud, root, extVersion);
     HudPanel.show(hud);
   } catch (err) {
     reportError(err, false);

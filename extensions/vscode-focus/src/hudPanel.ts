@@ -48,11 +48,15 @@ function escapeHtml(s: string): string {
 
 function buildHtml(hud: FocusHUD): string {
   const changed = hud.changed_symbols
-    .map(
-      (s) =>
+    .map((s) => {
+      const base =
         `<li><code>${escapeHtml(s.path)}</code> → <strong>${escapeHtml(s.name)}</strong> ` +
-        `<span class="muted">(${escapeHtml(s.kind)}, line ${s.line})</span></li>`,
-    )
+        `<span class="muted">(${escapeHtml(s.kind)}, line ${s.line})</span>`;
+      const expl = s.explanation
+        ? `<br/><span class="reason">${escapeHtml(s.explanation)}</span>`
+        : "";
+      return `${base}${expl}</li>`;
+    })
     .join("");
   const danger = hud.danger_zones
     .map(

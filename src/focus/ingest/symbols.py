@@ -28,6 +28,7 @@ class ChangedSymbol:
     name: str
     kind: str
     line: int
+    changed_lines: list[int]
 
 
 def changed_line_ranges(
@@ -145,15 +146,32 @@ def _symbols_for_file(
         if any(start <= end and stop >= definition.line for start, stop in spans):
             # Span overlaps [definition.line, end]
             if any(max(start, definition.line) <= min(stop, end) for start, stop in spans):
+                touched = _changed_lines_in_span(definition.line, end, spans)
                 out.append(
                     ChangedSymbol(
                         path=rel,
                         name=definition.name,
                         kind=definition.kind,
                         line=definition.line,
+                        changed_lines=touched,
                     )
                 )
     return out
+
+
+def _changed_lines_in_span(
+    definition_line: int,
+    end_line: int,
+    spans: list[tuple[int, int]],
+) -> list[int]:
+    """1-based lines inside [definition_line, end_line] that the diff touched."""
+    touched: set[int] = set()
+    for start, stop in spans:
+        overlap_start = max(start, definition_line)
+        overlap_end = min(stop, end_line)
+        if overlap_start <= overlap_end:
+            touched.update(range(overlap_start, overlap_end + 1))
+    return sorted(touched)
 
 
 def _parse_diff(diff_text: str) -> dict[str, list[tuple[int, int]]]:
