@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0**. Phase 3 complete on PyPI.
+**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0+**; junior-readable inline explainers in **0.3.0**. Phase 3 complete on PyPI.
 
 ---
 

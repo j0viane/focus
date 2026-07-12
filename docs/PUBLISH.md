@@ -5,7 +5,7 @@ CLI and import stay **`focus`**.
 
 ```bash
 pip install focus-hud
-focus version   # → 0.1.0
+focus version   # → 0.3.0
 ```
 
 ## One-time: Trusted Publishing
@@ -21,8 +21,8 @@ focus version   # → 0.1.0
 ## Release
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 That runs [`.github/workflows/publish.yml`](../.github/workflows/publish.yml) (`uv build` + `pypa/gh-action-pypi-publish`).
