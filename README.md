@@ -55,7 +55,7 @@ Gallery + walkthrough: [`docs/DEMO.md`](docs/DEMO.md) · [`docs/assets/`](docs/a
 | Surface | When | What you get |
 |---|---|---|
 | **A — PR comment** | Every PR (GitHub Action) | Full architecture HUD — summary, Mermaid, Danger Zones. Updates in place on new pushes |
-| **C — IDE diff** | Before you push (Cursor / VS Code) | CodeLens on changed + blast-radius files; click for HUD panel |
+| **C — IDE diff** | Before you push (Cursor / VS Code) | Risk rail + ℹ️ on changed symbols; Save refreshes; HUD panel for the full map |
 | **C — GitHub diff** | PR review (planned) | Inline pins on **Files changed** — companion to the PR comment |
 | ~~**B — git**~~ | — | **Not supported** — no committed `focus-hud.md` |
 
@@ -65,54 +65,47 @@ Same evidence everywhere: parse → graph → `FocusHUD` → renderer (markdown 
 
 ## In Cursor / VS Code (diff-first · surface C)
 
-CodeLens on changed symbols + per-hunk explainers + click for the full HUD panel — blast radius **in the diff you're editing**.
+Risk rail + purpose ℹ️ on changed symbols, plus the full HUD panel — blast radius **in the diff you're editing**.
 
-**What it looks like on a changed function** (virtual UI — nothing written to git):
+**What it looks like** (virtual UI — nothing written to git):
+
+One outcome per symbol (typical):
 
 ```text
-🎯 Focus · _extract_definitions · 🔴 CRITICAL · 22 downstream
-   Part of a CRITICAL blast radius — 22 downstream files may be affected.
-
-    def _extract_definitions(tree: ast.AST) -> list[Definition]:
-        definitions: list[Definition] = []
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                ℹ️ Records this as a function in the AST (Abstract Syntax Tree).
-                definitions.append(
-                    Definition(
-                        name=node.name,
-                        kind="function",
-                        line=node.lineno,
-                        docstring=_first_docstring_line(node),
-                    )
-                )
-            elif isinstance(node, ast.ClassDef):
-                ℹ️ Records this as a class in the AST (Abstract Syntax Tree).
-                definitions.append(
-                    Definition(
-                        name=node.name,
-                        kind="class",
-                        line=node.lineno,
-                        docstring=_first_docstring_line(node),
-                    )
-                )
+🔴 CRITICAL — `focus audit` → IDE captions — bad copy misleads every local review.
+    def _build_hunk_details(...):
+ℹ️ Builds each edit's caption (plain English above the changed lines).
+                detail = _hybrid_detail_for_hunk(...)
 ```
 
-| Row | Where | What |
+Two ℹ️ only when hunks teach **different** outcomes (e.g. function vs class):
+
+```text
+🔴 CRITICAL — Builds Focus's list of functions/classes — bad parses → wrong blast radius.
+    def _extract_definitions(tree: ast.AST) -> list[Definition]:
+        ...
+ℹ️ Records this as a function in the AST (Abstract Syntax Tree).
+                Definition(..., kind="function", ...)
+ℹ️ Records this as a class in the AST (Abstract Syntax Tree).
+                Definition(..., kind="class", ...)
+```
+
+| Surface | Where | What |
 |---|---|---|
-| 🎯 Focus header | Above `def` / `class` | Symbol name, risk tier, downstream count + short summary |
-| ℹ️ Detail | Above each edit block | Hunk-local plain English (acronyms expanded for juniors) |
+| **Risk rail** | Above `def` / `class` | Implication: `{emoji} {RISK} — {who} — {what goes wrong}`. Quiet when LOW |
+| **ℹ️ Purpose** | Above the primary edit (or each distinct outcome) | What this edit does — one per symbol unless hunks truly differ |
+| **Hover** | On the rail or ℹ️ | Proven vs heuristic evidence (proof stays off the line) |
 
 ```bash
 pip install "focus-hud>=0.3.1"
-./scripts/install-extension.sh   # or: cd extensions/vscode-focus && npm run compile
+./scripts/install-extension.sh   # extension 0.5.1+ — or: cd extensions/vscode-focus && npm run compile
 ```
 
-Then open your repo, set `focus.path` if needed, and run **Focus: Audit Local Changes**. Details: [`extensions/vscode-focus/README.md`](extensions/vscode-focus/README.md).
+Then open the **repo git root**, set `focus.path` if needed, **Reload Window** once, and run **Focus: Audit Local Changes**. After that, **Save** quietly refreshes the rails (`focus.autoAuditOnSave`). Details: [`extensions/vscode-focus/README.md`](extensions/vscode-focus/README.md).
 
 | Moment | Command | You get |
 |---|---|---|
-| AI rewrote a shared function | `focus audit --local` or **Focus: Audit Local Changes** | **C** — blast radius in your working diff |
+| AI rewrote a shared function | **Focus: Audit Local** (then **Save** to refresh) | **C** — risk rail + ℹ️ in your working diff |
 | Big PR in your queue | Focus Action comment | **A** — diagram + Danger Zones on the PR |
 | Inherited a module | `focus trace path/to/file.py` | Downstream map for one file |
 
