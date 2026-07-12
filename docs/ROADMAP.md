@@ -144,18 +144,27 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 
 ---
 
-## Phase 4b — Explanation depth *(planned after inline captions ship)*
+## Phase 4b — Explanation depth *(in progress)*
 
-**Goal:** Close the known gaps in deterministic explanations — still **no LLM** for dependency edges or captions.
+**Goal:** Close the known gaps in deterministic explanations — still **no LLM** for dependency edges or captions. Guard **Return on Attention (ROA)**: every word Focus asks a human to read must earn its cost.
 
 | Limitation today | Planned improvement | Status |
 |---|---|---|
+| **Hunk copy names enclosing `def`** | Hybrid: structural cues → proven `CallSite` → text heuristics; skip plumbing callees | ✅ slice 1 |
+| **Implication rail** | `{emoji} {RISK} — {who} — {what goes wrong}`; quiet when LOW | ✅ slice 2 |
+| **CodeLens layout** | Risk rail on `def` + one ℹ️ unless hunks differ; hover = evidence | ✅ slices 3–4 |
 | **File-level blast radius** | Symbol-level downstream (who calls *this* def, not just the file) | Planned |
 | **Static-only graph** | Best-effort dynamic import / string-literal hints where parseable | Explore |
 | **Heuristic captions** when no docstring | JSDoc/TSDoc extraction for JS/TS; Typer `@app.command` metadata for CLI | Planned |
-| **Evidence in IDE** | `focus explain --why` in CodeLens tooltip or command palette | Planned |
+| **Evidence in IDE** | Proven vs heuristic bullets on CodeLens tooltip / hover (`evidence` on HUD symbols) | ✅ slice 4 |
+| **Verbose / low-ROA copy** | Hard caps: max chars for ℹ️ / summary; one idea per lens; no restating the header | Planned (ROA) |
+| **Tiny diff, huge output** | Stronger triggers: tiny + low blast radius → pass-through or *tiny* HUD (see [`TRIGGERS.md`](TRIGGERS.md)) | Planned (ROA) |
 
 **Trust model:** every caption labels evidence as **proven** (parse/graph/diff) or **heuristic** (name/path rules). `focus explain --why` shows the cite list today; IDE surfacing is next.
+
+**Slice 1 concept:** a *call site* is where code invokes a name (`foo()`). Parser already records these. Hybrid order: structural cues (`kind=`) first, then proven overlapping calls, then weaker text heuristics.
+
+**ROA (product rule, not a separate product):** Focus must never become the “1-line change + 1,430-character description” anti-pattern. Prefer silence or one sentence over filler. Virtual UI only — never write explainers into the repo.
 
 ---
 

@@ -377,12 +377,19 @@ def test_enrich_sets_summary_and_explanation_separately():
             ),
         },
     )[0]
-    assert "18 downstream" in enriched.summary
-    assert enriched.summary in enriched.explanation
+    assert "CRITICAL" in enriched.implication
+    assert "focus audit" in enriched.implication.lower() or "caption" in enriched.implication.lower()
+    assert "18 downstream" not in enriched.implication
+    assert "Shared hub" not in enriched.implication
+    assert enriched.summary == enriched.implication
+    # Full explanation keeps blast-radius impact prose; implication is IDE rail only.
+    assert "18 downstream" in enriched.explanation
     assert enriched.hunk_details
-    assert "audit hook" in enriched.explanation
+    assert "audit hook" in enriched.explanation or "Attach inline" in enriched.explanation or "caption" in enriched.detail.lower()
     assert "18 downstream" not in enriched.detail
     assert enriched.changed_lines == [180, 181]
+    assert enriched.evidence
+    assert any(e.confidence == "proven" for e in enriched.evidence)
 
 
 def test_enrich_changed_symbols_attaches_explanation():
@@ -413,6 +420,7 @@ def test_enrich_changed_symbols_attaches_explanation():
     )
     assert enriched[0].explanation
     assert enriched[0].summary == ""
+    assert enriched[0].implication == ""
     assert "Print the installed Focus version" in enriched[0].explanation
 
 
@@ -464,6 +472,310 @@ def test_hunk_details_differ_for_similar_blocks_without_parent_name(tmp_path: Pa
     assert "AST (Abstract Syntax Tree)" in class_detail
     assert "record being built" not in fn_detail.lower()
     assert "record being built" not in class_detail.lower()
+
+
+def test_hunk_details_prefer_proven_call_site_over_enclosing_name(tmp_path: Path):
+    """Phase 4b hybrid: CallSite on the hunk line beats parent-function purpose text."""
+    path = tmp_path / "audit.py"
+    path.write_text(
+        "def run_audit():\n"
+        "    seeds = []\n"
+        "    return enrich_changed_symbols(seeds)\n"
+    )
+    facts = parse_module(path)
+    # Parser should have recorded enrich_changed_symbols on line 3.
+    assert any(c.callee.endswith("enrich_changed_symbols") for c in facts.calls)
+
+    sym = ChangedSymbolInfo(
+        path="audit.py",
+        name="run_audit",
+        kind="function",
+        line=1,
+        changed_lines=[3],
+    )
+    enriched = enrich_changed_symbols(
+        [sym],
+        graph=nx.DiGraph(),
+        seeds=["audit.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"audit.py": facts},
+    )[0]
+
+    assert len(enriched.hunk_details) == 1
+    detail = enriched.hunk_details[0].detail
+    assert "enrich_changed_symbols" in detail
+    assert "run_audit" not in detail
+
+
+def test_structural_cues_ignore_kind_mentions_in_docstrings(tmp_path: Path):
+    """Prose in a docstring must not fake a class/function recording edit."""
+    path = tmp_path / "notes.py"
+    path.write_text(
+        "def annotate():\n"
+        '    """Docs mention kind=\\"class\\" and ClassDef for juniors."""\n'
+        "    return True\n"
+    )
+    facts = parse_module(path)
+    sym = ChangedSymbolInfo(
+        path="notes.py",
+        name="annotate",
+        kind="function",
+        line=1,
+        changed_lines=[2],
+    )
+    enriched = enrich_changed_symbols(
+        [sym],
+        graph=nx.DiGraph(),
+        seeds=["notes.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"notes.py": facts},
+    )[0]
+
+    detail = enriched.hunk_details[0].detail.lower()
+    assert "records this as a class" not in detail
+    assert "records this as a function" not in detail
+
+
+def test_proven_detail_prefers_project_call_over_plumbing(tmp_path: Path):
+    """rsplit/split plumbing must not beat the real callee on the same hunk."""
+    path = tmp_path / "wire.py"
+    path.write_text(
+        "def wire_up(path):\n"
+        "    bare = path.rsplit('.', 1)[-1]\n"
+        "    return enrich_changed_symbols(bare)\n"
+    )
+    facts = parse_module(path)
+    assert any(c.callee.endswith("rsplit") for c in facts.calls)
+    assert any(c.callee.endswith("enrich_changed_symbols") for c in facts.calls)
+
+    sym = ChangedSymbolInfo(
+        path="wire.py",
+        name="wire_up",
+        kind="function",
+        line=1,
+        changed_lines=[2, 3],
+    )
+    enriched = enrich_changed_symbols(
+        [sym],
+        graph=nx.DiGraph(),
+        seeds=["wire.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"wire.py": facts},
+    )[0]
+
+    detail = enriched.hunk_details[0].detail
+    assert "enrich_changed_symbols" in detail
+    assert "rsplit" not in detail
+
+
+def test_implication_quiet_when_low():
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="cli.py",
+                name="version",
+                kind="function",
+                line=1,
+                changed_lines=[2],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["cli.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={},
+    )[0]
+    assert enriched.implication == ""
+    assert enriched.summary == ""
+
+
+def test_implication_uses_who_what_formula_not_file_counts():
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="auth_utils.py",
+                name="validate_token",
+                kind="function",
+                line=1,
+                changed_lines=[2],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["auth_utils.py"],
+        danger_paths=set(),
+        downstream_count=6,
+        risk="CRITICAL",
+        facts_by_path={},
+    )[0]
+    assert enriched.implication.startswith("🔴 CRITICAL —")
+    assert " — " in enriched.implication[len("🔴 CRITICAL — ") :]
+    assert "downstream files" not in enriched.implication.lower()
+    assert "blast radius" not in enriched.implication.lower()
+    assert "validate_token" not in enriched.implication
+
+
+def test_collapse_identical_hunk_purpose_to_one(tmp_path: Path):
+    """Same purpose on two hunks → one ℹ️ (item 3)."""
+    path = tmp_path / "same.py"
+    path.write_text(
+        "def twin():\n"
+        "    enrich_changed_symbols(a)\n"
+        "    x = 1\n"
+        "    enrich_changed_symbols(b)\n"
+    )
+    facts = parse_module(path)
+    sym = ChangedSymbolInfo(
+        path="same.py",
+        name="twin",
+        kind="function",
+        line=1,
+        changed_lines=[2, 4],
+    )
+    enriched = enrich_changed_symbols(
+        [sym],
+        graph=nx.DiGraph(),
+        seeds=["same.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"same.py": facts},
+    )[0]
+    assert len(enriched.hunk_details) == 1
+    assert "enrich_changed_symbols" in enriched.hunk_details[0].detail
+
+
+def test_multi_hunk_collapses_to_symbol_outcome_when_purpose_strong(tmp_path: Path):
+    """Mixed call + docstring fallback hunks → one outcome ℹ️, not five."""
+    path = tmp_path / "wire.py"
+    path.write_text(
+        "def explain_symbol_with_evidence(symbol):\n"
+        '    """Attach implication, purpose, and evidence for the IDE."""\n'
+        "    implication = _implication_for_symbol(symbol)\n"
+        "    text = 'x'\n"
+        "    evidence = _dedupe_evidence([])\n"
+        "    return SymbolExplanation(\n"
+        "        symbol=symbol.model_copy(update={'implication': implication, 'evidence': evidence}),\n"
+        "        text=text,\n"
+        "    )\n"
+    )
+    facts = parse_module(path)
+    sym = ChangedSymbolInfo(
+        path="wire.py",
+        name="explain_symbol_with_evidence",
+        kind="function",
+        line=1,
+        changed_lines=[3, 5, 7],
+    )
+    enriched = enrich_changed_symbols(
+        [sym],
+        graph=nx.DiGraph(),
+        seeds=["wire.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"wire.py": facts},
+    )[0]
+    assert len(enriched.hunk_details) == 1
+    detail = enriched.hunk_details[0].detail
+    assert "implication" in detail.lower() or "evidence" in detail.lower()
+    assert "names the function" not in detail.lower()
+    # Must not spam the docstring on every edit block.
+    assert detail.lower().count("attach implication") <= 1
+
+
+def test_private_helper_skips_shared_hub_implication():
+    """Private symbols without a named victim stay quiet — no Shared hub spam."""
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="src/focus/hud/explain.py",
+                name="_pad_label",
+                kind="function",
+                line=10,
+                changed_lines=[11],
+            )
+        ],
+        graph=nx.DiGraph([("src/focus/hud/explain.py", "src/focus/cli.py")]),
+        seeds=["src/focus/hud/explain.py"],
+        danger_paths={"src/focus/hud/explain.py"},
+        downstream_count=8,
+        risk="CRITICAL",
+        facts_by_path={},
+    )[0]
+    assert enriched.implication == ""
+    assert "Shared hub" not in enriched.implication
+
+
+def test_registry_implication_and_purpose_for_build_hunk_details(tmp_path: Path):
+    path = tmp_path / "explain.py"
+    path.write_text(
+        "def _build_hunk_details(symbol):\n"
+        '    """Phase 4b: hybrid CallSite → structural cues for hunk_details."""\n'
+        "    return []\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="explain.py",
+                name="_build_hunk_details",
+                kind="function",
+                line=1,
+                changed_lines=[3],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["explain.py"],
+        danger_paths={"explain.py"},
+        downstream_count=4,
+        risk="CRITICAL",
+        facts_by_path={"explain.py": facts},
+    )[0]
+    assert enriched.implication.startswith("🔴 CRITICAL —")
+    assert "IDE captions" in enriched.implication or "focus audit" in enriched.implication
+    assert "Shared hub" not in enriched.implication
+    detail = enriched.hunk_details[0].detail.lower()
+    assert "caption" in detail
+    assert "phase 4b" not in detail
+    assert "callsite" not in detail
+
+
+def test_same_file_caller_feeds_implication(tmp_path: Path):
+    path = tmp_path / "local.py"
+    path.write_text(
+        "def parent():\n"
+        "    return helper()\n"
+        "\n"
+        "def helper():\n"
+        "    return 1\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="local.py",
+                name="helper",
+                kind="function",
+                line=4,
+                changed_lines=[5],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["local.py"],
+        danger_paths=set(),
+        downstream_count=2,
+        risk="HIGH",
+        facts_by_path={"local.py": facts},
+    )[0]
+    assert "`parent`" in enriched.implication
+    assert "Shared hub" not in enriched.implication
 
 
 def test_expand_acronyms_for_juniors_first_use_only():

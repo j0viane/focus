@@ -2,6 +2,7 @@
 
 export type RiskTier = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type HudMode = "full" | "pass_through" | "error";
+export type Confidence = "proven" | "heuristic";
 
 export interface ImpactNode {
   path: string;
@@ -15,6 +16,13 @@ export interface HunkDetail {
   detail: string;
 }
 
+export interface EvidenceItem {
+  confidence: Confidence;
+  kind: string;
+  location: string;
+  fact: string;
+}
+
 export interface ChangedSymbolInfo {
   path: string;
   name: string;
@@ -24,7 +32,10 @@ export interface ChangedSymbolInfo {
   summary?: string;
   detail?: string;
   explanation?: string;
+  /** Risk rail: "{emoji} {RISK} — {who} — {what goes wrong}". Empty when quiet. */
+  implication?: string;
   hunk_details?: HunkDetail[];
+  evidence?: EvidenceItem[];
 }
 
 /** Inline explainer for diff hunks outside any changed symbol body. */

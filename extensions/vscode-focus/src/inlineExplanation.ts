@@ -2,6 +2,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import { definitionLine, editorLine, highlightLines, hunkDetailAtLine, lineInSymbol } from "./symbolLayout";
+import { evidenceMarkdown } from "./explainText";
 import type { FocusHUD } from "./types";
 
 /** Soft tint on every git-touched line for changed symbols. */
@@ -89,17 +90,11 @@ export class InlineExplanation {
       if (sym.path !== rel || !lineInSymbol(sym, position)) {
         continue;
       }
-      const md = new vscode.MarkdownString();
-      if (sym.summary && position.line === definitionLine(sym)) {
-        md.appendMarkdown(`**Overview:** ${sym.summary}\n\n`);
-      }
       const hunk = hunkDetailAtLine(sym, position.line + 1);
-      if (hunk?.detail) {
-        md.appendMarkdown(`**This edit:** ${hunk.detail}\n\n`);
-      }
-      if (sym.explanation) {
-        md.appendMarkdown(sym.explanation);
-      }
+      const purpose =
+        hunk?.detail ||
+        (position.line === definitionLine(sym) ? undefined : sym.detail);
+      const md = new vscode.MarkdownString(evidenceMarkdown(sym, purpose));
       if (md.value) {
         md.isTrusted = true;
         return new vscode.Hover(md);

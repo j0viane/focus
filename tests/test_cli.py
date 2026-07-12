@@ -15,9 +15,19 @@ def test_help_runs() -> None:
 
 
 def test_version_matches_pyproject() -> None:
+    from importlib.metadata import version
+    from pathlib import Path
+
+    import tomllib
+
+    pyproject = tomllib.loads(
+        (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    expected = pyproject["project"]["version"]
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert result.output.strip() == "0.2.0"
+    assert result.output.strip() == expected
+    assert version("focus-hud") == expected
 
 
 def test_scan_indexes_fixture_files(glass_box_path) -> None:

@@ -30,9 +30,23 @@ occurrence to **`ACRONYM (Full Name)`**. Skip if already expanded.
 
 Explain **what this change does for the reader**, not what the syntax does.
 
+## IDE surfaces (Phase 4b)
+
+| Surface | Job | Quiet when |
+|---|---|---|
+| **Risk rail** | Implication: `{emoji} {RISK} — {who} — {what goes wrong}` | LOW, or can't name who/what |
+| **ℹ️** | Purpose (outcome); one per symbol unless hunks differ | — |
+| **Hover / tooltip** | Proven vs heuristic evidence | — |
+
+Never put proof on the visible CodeLens line — hover carries it.
+
+## Return on Attention (ROA)
+
+Every word in a ℹ️ / summary must earn the reader's attention. Prefer one short sentence over filler. Hard length caps and “tiny diff → tiny output” triggers live in [`docs/TRIGGERS.md`](../../docs/TRIGGERS.md) and [`docs/ROADMAP.md`](../../docs/ROADMAP.md) Phase 4b.
+
 ## Do not repeat the enclosing function name
 
-The Focus header above `def` already names the symbol. Inline 💡 detail should name
+The Focus header above `def` already names the symbol. Inline detail should name
 **what’s in the hunk** (variable, kind, call), not restating `_extract_definitions`.
 
 ## Litmus test
