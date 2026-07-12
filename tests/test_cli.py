@@ -10,6 +10,7 @@ runner = CliRunner()
 def test_help_runs() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
+    assert "explain" in result.output
     assert "scan" in result.output
 
 

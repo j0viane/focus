@@ -35,16 +35,31 @@ npm run compile
 - **Focus: Show Why** — blast-radius reason (from CodeLens on Danger Zone files)
 - **Focus: Refresh** — re-run audit for CodeLens + gutter
 
-## What you should see (Phase 4 deepen)
+## What you should see (inline explanations)
+
+Virtual UI only — **not** written to disk or git.
+
+```text
+🎯 Focus · _extract_definitions · 🔴 CRITICAL · 22 downstream
+   Part of a CRITICAL blast radius — 22 downstream files may be affected.
+
+    def _extract_definitions(tree: ast.AST) -> list[Definition]:
+        ...
+ℹ️ Records this as a function in the AST (Abstract Syntax Tree).
+                Definition(..., kind="function", ...)
+ℹ️ Records this as a class in the AST (Abstract Syntax Tree).
+                Definition(..., kind="class", ...)
+```
 
 | Surface | Where |
 |---|---|
-| **Symbol CodeLens** | On each **changed function/class line** (`Focus · validate_token · HIGH · N downstream`) |
-| **File CodeLens** | On blast-radius files without symbol overlap (Danger Zone / hops) |
-| **Gutter** | Tint on changed symbol lines; Danger Zone / downstream files highlighted at top |
-| **HUD panel** | Full Mermaid + Danger Zones (unchanged) |
+| **🎯 Focus header** | Above each changed `def` / `class` — risk + downstream + short summary |
+| **ℹ️ Detail** | Above each contiguous edit block — hunk-local copy (not the parent function name) |
+| **Gutter / tint** | Highlight on every git-touched line for that symbol |
+| **File CodeLens** | Blast-radius files without symbol overlap (Danger Zone / hops) |
+| **HUD panel** | Full Mermaid + Danger Zones |
 
-Toggle gutter: `focus.gutter` in settings.
+Toggle gutter: `focus.gutter`. Toggle inline explainers: `focus.inlineExplanations`.
 
 ## Settings
 
@@ -53,3 +68,5 @@ Toggle gutter: `focus.gutter` in settings.
 | `focus.path` | Absolute path to `focus` binary (optional) |
 | `focus.base` | Git base for `--local` (default `main`) |
 | `focus.gutter` | Gutter + line highlights (default `true`) |
+| `focus.inlineExplanations` | ℹ️ detail rows on edit blocks (default `true`) |
+| `focus.lensFontSize` | CodeLens size: `0` = editor default, `-1` = match `editor.fontSize` |

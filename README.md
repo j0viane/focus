@@ -65,7 +65,43 @@ Same evidence everywhere: parse → graph → `FocusHUD` → renderer (markdown 
 
 ## In Cursor / VS Code (diff-first · surface C)
 
-CodeLens on changed files (`Focus · CRITICAL · N downstream`) + click for the full HUD panel — blast radius **in the diff you're editing**.
+CodeLens on changed symbols + per-hunk explainers + click for the full HUD panel — blast radius **in the diff you're editing**.
+
+**What it looks like on a changed function** (virtual UI — nothing written to git):
+
+```text
+🎯 Focus · _extract_definitions · 🔴 CRITICAL · 22 downstream
+   Part of a CRITICAL blast radius — 22 downstream files may be affected.
+
+    def _extract_definitions(tree: ast.AST) -> list[Definition]:
+        definitions: list[Definition] = []
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+ℹ️ Records this as a function in the AST (Abstract Syntax Tree).
+                definitions.append(
+                    Definition(
+                        name=node.name,
+                        kind="function",
+                        line=node.lineno,
+                        docstring=_first_docstring_line(node),
+                    )
+                )
+            elif isinstance(node, ast.ClassDef):
+ℹ️ Records this as a class in the AST (Abstract Syntax Tree).
+                definitions.append(
+                    Definition(
+                        name=node.name,
+                        kind="class",
+                        line=node.lineno,
+                        docstring=_first_docstring_line(node),
+                    )
+                )
+```
+
+| Row | Where | What |
+|---|---|---|
+| 🎯 Focus header | Above `def` / `class` | Symbol name, risk tier, downstream count + short summary |
+| ℹ️ Detail | Above each edit block | Hunk-local plain English (acronyms expanded for juniors) |
 
 ```bash
 pip install "focus-hud>=0.2.0"

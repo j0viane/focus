@@ -2,7 +2,7 @@
   "name": "focus-hud",
   "displayName": "Focus",
   "description": "Blast radius you can defend — evidence-only Focus HUD in the editor.",
-  "version": "0.2.1",
+  "version": "0.4.9",
   "publisher": "j0viane",
   "engines": {
     "vscode": "^1.85.0"
@@ -52,6 +52,21 @@
           "type": "boolean",
           "default": true,
           "description": "Show gutter highlights on changed symbols and blast-radius files."
+        },
+        "focus.captionHighlight": {
+          "type": "boolean",
+          "default": true,
+          "description": "Deprecated — use focus.inlineExplanations. Kept for compatibility."
+        },
+        "focus.inlineExplanations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Word-wrapped summary above `def` and ℹ️ detail at the primary edit (virtual — not saved to disk)."
+        },
+        "focus.lensFontSize": {
+          "type": "number",
+          "default": 0,
+          "description": "CodeLens font size in px for Focus rows. 0 = editor default (~90% of editor font). -1 = match editor.fontSize. Otherwise sets editor.codeLensFontSize in this workspace."
         }
       }
     }

@@ -66,3 +66,6 @@ def test_changed_symbols_detects_def(tmp_path: Path, glass_box_path: Path):
     )
     symbols = changed_symbols(repo, "main")
     assert any(s.name == "validate_token" and s.path == "auth_utils.py" for s in symbols)
+    token = next(s for s in symbols if s.name == "validate_token")
+    assert token.changed_lines
+    assert all(line >= token.line for line in token.changed_lines)

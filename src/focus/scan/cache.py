@@ -19,7 +19,7 @@ from focus.models import ModuleFacts
 from focus.scan.parser import parse_source
 
 CACHE_DIR_NAME = ".focus-cache"
-CACHE_SCHEMA_VERSION = "v2"
+CACHE_SCHEMA_VERSION = "v3"
 
 
 def cache_dir_for(root: Path) -> Path:

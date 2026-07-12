@@ -51,6 +51,11 @@ def test_audit_local_auth_change_is_critical(tmp_path: Path, glass_box_path: Pat
         if n.path == "auth_utils.py"
     )
     assert any(s.name == "validate_token" for s in hud.changed_symbols)
+    token = next(s for s in hud.changed_symbols if s.name == "validate_token")
+    assert token.explanation
+    assert "validate_token" in token.explanation
+    assert "You changed" not in token.explanation
+    assert "calls `validate_token`" in token.explanation or "called from" in token.explanation.lower()
 
 
 def test_audit_local_docs_only_is_pass_through(tmp_path: Path, glass_box_path: Path):
