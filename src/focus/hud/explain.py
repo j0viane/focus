@@ -126,7 +126,7 @@ def explain_symbol_with_evidence(
         purpose_inline,
         purpose_is_curated=purpose_is_curated,
     )
-    # Whitespace-only edits: quiet the risk rail; ℹ️ is just "Added a blank line."
+    # Whitespace-only edits: quiet the risk rail; ℹ️ is just the blank-line caption.
     if _hunk_details_are_blank_only(hunk_details):
         implication = ""
         summary = ""
@@ -135,6 +135,14 @@ def explain_symbol_with_evidence(
         if hunk_details
         else expand_acronyms_for_juniors(_inline_detail(purpose_inline))
     )
+    # Prefer quiet over weak purpose when the ladder found no edit shape.
+    if hunk_details and not detail:
+        detail = ""
+    if not hunk_details and not _purpose_is_strong_outcome(
+        expand_acronyms_for_juniors(_inline_detail(purpose_inline)), symbol.name
+    ):
+        detail = ""
+
     evidence = _dedupe_evidence([overlap, *purpose_evidence, *impact_evidence])
     # Compact for IDE/HUD consumers; clauses keep the full trail for `focus explain --why`.
     inline_evidence = _compact_evidence_for_inline(evidence)
@@ -689,14 +697,25 @@ def _detail_for_hunk(
     fallback: str,
 ) -> str:
     """Heuristic detail from hunk *text* (no AST). Used when proven facts miss."""
+    shaped = _heuristic_shape_detail(lines, symbol_name=symbol_name)
+    if shaped:
+        return shaped
     if not lines:
         return _detail_without_symbol_name(fallback, symbol_name)
-
     structural = _structural_detail_for_hunk(lines)
     if structural:
         return structural
+    return _detail_without_symbol_name(fallback, symbol_name)
+
+
+def _heuristic_shape_detail(lines: list[str], *, symbol_name: str) -> str | None:
+    """Edit-shaped text heuristics — never falls back to purpose slogans."""
+    if not lines:
+        return None
 
     blob = _code_blob_for_cues(lines)
+    if not blob.strip():
+        return None
 
     if re.search(r"name\s*=\s*node\.name", blob):
         return "Uses the node's name as the definition name."
@@ -725,15 +744,87 @@ def _detail_for_hunk(
         ranked.append((_call_rank(callee), callee))
     if ranked:
         top_rank = max(r for r, _ in ranked)
-        # Prefer the last top-rank call in the hunk (usually the edit's payload).
         top = [c for r, c in ranked if r == top_rank]
         return f"Calls `{top[-1]}(…)` here."
 
-    assign_m = re.match(r"\s*(\w+)\s*=", lines[0])
-    if assign_m and assign_m.group(1) not in ("if", "elif", "for", "while"):
-        return f"Updates `{assign_m.group(1)}` here."
+    for line in lines:
+        assign_m = re.match(r"\s*(\w+)\s*=", line)
+        if assign_m and assign_m.group(1) not in ("if", "elif", "for", "while"):
+            return f"Updates `{assign_m.group(1)}` here."
 
-    return _detail_without_symbol_name(fallback, symbol_name)
+    return None
+
+
+def _import_detail_for_lines(lines: list[str]) -> str | None:
+    """Import-only edit block → short caption naming what was imported."""
+    names: list[str] = []
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        from_m = re.match(r"^from\s+([\w.]+)\s+import\s+", line)
+        if from_m:
+            names.append(from_m.group(1))
+            continue
+        import_m = re.match(r"^import\s+([\w.]+)", line)
+        if import_m:
+            names.append(import_m.group(1))
+            continue
+        # JS/TS: import x from 'mod' / import { x } from "mod"
+        js_m = re.match(
+            r"^import\s+(?:type\s+)?(?:[\w*{}\s,]+)\s+from\s+['\"]([^'\"]+)['\"]",
+            line,
+        )
+        if js_m:
+            names.append(js_m.group(1))
+            continue
+        js_side = re.match(r"^import\s+['\"]([^'\"]+)['\"]", line)
+        if js_side:
+            names.append(js_side.group(1))
+            continue
+        return None
+    if not names:
+        return None
+    if len(names) == 1:
+        return f"Adds import for `{names[0]}`."
+    return f"Adds imports for `{names[0]}` and {len(names) - 1} more."
+
+
+def _blank_line_detail(n: int) -> str:
+    if n <= 1:
+        return "Added a blank line."
+    return f"Added {n} blank lines."
+
+
+def _is_blank_line_caption(detail: str) -> bool:
+    return bool(re.match(r"^Added (a|\d+) blank lines?\.$", detail.strip()))
+
+
+def _is_import_caption(detail: str) -> bool:
+    lower = detail.lower()
+    return lower.startswith("adds import for") or lower.startswith("adds imports for")
+
+
+def _is_shaped_edit_caption(detail: str) -> bool:
+    """True when the ℹ️ already describes the edit (must not be overwritten by weak purpose)."""
+    if not detail:
+        return False
+    if _is_blank_line_caption(detail) or _is_import_caption(detail):
+        return True
+    if _structural_family(detail):
+        return True
+    if _is_call_site_detail(detail):
+        return True
+    lower = detail.lower()
+    if "changes what this function returns" in lower:
+        return True
+    if lower.startswith("updates `"):
+        return True
+    if lower.startswith("adds this ") or lower.startswith("adds a new item"):
+        return True
+    if lower.startswith("uses the node's name") or lower.startswith("keeps the first line"):
+        return True
+    return False
 
 
 def _calls_overlapping_hunk(
@@ -787,6 +878,44 @@ def _proven_detail_for_hunk(
     return f"Calls `{bare}(…)` here."
 
 
+def _caption_for_edit_block(
+    run_text: list[str],
+    *,
+    facts: ModuleFacts | None,
+    hunk_lines: list[int],
+    symbol_name: str = "",
+    purpose_fallback: str = "",
+    purpose_is_curated: bool = False,
+) -> str:
+    """Classify → measure → one short sentence. Empty means stay quiet.
+
+    Priority: blank → import → structural → proven call → text shapes → strong purpose.
+    """
+    if _run_is_blank_only(run_text):
+        return _blank_line_detail(len(run_text))
+
+    imported = _import_detail_for_lines(run_text)
+    if imported:
+        return imported
+
+    structural = _structural_detail_for_hunk(run_text)
+    if structural:
+        return structural
+
+    proven = _proven_detail_for_hunk(facts, hunk_lines, symbol_name=symbol_name)
+    if proven:
+        return proven
+
+    shaped = _heuristic_shape_detail(run_text, symbol_name=symbol_name)
+    if shaped:
+        return shaped
+
+    cleaned = _detail_without_symbol_name(purpose_fallback, symbol_name)
+    if cleaned and _purpose_is_strong_outcome(cleaned, symbol_name):
+        return expand_acronyms_for_juniors(cleaned)
+    return ""
+
+
 def _hybrid_detail_for_hunk(
     run_text: list[str],
     *,
@@ -794,29 +923,17 @@ def _hybrid_detail_for_hunk(
     hunk_lines: list[int],
     symbol_name: str,
     purpose_fallback: str,
+    purpose_is_curated: bool = False,
 ) -> str:
-    """Hybrid (Phase 4b): structural cues → proven CallSite → weaker text heuristics.
-
-    Why this order: ``Definition(…)`` is a CallSite, but ``kind="function"`` vs
-    ``kind="class"`` is what juniors need to distinguish. Structural beats a
-    generic constructor call; real callees like ``enrich_changed_symbols`` still
-    win when there is no stronger cue.
-    """
-    structural = _structural_detail_for_hunk(run_text)
-    if structural:
-        return structural
-    proven = _proven_detail_for_hunk(facts, hunk_lines, symbol_name=symbol_name)
-    if proven:
-        return proven
-    return _detail_for_hunk(
+    """Hybrid (Phase 4b): edit-shaped caption ladder (deterministic, no LLM)."""
+    return _caption_for_edit_block(
         run_text,
+        facts=facts,
+        hunk_lines=hunk_lines,
         symbol_name=symbol_name,
-        fallback=purpose_fallback,
+        purpose_fallback=purpose_fallback,
+        purpose_is_curated=purpose_is_curated,
     )
-
-
-# Blank / whitespace-only hunks must not inherit call-path purpose copy.
-_BLANK_LINE_DETAIL = "Added a blank line."
 
 
 def _run_is_blank_only(run_text: list[str]) -> bool:
@@ -825,7 +942,30 @@ def _run_is_blank_only(run_text: list[str]) -> bool:
 
 
 def _hunk_details_are_blank_only(details: list[HunkDetail]) -> bool:
-    return bool(details) and all(d.detail == _BLANK_LINE_DETAIL for d in details)
+    return bool(details) and all(_is_blank_line_caption(d.detail) for d in details)
+
+
+def caption_for_orphan_edit(
+    run_text: list[str],
+    *,
+    facts: ModuleFacts | None = None,
+    hunk_lines: list[int] | None = None,
+) -> str:
+    """Same caption ladder for diffs outside a changed function/class body."""
+    caption = _caption_for_edit_block(
+        run_text,
+        facts=facts,
+        hunk_lines=hunk_lines or [],
+        symbol_name="",
+        purpose_fallback="",
+        purpose_is_curated=False,
+    )
+    if caption:
+        return caption
+    return (
+        "Edited outside a changed function — check the HUD map "
+        "for file-level blast radius."
+    )
 
 
 def _build_hunk_details(
@@ -841,7 +981,9 @@ def _build_hunk_details(
     )
     if not symbol.changed_lines:
         anchor = symbol.line
-        return [HunkDetail(line=anchor, changed_lines=[anchor], detail=fallback)]
+        if fallback and _purpose_is_strong_outcome(fallback, symbol.name):
+            return [HunkDetail(line=anchor, changed_lines=[anchor], detail=fallback)]
+        return []
 
     source = _source_lines(facts)
     runs = _contiguous_line_runs(symbol.changed_lines)[:6]
@@ -858,18 +1000,22 @@ def _build_hunk_details(
                 HunkDetail(
                     line=anchor,
                     changed_lines=run,
-                    detail=_BLANK_LINE_DETAIL,
+                    detail=_blank_line_detail(len(run)),
                 )
             )
             continue
-        detail = _hybrid_detail_for_hunk(
-            run_text,
-            facts=facts,
-            hunk_lines=run,
-            symbol_name=symbol.name,
-            purpose_fallback=purpose_fallback,
+        detail = expand_acronyms_for_juniors(
+            _hybrid_detail_for_hunk(
+                run_text,
+                facts=facts,
+                hunk_lines=run,
+                symbol_name=symbol.name,
+                purpose_fallback=purpose_fallback,
+                purpose_is_curated=purpose_is_curated,
+            )
         )
-        detail = expand_acronyms_for_juniors(detail)
+        if not detail:
+            continue
         code_rows.append(HunkDetail(line=anchor, changed_lines=run, detail=detail))
 
     # Real edits win: drop blank-only rows so they don't steal / dilute the ℹ️.
@@ -882,12 +1028,13 @@ def _build_hunk_details(
             purpose_is_curated=purpose_is_curated,
         )
     if blank_rows:
-        primary = blank_rows[0]
+        primary = max(blank_rows, key=lambda d: len(d.changed_lines or []))
+        total = sum(len(d.changed_lines or [d.line]) for d in blank_rows)
         return [
             HunkDetail(
                 line=primary.line,
                 changed_lines=primary.changed_lines,
-                detail=_BLANK_LINE_DETAIL,
+                detail=_blank_line_detail(total),
             )
         ]
     return []
@@ -1005,6 +1152,7 @@ def _collapse_hunk_details_to_outcomes(
 
     primary = _pick_primary_hunk(details, symbol_line)
     call_rows = [d for d in details if _is_call_site_detail(d.detail)]
+    shaped_rows = [d for d in details if _is_shaped_edit_caption(d.detail)]
     use_outcome = purpose_is_curated and _purpose_is_strong_outcome(
         purpose_outcome, symbol_name
     )
@@ -1014,17 +1162,25 @@ def _collapse_hunk_details_to_outcomes(
         and _call_should_beat_curated_purpose(call_rows[0].detail)
     ):
         chosen = call_rows[0].detail
-    elif use_outcome:
+    elif use_outcome and not shaped_rows:
         chosen = purpose_outcome
+    elif use_outcome and shaped_rows and _is_call_site_detail(shaped_rows[0].detail):
+        # Curated purpose may replace private/plumbing call chrome only.
+        if _call_should_beat_curated_purpose(shaped_rows[0].detail):
+            chosen = shaped_rows[0].detail
+        else:
+            chosen = purpose_outcome
     else:
         if call_rows:
             chosen = call_rows[0].detail
         elif structural_rows:
             chosen = structural_rows[0].detail
+        elif shaped_rows:
+            chosen = _pick_primary_hunk(shaped_rows, symbol_line).detail
         elif _purpose_is_strong_outcome(purpose_outcome, symbol_name):
             chosen = purpose_outcome
         else:
-            chosen = primary.detail or purpose_outcome
+            chosen = primary.detail or ""
     return [
         HunkDetail(
             line=primary.line,
@@ -1041,10 +1197,20 @@ def _finalize_single_hunk_detail(
     symbol_name: str,
     purpose_is_curated: bool = False,
 ) -> HunkDetail:
-    """Single edit block: structural first; curated outcome; else call/heuristic."""
-    if _structural_family(hunk.detail):
-        return hunk
-    if _is_call_site_detail(hunk.detail) and _call_should_beat_curated_purpose(hunk.detail):
+    """Single edit block: keep edit shapes; curated purpose only when stronger than chrome."""
+    if _is_shaped_edit_caption(hunk.detail):
+        # Public call sites may still beat curated purpose; private/shaped edits stick.
+        if (
+            _is_call_site_detail(hunk.detail)
+            and purpose_is_curated
+            and _purpose_is_strong_outcome(purpose_outcome, symbol_name)
+            and not _call_should_beat_curated_purpose(hunk.detail)
+        ):
+            return HunkDetail(
+                line=hunk.line,
+                changed_lines=hunk.changed_lines,
+                detail=purpose_outcome,
+            )
         return hunk
     if purpose_is_curated and _purpose_is_strong_outcome(purpose_outcome, symbol_name):
         return HunkDetail(
@@ -1052,8 +1218,6 @@ def _finalize_single_hunk_detail(
             changed_lines=hunk.changed_lines,
             detail=purpose_outcome,
         )
-    if _is_call_site_detail(hunk.detail):
-        return hunk
     if _purpose_is_strong_outcome(purpose_outcome, symbol_name):
         return HunkDetail(
             line=hunk.line,

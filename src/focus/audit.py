@@ -217,6 +217,7 @@ def run_audit(
             caveat=DEFAULT_CAVEAT if missing else None,
         ),
             line_ranges,
+            facts_by_path=facts_by_rel,
         )
 
     rings = _merge_rings(graph, seeds)
@@ -250,6 +251,7 @@ def run_audit(
             ),
         ),
             line_ranges,
+            facts_by_path=facts_by_rel,
         )
 
     return _with_line_explanations(
@@ -262,6 +264,7 @@ def run_audit(
         facts_by_path=facts_by_rel,
     ),
         line_ranges,
+        facts_by_path=facts_by_rel,
     )
 
 
@@ -381,16 +384,19 @@ def _contiguous_line_runs(lines: list[int]) -> list[list[int]]:
 def orphan_line_explanations(
     symbols: list[ChangedSymbolInfo],
     ranges: dict[str, list[tuple[int, int]]],
+    facts_by_path: dict[str, ModuleFacts] | None = None,
 ) -> list[LineExplanation]:
     """Diff hunks not covered by any changed symbol's ``changed_lines``."""
     from pathlib import Path as _Path
 
+    from focus.hud.explain import caption_for_orphan_edit
     from focus.scan.walker import SOURCE_EXTENSIONS
 
     covered: dict[str, set[int]] = {}
     for symbol in symbols:
         covered.setdefault(symbol.path, set()).update(symbol.changed_lines)
 
+    facts_by_path = facts_by_path or {}
     out: list[LineExplanation] = []
     for path, spans in ranges.items():
         if _Path(path).suffix.lower() not in SOURCE_EXTENSIONS:
@@ -401,15 +407,27 @@ def orphan_line_explanations(
             for line in range(start, end + 1):
                 if line not in symbol_lines:
                     orphan_lines.append(line)
+        facts = facts_by_path.get(path)
+        source: list[str] | None = None
+        if facts is not None and facts.path.is_file():
+            try:
+                source = facts.path.read_text(encoding="utf-8", errors="replace").splitlines()
+            except OSError:
+                source = None
         for run in _contiguous_line_runs(orphan_lines):
+            if source is not None:
+                run_text = [source[line - 1] for line in run if 0 < line <= len(source)]
+            else:
+                run_text = []
             out.append(
                 LineExplanation(
                     path=path,
                     line=run[0],
                     changed_lines=run,
-                    detail=(
-                        "Edited outside a changed function — check the HUD map "
-                        "for file-level blast radius."
+                    detail=caption_for_orphan_edit(
+                        run_text,
+                        facts=facts,
+                        hunk_lines=run,
                     ),
                 )
             )
@@ -419,8 +437,11 @@ def orphan_line_explanations(
 def _with_line_explanations(
     hud: FocusHUD,
     ranges: dict[str, list[tuple[int, int]]],
+    facts_by_path: dict[str, ModuleFacts] | None = None,
 ) -> FocusHUD:
-    orphans = orphan_line_explanations(hud.changed_symbols, ranges)
+    orphans = orphan_line_explanations(
+        hud.changed_symbols, ranges, facts_by_path=facts_by_path
+    )
     if not orphans:
         return hud
     return hud.model_copy(update={"line_explanations": orphans})

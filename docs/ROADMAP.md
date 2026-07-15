@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0+**; junior-readable inline explainers in **0.3.0+**; Phase 4b risk rail / outcome ℹ️ in **0.3.1**. Phase 3 complete on PyPI.
+**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0+**; junior-readable inline explainers in **0.3.0+**; Phase 4b risk rail / outcome ℹ️ in **0.3.1**; edit-shaped captions in **0.3.2**. Phase 3 complete on PyPI.
 
 ---
 
@@ -161,6 +161,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **Tiny diff, huge output** | Stronger triggers: tiny + low blast radius → pass-through or *tiny* HUD (see [`TRIGGERS.md`](TRIGGERS.md)) | Planned (ROA) |
 | **Auto-refresh on save** | Quiet re-audit after saving a source file; CodeLens/gutters update in place (`focus.autoAuditOnSave`) | ✅ extension 0.5.1 |
 | **SCM Working Tree CodeLens** | Same risk rail + ℹ️ on the **modified** side of local side-by-side diffs (`diffEditor.codeLens`) | ✅ |
+| **Edit-shaped captions** | Deterministic ℹ️ from the edit: blank counts, imports, calls, returns, assigns — not static slogans | ✅ focus-hud 0.3.2 / extension 0.5.2 |
 | **Live-as-you-type** | Debounced refresh from the **unsaved buffer** (not only disk/git) — pin: dogfood must not require Save or Audit Local | **Next (pinned)** |
 
 **Pinned UX (IDE):** Rails and ℹ️ must feel live while editing. Today Focus reads git/disk, so Save→auto-audit is the bridge. True live typing needs a CLI **buffer overlay** (pass dirty editor text into audit/diff without writing the repo). Do not ship Marketplace polish before this feels instant in dogfood.

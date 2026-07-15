@@ -25,7 +25,7 @@ Focus shows **what else that change touches** — with evidence you can point at
 ## Try in 60 seconds
 
 ```bash
-pip install "focus-hud>=0.3.1"
+pip install "focus-hud>=0.3.2"
 # or: uv tool install focus-hud
 
 focus trace path/to/shared_module.py --out focus-hud.md
@@ -55,7 +55,7 @@ Gallery + walkthrough: [`docs/DEMO.md`](docs/DEMO.md) · [`docs/assets/`](docs/a
 | Surface | When | What you get |
 |---|---|---|
 | **A — PR comment** | Every PR (GitHub Action) | Full architecture HUD — summary, Mermaid, Danger Zones. Updates in place on new pushes |
-| **C — IDE diff** | Before you push (Cursor / VS Code) | Risk rail + ℹ️ on changed symbols; Save refreshes; HUD panel for the full map |
+| **C — IDE diff** | Before you push (Cursor / VS Code) | Risk rail + edit-shaped ℹ️; Save refreshes; SCM Working Tree (right pane); HUD for the full map |
 | **C — GitHub diff** | PR review (planned) | Inline pins on **Files changed** — companion to the PR comment |
 | ~~**B — git**~~ | — | **Not supported** — no committed `focus-hud.md` |
 
@@ -81,7 +81,7 @@ Risk rail + purpose ℹ️ on changed symbols, plus the full HUD panel — blast
         """Build ℹ️ rows: one outcome per symbol unless hunks teach different outcomes."""
         ...
         for run in runs:
-            ℹ️ Builds each edit's caption (plain English above the changed lines).
+            ℹ️ Changes what this function returns.
             detail = _hybrid_detail_for_hunk(
                 run_text,
                 facts=facts,
@@ -93,7 +93,7 @@ Risk rail + purpose ℹ️ on changed symbols, plus the full HUD panel — blast
         return _collapse_hunk_details_to_outcomes(...)
 ```
 
-Risk rail above `def`; ℹ️ above the changed lines. A second ℹ️ appears only when two hunks teach **different** outcomes (e.g. function vs class).
+Risk rail above `def`; ℹ️ describes **this edit** (return, call, import, `Added N blank lines.`, …) — not a static slogan. A second ℹ️ appears only when two edit blocks teach **different** outcomes.
 
 | Surface | Where | What |
 |---|---|---|
@@ -102,7 +102,7 @@ Risk rail above `def`; ℹ️ above the changed lines. A second ℹ️ appears o
 | **Trust cues** | Hover highlighted code, or click rail / ℹ️ | *Why trust this* — ≤2 cues (map in HUD). Don’t rely on CodeLens title hover on macOS. |
 
 ```bash
-./scripts/install-extension.sh   # extension 0.5.1+ (needs focus-hud >=0.3.1 on PATH)
+./scripts/install-extension.sh   # extension 0.5.2+ (needs focus-hud >=0.3.2 on PATH)
 # or: cd extensions/vscode-focus && npm run compile
 ```
 
@@ -142,7 +142,7 @@ Unchanged files reuse **`.focus-cache/`** (gitignored). Pass `--no-cache` to for
 
 Optional: copy [`.focus.toml.example`](.focus.toml.example) → `.focus.toml` to tune `fan_out_threshold` (default **3**).
 
-Requirements: Python 3.12+. Install: **`pip install "focus-hud>=0.3.1"`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
+Requirements: Python 3.12+. Install: **`pip install "focus-hud>=0.3.2"`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ```bash
 uv run pytest
@@ -209,7 +209,7 @@ flowchart TB
 
 ## Roadmap
 
-Phase 3 **complete**. Phase 4b **shipped** (IDE risk rail + ℹ️ + Save refresh). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Phase 3 **complete**. Phase 4b **shipping** (risk rail + edit-shaped ℹ️ + Save refresh + SCM Working Tree). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
