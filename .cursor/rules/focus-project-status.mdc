@@ -17,14 +17,15 @@ alwaysApply: true
 | Item | State |
 |---|---|
 | **Workspace tip** | Open the **`Focus` git root** as the Cursor folder (not parent `Cursor/`) so Focus `.cursor/rules` load cleanly |
-| **Branch** | `feat/llm-caption-labeler` (local only — **not pushed**, no PR yet) |
+| **Branch** | `feat/llm-caption-labeler` (pushed; tracks `origin/feat/llm-caption-labeler`) |
 | **Base / main** | `main` @ `fe8403e` — includes merged **PR #26** (PR comment ROA caps) |
-| **Working tree** | Phase 4c labeler **implemented, uncommitted** (see below) |
+| **Working tree** | Phase 4c labeler **implemented, still uncommitted** (LLM package / docs / bump) |
+| **Rules handoff** | `focus-project-status.mdc` committed + pushed as `11e0899` (`docs(rules): add Focus project-status handoff memory`) |
 | **focus-hud on this branch** | **0.3.5** (uncommitted bump; main still **0.3.4** until this ships) |
 | **Extension on this branch** | **0.5.4** (uncommitted; adds `focus.llmCaptions`) |
 | **Tests** | `137 passed` when last run (incl. `tests/test_llm_labeler.py`) |
 | **LLM dogfood** | **Not enabled.** No local `.env` / `.focus.toml` yet. Rule 16: do not turn LLM on until owner dogfoods weak ℹ️ |
-| **Rules hygiene** | Inventory done — too many always-on rules + parent workspace loading. Hard-gate checklist + AGENTS.md **drafted in chat, not written to disk yet** |
+| **Rules hygiene** | Inventory done in prior chat. Hard-gate checklist + AGENTS.md **drafted in chat, not written to disk yet**. Status memory file lives in repo. |
 
 ### Shipped on `main` (do not redo)
 
