@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0+**; junior-readable inline explainers in **0.3.0+**; Phase 4b risk rail / outcome ℹ️ in **0.3.1**; edit-shaped captions in **0.3.2**; live buffer overlay in **0.3.3**. Phase 3 complete on PyPI.
+**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0+**; junior-readable inline explainers in **0.3.0+**; Phase 4b risk rail / outcome ℹ️ in **0.3.1**; edit-shaped captions in **0.3.2**; live buffer overlay in **0.3.3**; PR comment ROA caps in **0.3.4**. Phase 3 complete on PyPI.
 
 ---
 
@@ -158,6 +158,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **Heuristic captions** when no docstring | JSDoc/TSDoc extraction for JS/TS; Typer `@app.command` metadata for CLI | Planned |
 | **Evidence in IDE** | Hover = *why trust this* only (≤2 cues); no restating rail/ℹ️; importers collapsed → HUD | ✅ ROA slim |
 | **Verbose / low-ROA copy** | Hard caps: max chars for ℹ️ / summary; one idea per lens; no restating the header | 🔄 hover done; caps continue |
+| **PR comment inventory dump** | Cap **Your changes** at 8 + overflow; cap Also affected / Not pulled in at 8; prefer short detail over long explanation | ✅ focus-hud 0.3.4 |
 | **Tiny diff, huge output** | Stronger triggers: tiny + low blast radius → pass-through or *tiny* HUD (see [`TRIGGERS.md`](TRIGGERS.md)) | Planned (ROA) |
 | **Auto-refresh on save** | Quiet re-audit after saving a source file; CodeLens/gutters update in place (`focus.autoAuditOnSave`) | ✅ extension 0.5.1 |
 | **SCM Working Tree CodeLens** | Same risk rail + ℹ️ on the **modified** side of local side-by-side diffs (`diffEditor.codeLens`) and the open file (`editor.codeLens`) | ✅ |
