@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 import networkx as nx
@@ -52,6 +52,8 @@ class ExplainContext:
     downstream_count: int
     risk: RiskTier
     facts_by_path: dict[str, ModuleFacts]
+    # Unsaved buffer text (repo-relative path → full file). Empty in normal audits.
+    overlay_texts: dict[str, str] = field(default_factory=dict)
 
 
 def explain_symbols(context: ExplainContext) -> list[SymbolExplanation]:
@@ -125,6 +127,7 @@ def explain_symbol_with_evidence(
         facts,
         purpose_inline,
         purpose_is_curated=purpose_is_curated,
+        overlay_text=context.overlay_texts.get(symbol.path),
     )
     # Whitespace-only edits: quiet the risk rail; ℹ️ is just the blank-line caption.
     if _hunk_details_are_blank_only(hunk_details):
@@ -296,9 +299,10 @@ def _implication_who_what(
             if callers:
                 return _implication_from_callers(symbol, callers)
 
-    # Same-file callers beat file-level "Shared hub" for helpers only used here.
+    # Same-file callers: useful for *public* symbols. Private `_helpers` called
+    # only inside this file produced a CRITICAL blizzard when dogfooding explain.py.
     local_callers = _same_file_callers(symbol, facts)
-    if local_callers:
+    if local_callers and not symbol.name.startswith("_"):
         return _implication_from_local_callers(local_callers)
 
     # File-level hub/danger rails are for *public* symbols. Private helpers with
@@ -616,7 +620,13 @@ def _contiguous_line_runs(lines: list[int]) -> list[list[int]]:
     return runs
 
 
-def _source_lines(facts: ModuleFacts | None) -> list[str] | None:
+def _source_lines(
+    facts: ModuleFacts | None,
+    *,
+    overlay_text: str | None = None,
+) -> list[str] | None:
+    if overlay_text is not None:
+        return overlay_text.splitlines()
     if facts is None or not facts.path.is_file():
         return None
     try:
@@ -703,9 +713,188 @@ def _detail_for_hunk(
     if not lines:
         return _detail_without_symbol_name(fallback, symbol_name)
     structural = _structural_detail_for_hunk(lines)
-    if structural:
+    if structural and not symbol_name.startswith("test_"):
         return structural
     return _detail_without_symbol_name(fallback, symbol_name)
+
+
+def _clip_for_caption(text: str, max_len: int = 52) -> str:
+    """Single-line clip for ℹ️ expression slots (ROA — no novel-length captions)."""
+    plain = " ".join(text.split())
+    if len(plain) <= max_len:
+        return plain
+    cut = plain[: max_len - 1]
+    for sep in (" ", ",", "(", ")"):
+        idx = cut.rfind(sep)
+        if idx >= max_len // 2:
+            cut = cut[: idx + (1 if sep in "()" else 0)].rstrip(" ,")
+            break
+    return cut.rstrip() + "…"
+
+
+def _brackets_balanced(expr: str) -> bool:
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    closing = {v: k for k, v in pairs.items()}
+    stack: list[str] = []
+    for ch in expr:
+        if ch in pairs:
+            stack.append(ch)
+        elif ch in closing:
+            if not stack or stack[-1] != closing[ch]:
+                return False
+            stack.pop()
+    return not stack
+
+
+def _expression_worth_showing(expr: str) -> bool:
+    """Reject incomplete / punctuation-only / code-soup slots.
+
+    Dogfood: ``Returns (.`` and ``Returns `bool(details) and all(…`` earned silence
+    or a generic return line — not a clipped source dump.
+    """
+    plain = " ".join(expr.split()).strip().rstrip(";")
+    if not plain:
+        return False
+    if plain in {"(", "[", "{", ")", "]", "}", "...", "\\"}:
+        return False
+    if not _brackets_balanced(plain):
+        return False
+    # Trailing openers / operators mean the interesting bit is on the next line.
+    if re.search(r"(\(|\[|\{|,|\\|\+|-|\*|/|%|\||&|\^|=)$", plain):
+        return False
+    if re.search(r"\b(and|or|not)$", plain):
+        return False
+    if _is_code_soup_expression(plain):
+        return False
+    return True
+
+
+def _is_code_soup_expression(plain: str) -> bool:
+    """True when the expression is a source dump, not a readable slot."""
+    if len(plain) <= 28 and plain.count("(") <= 1:
+        return False
+    if plain.count("(") >= 2:
+        return True
+    if " for " in plain and " in " in plain:
+        return True
+    if plain.startswith(("f\"", "f'", 'f"""', "f'''")):
+        # Greeting-like f-strings stay; Focus-copy builders and novels go.
+        if any(
+            tok in plain
+            for tok in (
+                "Added ",
+                "Returns ",
+                "Adds ",
+                "blank line",
+                "{name}",
+                "{n}",
+                "Updates `",
+                "Sets `",
+            )
+        ):
+            return True
+        if len(plain) > 56:
+            return True
+        return False
+    if len(plain) > 44:
+        return True
+    return False
+
+
+def _gather_return_expression(lines: list[str], start_idx: int) -> str:
+    """Join a return's expression across continuation lines in this edit block."""
+    first = re.match(r"^\s*return\b(.*)$", lines[start_idx])
+    if not first:
+        return ""
+    parts: list[str] = []
+    head = first.group(1).strip()
+    if head:
+        parts.append(head)
+    for raw in lines[start_idx + 1 :]:
+        cont = raw.strip()
+        if not cont or cont.startswith("#"):
+            break
+        if re.match(
+            r"^(return|if|elif|else|for|while|try|except|finally|with|def|class|async)\b",
+            cont,
+        ):
+            break
+        parts.append(cont)
+        joined = " ".join(parts)
+        if _brackets_balanced(joined):
+            break
+        # Cap gather so a huge return doesn't become a novel.
+        if len(joined) > 120:
+            break
+    return " ".join(parts).rstrip(";")
+
+
+_WEAK_RETURN_EXPRS = frozenset(
+    {
+        "None",
+        "True",
+        "False",
+        "Ellipsis",
+        "...",
+        "NotImplemented",
+        "[]",
+        "{}",
+        "()",
+        "''",
+        '""',
+    }
+)
+
+
+def _is_weak_return_expr(expr: str) -> bool:
+    """``Returns `None`.`` is true but rarely worth a CodeLens of its own."""
+    return " ".join(expr.split()).strip() in _WEAK_RETURN_EXPRS
+
+
+def _return_detail_for_lines(lines: list[str]) -> str | None:
+    """Return caption when the expression is complete *and* worth attention.
+
+    Incomplete / code-soup / weak literals (``None``, ``True``, …) return
+    ``None`` so the caption ladder can prefer purpose or a call — dogfood
+    hated ``Returns None.`` and sticky ``Changes what this function returns.``
+    stealing the ℹ️.
+    """
+    strong: list[str] = []
+    saw_return = False
+    for idx, line in enumerate(lines):
+        if not re.match(r"^\s*return\b", line):
+            continue
+        saw_return = True
+        expr = _gather_return_expression(lines, idx)
+        if not expr:
+            # Bare ``return`` — only keep if it's the only signal later.
+            continue
+        if _expression_worth_showing(expr) and not _is_weak_return_expr(expr):
+            strong.append(expr)
+    if strong:
+        # Prefer the last strong return in the hunk (usually the real outcome).
+        return f"Returns `{_clip_for_caption(strong[-1])}`."
+    if saw_return:
+        return None
+    return None
+
+
+def _assign_detail_for_lines(lines: list[str]) -> str | None:
+    """Assignment caption with RHS when short enough to earn attention."""
+    for line in lines:
+        match = re.match(r"\s*(\w+)\s*=\s*(.+)$", line)
+        if not match:
+            continue
+        name = match.group(1)
+        if name in ("if", "elif", "for", "while"):
+            continue
+        rhs = match.group(2).strip().rstrip(";")
+        if not rhs:
+            return f"Updates `{name}` here."
+        if not _expression_worth_showing(rhs):
+            return f"Updates `{name}` here."
+        return f"Sets `{name}` to `{_clip_for_caption(rhs, 40)}`."
+    return None
 
 
 def _heuristic_shape_detail(lines: list[str], *, symbol_name: str) -> str | None:
@@ -733,8 +922,9 @@ def _heuristic_shape_detail(lines: list[str], *, symbol_name: str) -> str | None
             return f"Adds this definition to `{var}` so the file's inventory includes it."
         return f"Adds a new item to `{var}`."
 
-    if any(re.search(r"^\s*return\b", line) for line in lines):
-        return "Changes what this function returns."
+    returned = _return_detail_for_lines(lines)
+    if returned:
+        return returned
 
     calls = re.findall(r"(?<!\.)([a-z_][\w]*)\s*\(", blob, re.IGNORECASE)
     ranked: list[tuple[int, str]] = []
@@ -747,10 +937,9 @@ def _heuristic_shape_detail(lines: list[str], *, symbol_name: str) -> str | None
         top = [c for r, c in ranked if r == top_rank]
         return f"Calls `{top[-1]}(…)` here."
 
-    for line in lines:
-        assign_m = re.match(r"\s*(\w+)\s*=", line)
-        if assign_m and assign_m.group(1) not in ("if", "elif", "for", "while"):
-            return f"Updates `{assign_m.group(1)}` here."
+    assigned = _assign_detail_for_lines(lines)
+    if assigned:
+        return assigned
 
     return None
 
@@ -818,7 +1007,9 @@ def _is_shaped_edit_caption(detail: str) -> bool:
     lower = detail.lower()
     if "changes what this function returns" in lower:
         return True
-    if lower.startswith("updates `"):
+    if lower.startswith("returns ") or lower.startswith("returns `"):
+        return True
+    if lower.startswith("updates `") or lower.startswith("sets `"):
         return True
     if lower.startswith("adds this ") or lower.startswith("adds a new item"):
         return True
@@ -889,7 +1080,11 @@ def _caption_for_edit_block(
 ) -> str:
     """Classify → measure → one short sentence. Empty means stay quiet.
 
-    Priority: blank → import → structural → proven call → text shapes → strong purpose.
+    Priority: blank → import → structural → return/assign shapes → proven call →
+    other text shapes → strong purpose.
+
+    Return/assign beat proven calls so a ``return x`` edit isn't labeled as
+    whatever helper call sits on the same contiguous hunk.
     """
     if _run_is_blank_only(run_text):
         return _blank_line_detail(len(run_text))
@@ -899,8 +1094,17 @@ def _caption_for_edit_block(
         return imported
 
     structural = _structural_detail_for_hunk(run_text)
-    if structural:
+    # test_* bodies often embed kind=/isinstance strings — not a real AST record.
+    if structural and not symbol_name.startswith("test_"):
         return structural
+
+    # Measure return/assign before call-sites — the edit's subject wins.
+    returned = _return_detail_for_lines(run_text)
+    if returned:
+        return returned
+    assigned = _assign_detail_for_lines(run_text)
+    if assigned:
+        return assigned
 
     proven = _proven_detail_for_hunk(facts, hunk_lines, symbol_name=symbol_name)
     if proven:
@@ -968,12 +1172,33 @@ def caption_for_orphan_edit(
     )
 
 
+def _anchor_line_for_caption(
+    run: list[int],
+    run_text: list[str],
+    detail: str,
+) -> int:
+    """Park ℹ️ on the measured line (return/assign), not always run[0]."""
+    if not run:
+        return 1
+    if _is_return_or_assign_caption(detail) and len(run_text) == len(run):
+        if detail.lower().startswith("returns"):
+            for line_no, text in zip(reversed(run), reversed(run_text)):
+                if re.match(r"^\s*return\b", text):
+                    return line_no
+        if detail.lower().startswith("sets `") or detail.lower().startswith("updates `"):
+            for line_no, text in zip(run, run_text):
+                if re.match(r"\s*\w+\s*=", text):
+                    return line_no
+    return run[0]
+
+
 def _build_hunk_details(
     symbol: ChangedSymbolInfo,
     facts: ModuleFacts | None,
     purpose_fallback: str,
     *,
     purpose_is_curated: bool = False,
+    overlay_text: str | None = None,
 ) -> list[HunkDetail]:
     """Build ℹ️ rows: one outcome per symbol unless hunks teach different outcomes."""
     fallback = expand_acronyms_for_juniors(
@@ -985,12 +1210,14 @@ def _build_hunk_details(
             return [HunkDetail(line=anchor, changed_lines=[anchor], detail=fallback)]
         return []
 
-    source = _source_lines(facts)
-    runs = _contiguous_line_runs(symbol.changed_lines)[:6]
+    source = _source_lines(facts, overlay_text=overlay_text)
+    # Classify every contiguous edit block. ROA is enforced by collapse (one ℹ️,
+    # or two for function-vs-class) — an early [:6] cap dropped trailing returns
+    # in busy symbols (dogfood: return "" on _build_hunk_details never surfaced).
+    runs = _contiguous_line_runs(symbol.changed_lines)
     code_rows: list[HunkDetail] = []
     blank_rows: list[HunkDetail] = []
     for run in runs:
-        anchor = run[0]
         if source:
             run_text = [source[line - 1] for line in run if 0 < line <= len(source)]
         else:
@@ -998,7 +1225,7 @@ def _build_hunk_details(
         if source is not None and _run_is_blank_only(run_text):
             blank_rows.append(
                 HunkDetail(
-                    line=anchor,
+                    line=run[0],
                     changed_lines=run,
                     detail=_blank_line_detail(len(run)),
                 )
@@ -1016,6 +1243,7 @@ def _build_hunk_details(
         )
         if not detail:
             continue
+        anchor = _anchor_line_for_caption(run, run_text, detail)
         code_rows.append(HunkDetail(line=anchor, changed_lines=run, detail=detail))
 
     # Real edits win: drop blank-only rows so they don't steal / dilute the ℹ️.
@@ -1111,6 +1339,38 @@ def _pick_primary_hunk(details: list[HunkDetail], symbol_line: int) -> HunkDetai
     return max(candidates, key=lambda d: (len(d.changed_lines or []), -d.line))
 
 
+def _is_return_or_assign_caption(detail: str) -> bool:
+    lower = detail.lower()
+    return (
+        lower.startswith("returns ")
+        or lower.startswith("returns `")
+        or lower.startswith("sets `")
+        or lower.startswith("updates `")
+    )
+
+
+def _slot_caption_rank(detail: str) -> int:
+    """Higher = more specific edit signal (return beats assign)."""
+    lower = detail.lower()
+    if lower.startswith("returns"):
+        return 3
+    if lower.startswith("sets `") or lower.startswith("updates `"):
+        return 2
+    return 1
+
+
+def _pick_slot_hunk(slots: list[HunkDetail], symbol_line: int) -> HunkDetail:
+    """Prefer return over assign; then larger hunk; then later line."""
+    return max(
+        slots,
+        key=lambda d: (
+            _slot_caption_rank(d.detail),
+            len(d.changed_lines or []),
+            d.line,
+        ),
+    )
+
+
 def _collapse_hunk_details_to_outcomes(
     details: list[HunkDetail],
     *,
@@ -1126,6 +1386,7 @@ def _collapse_hunk_details_to_outcomes(
 
     Curated docstring / registry outcomes may replace call-site chrome. Heuristic
     file/name purpose must not — that stole ``enrich_changed_symbols`` in dogfood.
+    Return/assign expression slots beat curated purpose and own the ℹ️ anchor.
     """
     if not details:
         return []
@@ -1153,9 +1414,22 @@ def _collapse_hunk_details_to_outcomes(
     primary = _pick_primary_hunk(details, symbol_line)
     call_rows = [d for d in details if _is_call_site_detail(d.detail)]
     shaped_rows = [d for d in details if _is_shaped_edit_caption(d.detail)]
+    slot_rows = [d for d in details if _is_return_or_assign_caption(d.detail)]
     use_outcome = purpose_is_curated and _purpose_is_strong_outcome(
         purpose_outcome, symbol_name
     )
+
+    # Expression slots (return/assign) are the edit the author is looking at.
+    if slot_rows:
+        slot = _pick_slot_hunk(slot_rows, symbol_line)
+        return [
+            HunkDetail(
+                line=slot.line,
+                changed_lines=slot.changed_lines,
+                detail=slot.detail,
+            )
+        ]
+
     if (
         use_outcome
         and call_rows
@@ -1264,6 +1538,7 @@ def enrich_changed_symbols(
     downstream_count: int,
     risk: RiskTier,
     facts_by_path: dict[str, ModuleFacts] | None = None,
+    overlay_texts: dict[str, str] | None = None,
 ) -> list[ChangedSymbolInfo]:
     """Attach inline explanations to each changed symbol."""
     if not symbols:
@@ -1276,6 +1551,7 @@ def enrich_changed_symbols(
         downstream_count=downstream_count,
         risk=risk,
         facts_by_path=facts_by_path or {},
+        overlay_texts=overlay_texts or {},
     )
     return [explain_symbol_with_evidence(sym, context=context).symbol for sym in symbols]
 

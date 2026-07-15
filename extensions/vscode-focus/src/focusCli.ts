@@ -85,7 +85,7 @@ async function runFocus(args: string[], cwd: string): Promise<string> {
     };
     if (e.code === "ENOENT") {
       throw new FocusCliError(
-        "focus not found on PATH. Install with: pip install \"focus-hud>=0.3.2\" " +
+        "focus not found on PATH. Install with: pip install \"focus-hud>=0.3.3\" " +
           "(or set focus.path). See https://pypi.org/project/focus-hud/",
       );
     }
@@ -112,13 +112,17 @@ function parseHudJson(stdout: string): FocusHUD {
   return JSON.parse(text.slice(start)) as FocusHUD;
 }
 
-export async function auditLocal(root: string): Promise<FocusHUD> {
+export async function auditLocal(
+  root: string,
+  overlayFile?: string,
+): Promise<FocusHUD> {
   const base =
     vscode.workspace.getConfiguration("focus").get<string>("base") || "main";
-  const stdout = await runFocus(
-    ["audit", "--local", "--base", base, "--path", root, "--format", "json"],
-    root,
-  );
+  const args = ["audit", "--local", "--base", base, "--path", root, "--format", "json"];
+  if (overlayFile) {
+    args.push("--overlay-file", overlayFile);
+  }
+  const stdout = await runFocus(args, root);
   return parseHudJson(stdout);
 }
 

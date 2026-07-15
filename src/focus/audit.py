@@ -26,9 +26,17 @@ from focus.scan import cache_dir_for, discover_source_files, parse_module_cached
 from focus.triggers import should_emit_diagram
 
 
-def audit_local(root: Path, base: str = "main", *, use_cache: bool = True) -> FocusHUD:
+def audit_local(
+    root: Path,
+    base: str = "main",
+    *,
+    use_cache: bool = True,
+    overlays: dict[str, str] | None = None,
+) -> FocusHUD:
     """Build a HUD for working-tree changes vs `base`."""
-    return run_audit(root, base=base, mode="local", use_cache=use_cache)
+    return run_audit(
+        root, base=base, mode="local", use_cache=use_cache, overlays=overlays
+    )
 
 
 def audit_pr(root: Path, base: str = "main", *, use_cache: bool = True) -> FocusHUD:
@@ -142,13 +150,33 @@ def run_audit(
     *,
     mode: DiffMode = "local",
     use_cache: bool = True,
+    overlays: dict[str, str] | None = None,
 ) -> FocusHUD:
     """Build a HUD for changes vs `base` in local or PR-range mode."""
     root = root.resolve()
     config = load_config(root)
     fan_out = config.fan_out_threshold
+    overlays = overlays or {}
     all_changed = changed_files(root, base, mode=mode)
     py_changed = changed_source_files(root, base, mode=mode)
+    line_ranges = changed_line_ranges(root, base, mode=mode)
+
+    # Graph from disk first; overlays replace facts/ranges for dirty buffers.
+    cache_dir = cache_dir_for(root) if use_cache else None
+    graph, facts_by_rel = _build_graph_index(root, use_cache=use_cache, cache_dir=cache_dir)
+
+    if overlays and mode == "local":
+        from focus.ingest.overlay import apply_overlays
+
+        all_changed, py_changed, line_ranges, facts_by_rel = apply_overlays(
+            root,
+            base,
+            overlays=overlays,
+            changed_paths=all_changed,
+            source_paths=py_changed,
+            line_ranges=line_ranges,
+            facts_by_path=facts_by_rel,
+        )
 
     if not all_changed:
         return FocusHUD(
@@ -171,7 +199,8 @@ def run_audit(
             risk_tier="LOW",
         )
 
-    if touches_only_non_symbols(root, base, mode=mode):
+    # Unsaved overlays may be blank-only inside a def — still want edit-shaped captions.
+    if not overlays and touches_only_non_symbols(root, base, mode=mode):
         label = ", ".join(f"`{p}`" for p in py_changed[:5])
         return FocusHUD(
             mode="pass_through",
@@ -183,12 +212,19 @@ def run_audit(
             risk_tier="LOW",
         )
 
-    cache_dir = cache_dir_for(root) if use_cache else None
-    graph, facts_by_rel = _build_graph_index(root, use_cache=use_cache, cache_dir=cache_dir)
     seeds = [path for path in py_changed if path in graph]
     missing = [path for path in py_changed if path not in graph]
-    symbols = changed_symbols(root, base, mode=mode, facts_by_path=facts_by_rel)
-    line_ranges = changed_line_ranges(root, base, mode=mode)
+    # Overlay files may be new to the graph index path set — keep them as seeds if present.
+    for rel in overlays:
+        if rel in py_changed and rel not in seeds and rel in graph:
+            seeds.append(rel)
+    symbols = changed_symbols(
+        root,
+        base,
+        mode=mode,
+        facts_by_path=facts_by_rel,
+        line_ranges=line_ranges,
+    )
     symbol_infos = [
         ChangedSymbolInfo(
             path=s.path,
@@ -212,12 +248,17 @@ def run_audit(
             ),
             risk_tier="LOW",
             changed_symbols=_enrich_symbols(
-                symbol_infos, graph, seeds=[], facts_by_path=facts_by_rel,
+                symbol_infos,
+                graph,
+                seeds=[],
+                facts_by_path=facts_by_rel,
+                overlay_texts=overlays,
             ),
             caveat=DEFAULT_CAVEAT if missing else None,
         ),
             line_ranges,
             facts_by_path=facts_by_rel,
+            overlay_texts=overlays,
         )
 
     rings = _merge_rings(graph, seeds)
@@ -247,11 +288,16 @@ def run_audit(
             risk_tier="LOW",
             isolated=seeds,
             changed_symbols=_enrich_symbols(
-                symbol_infos, graph, seeds=seeds, facts_by_path=facts_by_rel,
+                symbol_infos,
+                graph,
+                seeds=seeds,
+                facts_by_path=facts_by_rel,
+                overlay_texts=overlays,
             ),
         ),
             line_ranges,
             facts_by_path=facts_by_rel,
+            overlay_texts=overlays,
         )
 
     return _with_line_explanations(
@@ -262,9 +308,11 @@ def run_audit(
         symbol_infos,
         fan_out_threshold=fan_out,
         facts_by_path=facts_by_rel,
+        overlay_texts=overlays,
     ),
         line_ranges,
         facts_by_path=facts_by_rel,
+        overlay_texts=overlays,
     )
 
 
@@ -276,6 +324,7 @@ def _full_audit_hud(
     *,
     fan_out_threshold: int,
     facts_by_path: dict[str, ModuleFacts],
+    overlay_texts: dict[str, str] | None = None,
 ) -> FocusHUD:
     danger, downstream = classify_impacts(
         rings,
@@ -315,6 +364,7 @@ def _full_audit_hud(
         downstream_count=total,
         risk=risk,
         facts_by_path=facts_by_path,
+        overlay_texts=overlay_texts,
     )
 
     mermaid = render_mermaid(graph, seeds, rings)
@@ -385,6 +435,7 @@ def orphan_line_explanations(
     symbols: list[ChangedSymbolInfo],
     ranges: dict[str, list[tuple[int, int]]],
     facts_by_path: dict[str, ModuleFacts] | None = None,
+    overlay_texts: dict[str, str] | None = None,
 ) -> list[LineExplanation]:
     """Diff hunks not covered by any changed symbol's ``changed_lines``."""
     from pathlib import Path as _Path
@@ -397,6 +448,7 @@ def orphan_line_explanations(
         covered.setdefault(symbol.path, set()).update(symbol.changed_lines)
 
     facts_by_path = facts_by_path or {}
+    overlay_texts = overlay_texts or {}
     out: list[LineExplanation] = []
     for path, spans in ranges.items():
         if _Path(path).suffix.lower() not in SOURCE_EXTENSIONS:
@@ -409,7 +461,9 @@ def orphan_line_explanations(
                     orphan_lines.append(line)
         facts = facts_by_path.get(path)
         source: list[str] | None = None
-        if facts is not None and facts.path.is_file():
+        if path in overlay_texts:
+            source = overlay_texts[path].splitlines()
+        elif facts is not None and facts.path.is_file():
             try:
                 source = facts.path.read_text(encoding="utf-8", errors="replace").splitlines()
             except OSError:
@@ -438,9 +492,13 @@ def _with_line_explanations(
     hud: FocusHUD,
     ranges: dict[str, list[tuple[int, int]]],
     facts_by_path: dict[str, ModuleFacts] | None = None,
+    overlay_texts: dict[str, str] | None = None,
 ) -> FocusHUD:
     orphans = orphan_line_explanations(
-        hud.changed_symbols, ranges, facts_by_path=facts_by_path
+        hud.changed_symbols,
+        ranges,
+        facts_by_path=facts_by_path,
+        overlay_texts=overlay_texts,
     )
     if not orphans:
         return hud
@@ -456,6 +514,7 @@ def _enrich_symbols(
     downstream_count: int = 0,
     risk: RiskTier = "LOW",
     facts_by_path: dict[str, ModuleFacts] | None = None,
+    overlay_texts: dict[str, str] | None = None,
 ) -> list[ChangedSymbolInfo]:
     if not symbol_infos:
         return []
@@ -467,6 +526,7 @@ def _enrich_symbols(
         downstream_count=downstream_count,
         risk=risk,
         facts_by_path=facts_by_path,
+        overlay_texts=overlay_texts,
     )
 
 

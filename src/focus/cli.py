@@ -141,11 +141,32 @@ def audit(
         bool,
         typer.Option("--no-cache", help="Bypass .focus-cache/ and re-parse every file."),
     ] = False,
+    overlay_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--overlay-file",
+            exists=True,
+            dir_okay=False,
+            help="JSON map of repo-relative paths → unsaved buffer text (IDE live overlay).",
+        ),
+    ] = None,
 ) -> None:
     """Pre-merge blast radius for local changes or a PR branch vs base."""
+    overlays: dict[str, str] | None = None
+    if overlay_file is not None:
+        from focus.ingest.overlay import load_overlay_file
+
+        try:
+            overlays = load_overlay_file(overlay_file)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            typer.echo(f"Invalid --overlay-file: {exc}")
+            raise typer.Exit(1) from None
+        if not local:
+            typer.echo("--overlay-file requires --local")
+            raise typer.Exit(1)
     try:
         hud = (
-            audit_local(path, base=base, use_cache=not no_cache)
+            audit_local(path, base=base, use_cache=not no_cache, overlays=overlays)
             if local
             else audit_pr(path, base=base, use_cache=not no_cache)
         )

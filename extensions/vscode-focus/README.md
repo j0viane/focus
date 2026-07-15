@@ -3,9 +3,9 @@ Sideload this extension to see Focus **in the diff**: risk rail + ℹ️ on chan
 ## Prerequisites
 
 ```bash
-pip install "focus-hud>=0.3.2"
+pip install "focus-hud>=0.3.3"
 # or: uv tool install focus-hud --force --python 3.13
-focus version   # must support --format json (0.3.2+)
+focus version   # must support --format json (0.3.3+)
 ```
 
 ## Install (easiest)
@@ -13,10 +13,10 @@ focus version   # must support --format json (0.3.2+)
 From repo root:
 
 ```bash
-./scripts/install-extension.sh   # packages extension 0.5.2+
+./scripts/install-extension.sh
 ```
 
-Then **Cmd+Shift+P → Developer: Reload Window** in Cursor / VS Code (once after install).
+Installs editable `focus-hud` + packages extension 0.5.3+. Then **Reload Window**.
 
 ## Develop
 
@@ -24,7 +24,8 @@ Then **Cmd+Shift+P → Developer: Reload Window** in Cursor / VS Code (once afte
 cd extensions/vscode-focus
 npm install
 npm run compile
-./scripts/install-extension.sh   # from repo root
+cd ../..
+./scripts/install-extension.sh
 ```
 
 ## Commands
@@ -35,9 +36,11 @@ npm run compile
 - **Focus: Show Why** — blast-radius reason (from CodeLens on Danger Zone files)
 - **Focus: Refresh** — re-run audit for CodeLens + gutter
 
-**Default dogfood loop:** edit a real line → **Save** → rails refresh in place (`focus.autoAuditOnSave`). Use Audit Local when you want the HUD panel or a forced refresh.
+**Default dogfood loop:** edit a real line — rails update live from the unsaved buffer (`focus.liveBufferOverlay`). **Save** still syncs disk (`focus.autoAuditOnSave`). Use Audit Local when you want the HUD panel or a forced refresh.
 
-**SCM Working Tree:** open a changed Python/JS/TS file from Source Control — the **modified (right) side** shows the same risk rail + ℹ️ when `diffEditor.codeLens` is on (Focus enables this by default). Left/base pane stays quiet.
+**Where rails show:** the **open file** and the SCM **Working Tree** modified (right) pane — Focus enables both `editor.codeLens` and `diffEditor.codeLens`. Left/base diff pane stays quiet.
+
+**Live buffer:** with `focus.liveBufferOverlay` (default on), dirty unsaved edits refresh rails after a short debounce — no Save required.
 
 ## What you should see (inline explanations)
 
@@ -55,7 +58,7 @@ Virtual UI only — **not** written to disk or git:
         """Build ℹ️ rows: one outcome per symbol unless hunks teach different outcomes."""
         ...
         for run in runs:
-            ℹ️ Changes what this function returns.
+            ℹ️ Returns `2`.
             detail = _hybrid_detail_for_hunk(
                 run_text,
                 facts=facts,
@@ -90,4 +93,5 @@ Toggle gutter: `focus.gutter`. Toggle inline explainers: `focus.inlineExplanatio
 | `focus.gutter` | Gutter + line highlights (default `true`) |
 | `focus.inlineExplanations` | ℹ️ purpose rows on edit blocks (default `true`) |
 | `focus.autoAuditOnSave` | After Save, quietly re-audit and refresh CodeLens (default `true`) |
+| `focus.liveBufferOverlay` | While editing (dirty buffer), quietly re-audit via overlay — no Save needed (default `true`) |
 | `focus.lensFontSize` | CodeLens size: `0` = editor default, `-1` = match `editor.fontSize` |
