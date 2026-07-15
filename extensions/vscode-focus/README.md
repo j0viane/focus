@@ -3,9 +3,9 @@ Sideload this extension to see Focus **in the diff**: risk rail + ℹ️ on chan
 ## Prerequisites
 
 ```bash
-pip install "focus-hud>=0.3.1"
+pip install "focus-hud>=0.3.2"
 # or: uv tool install focus-hud --force --python 3.13
-focus version   # must support --format json (0.3.1+)
+focus version   # must support --format json (0.3.2+)
 ```
 
 ## Install (easiest)
@@ -13,7 +13,7 @@ focus version   # must support --format json (0.3.1+)
 From repo root:
 
 ```bash
-./scripts/install-extension.sh   # packages extension 0.5.1+
+./scripts/install-extension.sh   # packages extension 0.5.2+
 ```
 
 Then **Cmd+Shift+P → Developer: Reload Window** in Cursor / VS Code (once after install).
@@ -55,7 +55,7 @@ Virtual UI only — **not** written to disk or git:
         """Build ℹ️ rows: one outcome per symbol unless hunks teach different outcomes."""
         ...
         for run in runs:
-            ℹ️ Builds each edit's caption (plain English above the changed lines).
+            ℹ️ Changes what this function returns.
             detail = _hybrid_detail_for_hunk(
                 run_text,
                 facts=facts,
@@ -67,12 +67,12 @@ Virtual UI only — **not** written to disk or git:
         return _collapse_hunk_details_to_outcomes(...)
 ```
 
-Risk rail above `def`; ℹ️ above the changed lines. A second ℹ️ appears only when two hunks teach **different** outcomes (e.g. function vs class).
+Risk rail above `def`; ℹ️ describes **this edit** (return, call, import, `Added N blank lines.`, …) — not a static slogan. A second ℹ️ appears only when two edit blocks teach **different** outcomes.
 
 | Surface | Where |
 |---|---|
 | **Risk rail** | Above each changed `def` / `class` — `{emoji} {RISK} — {who} — {what goes wrong}` (quiet when LOW) |
-| **ℹ️ Purpose** | Above the primary edit (or each distinct outcome) — what this edit does |
+| **ℹ️ Purpose** | Above the primary edit — what **this** edit does (edit-shaped: return / call / import / blank count / …) |
 | **Trust cues** | Hover the **highlighted code** (or click the rail / ℹ️) — ≤2 proven/heuristic cues. CodeLens title tooltips alone are flaky on macOS. |
 | **SCM diff (modified)** | Same rails on the Working Tree right pane (not the base/left side; no tint in diffs) |
 | **Gutter / tint** | Highlight on every git-touched line for that symbol (normal editor only) |

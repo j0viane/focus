@@ -754,6 +754,111 @@ def test_blank_only_hunk_gets_quiet_caption(tmp_path: Path):
     assert enriched.evidence == []
 
 
+def test_blank_count_uses_plural(tmp_path: Path):
+    path = tmp_path / "blanks.py"
+    path.write_text(
+        "def helper():\n"
+        "    x = 1\n"
+        "\n"
+        "\n"
+        "\n"
+        "\n"
+        "\n"
+        "    return x\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="blanks.py",
+                name="helper",
+                kind="function",
+                line=1,
+                changed_lines=[3, 4, 5, 6, 7],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["blanks.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"blanks.py": facts},
+    )[0]
+    assert enriched.hunk_details[0].detail == "Added 5 blank lines."
+    assert enriched.implication == ""
+
+
+def test_return_shape_beats_weak_purpose(tmp_path: Path):
+    path = tmp_path / "ret.py"
+    path.write_text(
+        "def helper():\n"
+        "    return 2\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="ret.py",
+                name="helper",
+                kind="function",
+                line=1,
+                changed_lines=[2],
+            )
+        ],
+        graph=nx.DiGraph([("ret.py", "other.py")]),
+        seeds=["ret.py"],
+        danger_paths=set(),
+        downstream_count=2,
+        risk="MEDIUM",
+        facts_by_path={"ret.py": facts},
+    )[0]
+    assert enriched.hunk_details
+    assert "returns" in enriched.hunk_details[0].detail.lower()
+    assert "call path" not in enriched.hunk_details[0].detail.lower()
+
+
+def test_assignment_shape_caption(tmp_path: Path):
+    path = tmp_path / "assign.py"
+    path.write_text(
+        "def helper():\n"
+        "    total = 0\n"
+        "    return total\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="assign.py",
+                name="helper",
+                kind="function",
+                line=1,
+                changed_lines=[2],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["assign.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"assign.py": facts},
+    )[0]
+    assert enriched.hunk_details
+    assert "Updates `total`" in enriched.hunk_details[0].detail
+
+
+def test_import_caption_for_orphan_lines():
+    from focus.hud.explain import caption_for_orphan_edit
+
+    assert (
+        caption_for_orphan_edit(["from focus.models import FocusHUD"])
+        == "Adds import for `focus.models`."
+    )
+    assert (
+        caption_for_orphan_edit(["", "", ""])
+        == "Added 3 blank lines."
+    )
+
+
 def test_blank_run_dropped_when_code_hunk_exists(tmp_path: Path):
     path = tmp_path / "mixed.py"
     path.write_text(
@@ -784,7 +889,7 @@ def test_blank_run_dropped_when_code_hunk_exists(tmp_path: Path):
         facts_by_path={"mixed.py": facts},
     )[0]
     assert enriched.hunk_details
-    assert all(d.detail != "Added a blank line." for d in enriched.hunk_details)
+    assert all("blank line" not in d.detail.lower() for d in enriched.hunk_details)
 
 
 def test_registry_implication_and_purpose_for_build_hunk_details(tmp_path: Path):
@@ -815,8 +920,9 @@ def test_registry_implication_and_purpose_for_build_hunk_details(tmp_path: Path)
     assert enriched.implication.startswith("🔴 CRITICAL —")
     assert "IDE captions" in enriched.implication or "focus audit" in enriched.implication
     assert "Shared hub" not in enriched.implication
+    # Edit shape (return) beats curated purpose on the ℹ️; rail still carries registry copy.
     detail = enriched.hunk_details[0].detail.lower()
-    assert "caption" in detail
+    assert "returns" in detail
     assert "phase 4b" not in detail
     assert "callsite" not in detail
 

@@ -220,5 +220,5 @@ function seedPaths(seed: string): string[] {
 }
 
 function isBlankLineDetail(detail: string): boolean {
-  return /^added a blank line\.?$/i.test(detail.trim());
+  return /^added (a|\d+) blank lines?\.?$/i.test(detail.trim());
 }
