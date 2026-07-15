@@ -126,6 +126,10 @@ def explain_symbol_with_evidence(
         purpose_inline,
         purpose_is_curated=purpose_is_curated,
     )
+    # Whitespace-only edits: quiet the risk rail; ℹ️ is just "Added a blank line."
+    if _hunk_details_are_blank_only(hunk_details):
+        implication = ""
+        summary = ""
     detail = (
         hunk_details[0].detail
         if hunk_details
@@ -134,6 +138,8 @@ def explain_symbol_with_evidence(
     evidence = _dedupe_evidence([overlap, *purpose_evidence, *impact_evidence])
     # Compact for IDE/HUD consumers; clauses keep the full trail for `focus explain --why`.
     inline_evidence = _compact_evidence_for_inline(evidence)
+    if _hunk_details_are_blank_only(hunk_details):
+        inline_evidence = []
 
     return SymbolExplanation(
         symbol=symbol.model_copy(
@@ -809,6 +815,19 @@ def _hybrid_detail_for_hunk(
     )
 
 
+# Blank / whitespace-only hunks must not inherit call-path purpose copy.
+_BLANK_LINE_DETAIL = "Added a blank line."
+
+
+def _run_is_blank_only(run_text: list[str]) -> bool:
+    """True when every line in the hunk is empty or whitespace."""
+    return bool(run_text) and all(not line.strip() for line in run_text)
+
+
+def _hunk_details_are_blank_only(details: list[HunkDetail]) -> bool:
+    return bool(details) and all(d.detail == _BLANK_LINE_DETAIL for d in details)
+
+
 def _build_hunk_details(
     symbol: ChangedSymbolInfo,
     facts: ModuleFacts | None,
@@ -826,13 +845,23 @@ def _build_hunk_details(
 
     source = _source_lines(facts)
     runs = _contiguous_line_runs(symbol.changed_lines)[:6]
-    out: list[HunkDetail] = []
+    code_rows: list[HunkDetail] = []
+    blank_rows: list[HunkDetail] = []
     for run in runs:
         anchor = run[0]
         if source:
             run_text = [source[line - 1] for line in run if 0 < line <= len(source)]
         else:
             run_text = []
+        if source is not None and _run_is_blank_only(run_text):
+            blank_rows.append(
+                HunkDetail(
+                    line=anchor,
+                    changed_lines=run,
+                    detail=_BLANK_LINE_DETAIL,
+                )
+            )
+            continue
         detail = _hybrid_detail_for_hunk(
             run_text,
             facts=facts,
@@ -841,14 +870,27 @@ def _build_hunk_details(
             purpose_fallback=purpose_fallback,
         )
         detail = expand_acronyms_for_juniors(detail)
-        out.append(HunkDetail(line=anchor, changed_lines=run, detail=detail))
-    return _collapse_hunk_details_to_outcomes(
-        out,
-        purpose_outcome=fallback,
-        symbol_name=symbol.name,
-        symbol_line=symbol.line,
-        purpose_is_curated=purpose_is_curated,
-    )
+        code_rows.append(HunkDetail(line=anchor, changed_lines=run, detail=detail))
+
+    # Real edits win: drop blank-only rows so they don't steal / dilute the ℹ️.
+    if code_rows:
+        return _collapse_hunk_details_to_outcomes(
+            code_rows,
+            purpose_outcome=fallback,
+            symbol_name=symbol.name,
+            symbol_line=symbol.line,
+            purpose_is_curated=purpose_is_curated,
+        )
+    if blank_rows:
+        primary = blank_rows[0]
+        return [
+            HunkDetail(
+                line=primary.line,
+                changed_lines=primary.changed_lines,
+                detail=_BLANK_LINE_DETAIL,
+            )
+        ]
+    return []
 
 
 def _structural_family(detail: str) -> str | None:

@@ -721,6 +721,72 @@ def test_private_helper_skips_shared_hub_implication():
     assert "Shared hub" not in enriched.implication
 
 
+def test_blank_only_hunk_gets_quiet_caption(tmp_path: Path):
+    """Whitespace-only edits must not inherit call-path / purpose ℹ️ copy."""
+    path = tmp_path / "blankish.py"
+    path.write_text(
+        "def helper():\n"
+        "    x = 1\n"
+        "\n"
+        "    return x\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="blankish.py",
+                name="helper",
+                kind="function",
+                line=1,
+                changed_lines=[3],
+            )
+        ],
+        graph=nx.DiGraph([("blankish.py", "other.py")]),
+        seeds=["blankish.py"],
+        danger_paths={"blankish.py"},
+        downstream_count=3,
+        risk="HIGH",
+        facts_by_path={"blankish.py": facts},
+    )[0]
+    assert enriched.implication == ""
+    assert enriched.hunk_details
+    assert enriched.hunk_details[0].detail == "Added a blank line."
+    assert enriched.evidence == []
+
+
+def test_blank_run_dropped_when_code_hunk_exists(tmp_path: Path):
+    path = tmp_path / "mixed.py"
+    path.write_text(
+        "def helper():\n"
+        "    x = 1\n"
+        "\n"
+        "    y = 2\n"
+        "\n"
+        "    return y\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="mixed.py",
+                name="helper",
+                kind="function",
+                line=1,
+                # Blank run at 3 + code run at 6 — blank must not become the ℹ️.
+                changed_lines=[3, 6],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["mixed.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"mixed.py": facts},
+    )[0]
+    assert enriched.hunk_details
+    assert all(d.detail != "Added a blank line." for d in enriched.hunk_details)
+
+
 def test_registry_implication_and_purpose_for_build_hunk_details(tmp_path: Path):
     path = tmp_path / "explain.py"
     path.write_text(

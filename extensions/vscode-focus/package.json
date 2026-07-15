@@ -39,6 +39,9 @@
         "title": "Focus: Show Evidence (trust cues)"
       }
     ],
+    "configurationDefaults": {
+      "diffEditor.codeLens": true
+    },
     "configuration": {
       "title": "Focus",
       "properties": {

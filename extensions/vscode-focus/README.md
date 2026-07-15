@@ -37,6 +37,8 @@ npm run compile
 
 **Default dogfood loop:** edit a real line → **Save** → rails refresh in place (`focus.autoAuditOnSave`). Use Audit Local when you want the HUD panel or a forced refresh.
 
+**SCM Working Tree:** open a changed Python/JS/TS file from Source Control — the **modified (right) side** shows the same risk rail + ℹ️ when `diffEditor.codeLens` is on (Focus enables this by default). Left/base pane stays quiet.
+
 ## What you should see (inline explanations)
 
 Virtual UI only — **not** written to disk or git:
@@ -72,7 +74,8 @@ Risk rail above `def`; ℹ️ above the changed lines. A second ℹ️ appears o
 | **Risk rail** | Above each changed `def` / `class` — `{emoji} {RISK} — {who} — {what goes wrong}` (quiet when LOW) |
 | **ℹ️ Purpose** | Above the primary edit (or each distinct outcome) — what this edit does |
 | **Trust cues** | Hover the **highlighted code** (or click the rail / ℹ️) — ≤2 proven/heuristic cues. CodeLens title tooltips alone are flaky on macOS. |
-| **Gutter / tint** | Highlight on every git-touched line for that symbol |
+| **SCM diff (modified)** | Same rails on the Working Tree right pane (not the base/left side; no tint in diffs) |
+| **Gutter / tint** | Highlight on every git-touched line for that symbol (normal editor only) |
 | **File CodeLens** | Blast-radius files without symbol overlap (Danger Zone / hops) |
 | **HUD panel** | Full Mermaid + Danger Zones |
 

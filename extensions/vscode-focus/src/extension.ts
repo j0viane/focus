@@ -2,6 +2,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import { FocusCodeLensProvider } from "./codeLens";
+import { editorIsDiffPane } from "./diffEditor";
 import { auditLocal, FocusCliError, traceFile, workspaceRoot, workspaceRootError } from "./focusCli";
 import { FocusGutter } from "./gutter";
 import { HudPanel } from "./hudPanel";
@@ -19,6 +20,8 @@ const SOURCE_LANGUAGE_IDS = new Set([
 
 /** Debounce saves so rapid Cmd+S / format-on-save doesn't stack audits. */
 const AUTO_AUDIT_DEBOUNCE_MS = 400;
+/** Debounce quiet audit when opening SCM diffs without an existing HUD. */
+const DIFF_AUDIT_DEBOUNCE_MS = 500;
 
 let lastHud: FocusHUD | undefined;
 let statusBar: vscode.StatusBarItem;
@@ -27,6 +30,7 @@ let gutter: FocusGutter;
 let inlineExplanation: InlineExplanation;
 let auditInFlight: Promise<void> | undefined;
 let autoAuditTimer: ReturnType<typeof setTimeout> | undefined;
+let diffAuditTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   const extVersion = context.extension.packageJSON.version as string;
@@ -40,6 +44,9 @@ export function activate(context: vscode.ExtensionContext): void {
     dispose: () => {
       if (autoAuditTimer) {
         clearTimeout(autoAuditTimer);
+      }
+      if (diffAuditTimer) {
+        clearTimeout(diffAuditTimer);
       }
     },
   });
@@ -121,6 +128,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (editor) {
         gutter.apply(editor);
         inlineExplanation.apply(editor);
+        scheduleQuietAuditForDiff(editor, extVersion);
       }
     }),
     // Focus reads git/disk — refresh after save so rails update in place (no Reload).
@@ -184,6 +192,41 @@ function scheduleAutoAudit(document: vscode.TextDocument, extVersion: string): v
     autoAuditTimer = undefined;
     void runAudit(true, extVersion);
   }, AUTO_AUDIT_DEBOUNCE_MS);
+}
+
+/**
+ * When opening an SCM / Working Tree side-by-side diff with no HUD yet,
+ * quietly audit so rails appear on the modified (file:) pane.
+ */
+function scheduleQuietAuditForDiff(editor: vscode.TextEditor, extVersion: string): void {
+  if (lastHud) {
+    return;
+  }
+  if (editor.document.uri.scheme !== "file") {
+    return;
+  }
+  if (!SOURCE_LANGUAGE_IDS.has(editor.document.languageId)) {
+    return;
+  }
+  if (!editorIsDiffPane(editor)) {
+    return;
+  }
+  const root = workspaceRoot();
+  if (!root) {
+    return;
+  }
+  const rel = path.relative(root, editor.document.uri.fsPath);
+  if (!rel || rel.startsWith("..")) {
+    return;
+  }
+
+  if (diffAuditTimer) {
+    clearTimeout(diffAuditTimer);
+  }
+  diffAuditTimer = setTimeout(() => {
+    diffAuditTimer = undefined;
+    void runAudit(true, extVersion);
+  }, DIFF_AUDIT_DEBOUNCE_MS);
 }
 
 function setHud(hud: FocusHUD, root: string, extVersion: string): void {

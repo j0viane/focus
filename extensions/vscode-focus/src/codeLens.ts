@@ -1,7 +1,13 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 
-import { definitionLine, editorLine, hunkDetailsForSymbol } from "./symbolLayout";
+import {
+  definitionLine,
+  editorLine,
+  hunkDetailsForSymbol,
+  lensRange,
+  preferCodeLine,
+} from "./symbolLayout";
 import { FOCUS_BADGE, riskEmoji } from "./icons";
 import { evidenceMarkdown, explanationLensTitle, summaryLensTitle } from "./explainText";
 import { inlineExplanationsEnabled } from "./inlineExplanation";
@@ -26,6 +32,10 @@ export class FocusCodeLensProvider implements vscode.CodeLensProvider {
     document: vscode.TextDocument,
   ): vscode.ProviderResult<vscode.CodeLens[]> {
     if (!this.hud || !this.root) {
+      return [];
+    }
+    // Modified (working-tree) side is `file:`; skip git/virtual base panes in SCM diffs.
+    if (document.uri.scheme !== "file") {
       return [];
     }
     const rel = relPath(this.root, document.uri.fsPath);
@@ -77,12 +87,13 @@ function symbolLenses(
 
   // Risk rail above `def` — quiet when LOW / empty implication (Phase 4b).
   // Click (not hover) opens trust cues: CodeLens title tooltips are flaky on macOS/Electron.
+  const railLine = preferCodeLine(document, defLine);
   if (implication) {
     lenses.push(
-      new vscode.CodeLens(new vscode.Range(defLine, 0, defLine, 0), {
+      new vscode.CodeLens(lensRange(document, railLine), {
         title: summaryLensTitle(implication),
         command: "focus.showEvidence",
-        arguments: [document.uri, defLine, evidenceMarkdown(sym)],
+        arguments: [document.uri, railLine, evidenceMarkdown(sym)],
         tooltip: "Click for why to trust this · or hover the highlighted code",
       }),
     );
@@ -90,16 +101,26 @@ function symbolLenses(
 
   if (inlineExplanationsEnabled()) {
     for (const hunk of hunkDetailsForSymbol(sym)) {
-      const line = editorLine(hunk.line);
-      if (line >= document.lineCount || !hunk.detail) {
+      const raw = editorLine(hunk.line);
+      if (raw >= document.lineCount || !hunk.detail) {
         continue;
       }
+      const blankOnly = isBlankLineDetail(hunk.detail);
+      // Blank-only edits stay on the blank; other edits skip blank anchors.
+      const line = blankOnly
+        ? raw
+        : preferCodeLine(document, raw, hunk.changed_lines ?? []);
+      const trust = blankOnly
+        ? "Whitespace only — no behavior change."
+        : evidenceMarkdown(sym, hunk.detail);
       lenses.push(
-        new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
+        new vscode.CodeLens(lensRange(document, line), {
           title: explanationLensTitle(hunk.detail),
           command: "focus.showEvidence",
-          arguments: [document.uri, line, evidenceMarkdown(sym, hunk.detail)],
-          tooltip: "Click for why to trust this · or hover the highlighted code",
+          arguments: [document.uri, line, trust],
+          tooltip: blankOnly
+            ? "Whitespace-only edit"
+            : "Click for why to trust this · or hover the highlighted code",
         }),
       );
     }
@@ -110,12 +131,12 @@ function symbolLenses(
     const n = hud.downstream.length;
     const badge = `${FOCUS_BADGE} Focus · ${sym.name} · ${riskEmoji(hud.risk_tier as RiskTier)} ${hud.risk_tier} · ${n} downstream`;
     lenses.push(
-      new vscode.CodeLens(new vscode.Range(defLine, 0, defLine, 0), {
+      new vscode.CodeLens(lensRange(document, railLine), {
         title: badge,
         command: "focus.showEvidence",
         arguments: [
           document.uri,
-          defLine,
+          railLine,
           evidenceMarkdown(sym) || sym.explanation || `${sym.kind} ${sym.name}`,
         ],
         tooltip: "Click for why to trust this · or hover the highlighted code",
@@ -133,12 +154,16 @@ function orphanLineLenses(
   if (!inlineExplanationsEnabled() || !note.detail) {
     return [];
   }
-  const line = editorLine(note.line);
+  const line = preferCodeLine(
+    document,
+    editorLine(note.line),
+    note.changed_lines ?? [],
+  );
   if (line >= document.lineCount) {
     return [];
   }
   return [
-    new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
+    new vscode.CodeLens(lensRange(document, line), {
       title: explanationLensTitle(note.detail),
       command: "focus.showEvidence",
       arguments: [document.uri, line, note.detail],
@@ -192,4 +217,8 @@ function seedPaths(seed: string): string[] {
     return [];
   }
   return seed.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+function isBlankLineDetail(detail: string): boolean {
+  return /^added a blank line\.?$/i.test(detail.trim());
 }
