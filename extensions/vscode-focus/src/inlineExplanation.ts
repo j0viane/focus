@@ -52,22 +52,42 @@ export class InlineExplanation {
       if (sym.path !== rel) {
         continue;
       }
+      // Decoration carry hoverMessage — reliable every time (unlike CodeLens title tooltips on macOS).
+      const trust = new vscode.MarkdownString(evidenceMarkdown(sym));
+      trust.isTrusted = true;
       for (const line of highlightLines(sym)) {
         if (line < editor.document.lineCount && !seen.has(line)) {
           seen.add(line);
-          decorations.push({ range: editor.document.lineAt(line).range });
+          decorations.push({
+            range: editor.document.lineAt(line).range,
+            hoverMessage: trust,
+          });
         }
+      }
+      // Also attach trust on the def line (rail sits above it).
+      const def = definitionLine(sym);
+      if (def < editor.document.lineCount && !seen.has(def)) {
+        seen.add(def);
+        decorations.push({
+          range: editor.document.lineAt(def).range,
+          hoverMessage: trust,
+        });
       }
     }
     for (const note of this.hud.line_explanations ?? []) {
       if (note.path !== rel) {
         continue;
       }
+      const trust = new vscode.MarkdownString(note.detail);
+      trust.isTrusted = true;
       for (const oneBased of note.changed_lines?.length ? note.changed_lines : [note.line]) {
         const line = editorLine(oneBased);
         if (line < editor.document.lineCount && !seen.has(line)) {
           seen.add(line);
-          decorations.push({ range: editor.document.lineAt(line).range });
+          decorations.push({
+            range: editor.document.lineAt(line).range,
+            hoverMessage: trust,
+          });
         }
       }
     }

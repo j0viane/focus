@@ -6,12 +6,20 @@ import networkx as nx
 
 from focus.hud.explain import (
     ExplainContext,
+    _compact_evidence_for_inline,
     enrich_changed_symbols,
     explain_changed_symbol,
     explain_symbol_with_evidence,
     split_explanation_for_inline,
 )
-from focus.models import CallSite, ChangedSymbolInfo, Definition, Import, ModuleFacts
+from focus.models import (
+    CallSite,
+    ChangedSymbolInfo,
+    Definition,
+    EvidenceItem,
+    Import,
+    ModuleFacts,
+)
 from focus.scan.parser import parse_module
 
 
@@ -790,3 +798,122 @@ def test_expand_acronyms_for_juniors_first_use_only():
     multi = expand_acronyms_for_juniors("BFS from the HUD seed.")
     assert "BFS (breadth-first search)" in multi
     assert "HUD (heads-up display)" in multi
+
+
+def test_compact_evidence_for_inline_caps_and_collapses_importers():
+    items = [
+        EvidenceItem(
+            confidence="proven",
+            kind="diff_overlap",
+            location="a.py:1",
+            fact="git diff touches function `foo` on line(s) 10",
+        ),
+        EvidenceItem(
+            confidence="heuristic",
+            kind="symbol_registry",
+            location="a.py",
+            fact='matched built-in symbol rule "foo"',
+        ),
+        EvidenceItem(
+            confidence="proven",
+            kind="graph_importer",
+            location="graph",
+            fact="`b.py` → `a.py` (file imports file)",
+        ),
+        EvidenceItem(
+            confidence="proven",
+            kind="graph_importer",
+            location="graph",
+            fact="`c.py` → `a.py` (file imports file)",
+        ),
+        EvidenceItem(
+            confidence="proven",
+            kind="graph_importer",
+            location="graph",
+            fact="`d.py` → `a.py` (file imports file)",
+        ),
+    ]
+    compact = _compact_evidence_for_inline(items)
+    assert len(compact) == 2
+    assert compact[0].kind == "diff_overlap"
+    assert compact[1].kind == "symbol_registry"
+    # Importers collapsed/dropped when trust slots already filled.
+    assert not any("→" in e.fact and "file imports file" in e.fact for e in compact)
+
+
+def test_compact_evidence_summarizes_importers_when_slots_remain():
+    items = [
+        EvidenceItem(
+            confidence="proven",
+            kind="diff_overlap",
+            location="a.py:1",
+            fact="git diff touches function `foo` on line(s) 10",
+        ),
+        EvidenceItem(
+            confidence="proven",
+            kind="graph_importer",
+            location="graph",
+            fact="`b.py` → `a.py` (file imports file)",
+        ),
+        EvidenceItem(
+            confidence="proven",
+            kind="graph_importer",
+            location="graph",
+            fact="`c.py` → `a.py` (file imports file)",
+        ),
+    ]
+    compact = _compact_evidence_for_inline(items)
+    assert len(compact) == 2
+    assert compact[0].kind == "diff_overlap"
+    assert "2 files import this module" in compact[1].fact
+    assert "HUD" in compact[1].fact
+
+
+def test_symbol_evidence_on_enrich_is_inline_compact(tmp_path: Path):
+    """HUD/IDE evidence is capped; full trail stays on explain --why clauses."""
+    path = "src/focus/hud/explain.py"
+    graph = nx.DiGraph()
+    graph.add_edge("src/focus/audit.py", path)
+    graph.add_edge("src/focus/cli.py", path)
+    graph.add_edge("tests/test_explain.py", path)
+    graph.add_edge("tests/test_explain_cli.py", path)
+    symbol = ChangedSymbolInfo(
+        path=path,
+        name="_build_hunk_details",
+        kind="function",
+        line=748,
+        changed_lines=[764, 765],
+    )
+    facts = {
+        path: ModuleFacts(
+            path=Path(path),
+            definitions=[
+                Definition(
+                    name="_build_hunk_details",
+                    kind="function",
+                    line=748,
+                    docstring="Build info rows for each edit.",
+                ),
+            ],
+        ),
+    }
+    explained = explain_symbol_with_evidence(
+        symbol,
+        context=ExplainContext(
+            graph=graph,
+            seeds=[path],
+            danger_paths={path},
+            downstream_count=8,
+            risk="CRITICAL",
+            symbols=[symbol],
+            facts_by_path=facts,
+        ),
+    )
+    assert len(explained.symbol.evidence) <= 2
+    importer_facts = [e for e in explained.symbol.evidence if e.kind == "graph_importer"]
+    assert len(importer_facts) <= 1
+    if importer_facts:
+        assert "file imports file" not in importer_facts[0].fact or "1 files" in importer_facts[0].fact
+    # Full trail still available on clauses for --why.
+    clause_facts = [e for c in explained.clauses for e in c.evidence]
+    assert len(clause_facts) >= len(explained.symbol.evidence)

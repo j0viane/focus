@@ -38,6 +38,52 @@ def test_ts_definitions_and_exports():
     assert "Router" in names
 
 
+def test_ts_nested_calls_do_not_segfault_or_emit_garbage_lines():
+    """Regression: TreeCursor walks produced stale nodes → SIGSEGV in Pydantic."""
+    # Nested registerCommand / then / withProgress style (extension.ts shape).
+    src = b"""
+import * as vscode from "vscode";
+
+export function activate(context: vscode.ExtensionContext): void {
+  context.subscriptions.push(
+    vscode.commands.registerCommand("focus.auditLocal", () => runAudit()),
+    vscode.commands.registerCommand("focus.showWhy", (reason?: string) => {
+      void vscode.window
+        .showInformationMessage(`Focus: ${reason}`, "Open HUD")
+        .then((pick) => {
+          if (pick === "Open HUD") {
+            HudPanel.show();
+          }
+        });
+    }),
+  );
+  void (async () => {
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Window, title: "Focus" },
+      () => auditLocal(),
+    );
+  })();
+}
+"""
+    facts = parse_source(src, Path("extensions/vscode-focus/src/extension.ts"))
+    assert facts.language == "typescript"
+    max_line = src.count(b"\n") + 1
+    assert all(1 <= c.line <= max_line for c in facts.calls)
+    assert any("registerCommand" in c.callee for c in facts.calls)
+
+
+def test_real_extension_ts_parses_without_crash():
+    path = Path("extensions/vscode-focus/src/extension.ts")
+    if not path.is_file():
+        return
+    facts = parse_module(path)
+    assert facts.language == "typescript"
+    text = path.read_bytes()
+    max_line = text.count(b"\n") + 1
+    assert all(1 <= c.line <= max_line for c in facts.calls)
+
+
+
 def test_discovers_glass_box_js(glass_box_js_path: Path):
     files = discover_source_files(glass_box_js_path)
     rels = sorted(f.relative_to(glass_box_js_path.resolve()).as_posix() for f in files)

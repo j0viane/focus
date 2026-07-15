@@ -94,6 +94,25 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
     vscode.commands.registerCommand("focus.noop", () => undefined),
+    // CodeLens title tooltips use native HTML title — flaky on macOS (often once). Click is reliable.
+    vscode.commands.registerCommand(
+      "focus.showEvidence",
+      async (uri?: vscode.Uri, line?: number, markdown?: string) => {
+        if (uri && typeof line === "number") {
+          const doc = await vscode.workspace.openTextDocument(uri);
+          const editor = await vscode.window.showTextDocument(doc, { preserveFocus: false });
+          const pos = new vscode.Position(Math.max(0, line), 0);
+          editor.selection = new vscode.Selection(pos, pos);
+          editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+          await vscode.commands.executeCommand("editor.action.showHover");
+          return;
+        }
+        if (markdown) {
+          const plain = markdown.replace(/\*\*/g, "").replace(/\n+/g, " — ");
+          void vscode.window.showInformationMessage(plain.slice(0, 280));
+        }
+      },
+    ),
     vscode.commands.registerCommand("focus.refresh", () => runAudit(true, extVersion)),
   );
 

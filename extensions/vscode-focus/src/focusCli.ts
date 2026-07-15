@@ -76,11 +76,25 @@ async function runFocus(args: string[], cwd: string): Promise<string> {
     }
     return stdout;
   } catch (err: unknown) {
-    const e = err as { code?: string; message?: string; stderr?: string; stdout?: string };
+    const e = err as {
+      code?: string | number;
+      message?: string;
+      stderr?: string;
+      stdout?: string;
+      signal?: string;
+    };
     if (e.code === "ENOENT") {
       throw new FocusCliError(
         "focus not found on PATH. Install with: pip install \"focus-hud>=0.3.1\" " +
           "(or set focus.path). See https://pypi.org/project/focus-hud/",
+      );
+    }
+    // 139 / SIGSEGV — native Tree-sitter crash (should be rare after JS worker isolation).
+    if (e.code === 139 || e.signal === "SIGSEGV") {
+      throw new FocusCliError(
+        "focus crashed (segfault) while auditing. Reinstall the editable package " +
+          "(`uv pip install -e .` in the Focus repo) and try again. " +
+          "If it persists, run: focus audit --local --format json",
       );
     }
     const detail = (e.stderr || e.stdout || e.message || String(err)).trim();

@@ -30,6 +30,8 @@ MAX_EXPLANATION_CHARS = 260
 MAX_SUMMARY_CHARS = 110
 MAX_IMPLICATION_BODY = 110
 MAX_CALL_EVIDENCE_PER_FILE = 2
+# IDE / HUD JSON hover: trust cues only — full trail stays on clauses for `focus explain --why`.
+MAX_INLINE_EVIDENCE = 2
 
 _RISK_EMOJI: dict[RiskTier, str] = {
     "CRITICAL": "🔴",
@@ -130,6 +132,8 @@ def explain_symbol_with_evidence(
         else expand_acronyms_for_juniors(_inline_detail(purpose_inline))
     )
     evidence = _dedupe_evidence([overlap, *purpose_evidence, *impact_evidence])
+    # Compact for IDE/HUD consumers; clauses keep the full trail for `focus explain --why`.
+    inline_evidence = _compact_evidence_for_inline(evidence)
 
     return SymbolExplanation(
         symbol=symbol.model_copy(
@@ -139,7 +143,7 @@ def explain_symbol_with_evidence(
                 "detail": detail,
                 "implication": implication,
                 "hunk_details": hunk_details,
-                "evidence": evidence,
+                "evidence": inline_evidence,
             }
         ),
         text=text,
@@ -397,6 +401,66 @@ def _dedupe_evidence(items: list[EvidenceItem]) -> list[EvidenceItem]:
         seen.add(key)
         out.append(item)
     return out
+
+
+def _evidence_inline_rank(item: EvidenceItem) -> int:
+    """Lower = more valuable for IDE hover (trust cue, not graph dump)."""
+    kind_rank = {
+        "diff_overlap": 0,
+        "symbol_registry": 1,
+        "docstring": 1,
+        "call_site": 2,
+        "danger_path": 3,
+        "shared_hub": 3,
+        "graph_importer": 8,  # collapsed separately; rarely kept as-is
+        "heuristic_path": 6,
+        "heuristic_name": 6,
+    }
+    base = kind_rank.get(item.kind, 5)
+    if item.confidence != "proven":
+        base += 10
+    return base
+
+
+def _compact_evidence_for_inline(
+    items: list[EvidenceItem],
+    *,
+    limit: int = MAX_INLINE_EVIDENCE,
+) -> list[EvidenceItem]:
+    """ROA: at most ``limit`` trust cues for CodeLens hover / HUD JSON.
+
+    Collapses repeated file-import edges into one summary. Full evidence for
+    deep inspection stays on explanation clauses (``focus explain --why``).
+    """
+    if not items or limit <= 0:
+        return []
+
+    importers = [item for item in items if item.kind == "graph_importer"]
+    others = [item for item in items if item.kind != "graph_importer"]
+    ranked = sorted(others, key=_evidence_inline_rank)
+
+    out: list[EvidenceItem] = []
+    for item in ranked:
+        if len(out) >= limit:
+            break
+        out.append(item)
+
+    if len(out) < limit and importers:
+        if len(importers) == 1:
+            out.append(importers[0])
+        else:
+            out.append(
+                EvidenceItem(
+                    confidence="proven",
+                    kind="graph_importer",
+                    location="graph",
+                    fact=(
+                        f"{len(importers)} files import this module — "
+                        "open Focus HUD for the map"
+                    ),
+                ),
+            )
+    return out[:limit]
 
 
 def _impact_belongs_inline(impact_text: str) -> bool:
