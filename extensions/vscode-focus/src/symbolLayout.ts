@@ -15,6 +15,80 @@ export function editorLine(oneBased: number): number {
   return Math.max(0, oneBased - 1);
 }
 
+/**
+ * Prefer a non-blank line for CodeLens / tint anchors.
+ * Blank inserts shift hunk anchors onto empty lines; VS Code then paints the
+ * ℹ️ at column 0 and Cursor shows “TAB to jump here” on under-indented blanks.
+ */
+export function preferCodeLine(
+  document: vscode.TextDocument,
+  line: number,
+  candidates: number[] = [],
+): number {
+  const tryLine = (n: number): number | undefined => {
+    if (n >= 0 && n < document.lineCount && !document.lineAt(n).isEmptyOrWhitespace) {
+      return n;
+    }
+    return undefined;
+  };
+
+  const direct = tryLine(line);
+  if (direct !== undefined) {
+    return direct;
+  }
+  for (const oneBased of candidates) {
+    const hit = tryLine(editorLine(oneBased));
+    if (hit !== undefined) {
+      return hit;
+    }
+  }
+  for (let i = line + 1; i < Math.min(document.lineCount, line + 12); i++) {
+    const hit = tryLine(i);
+    if (hit !== undefined) {
+      return hit;
+    }
+  }
+  for (let i = line - 1; i >= Math.max(0, line - 12); i--) {
+    const hit = tryLine(i);
+    if (hit !== undefined) {
+      return hit;
+    }
+  }
+  return Math.max(0, Math.min(line, Math.max(0, document.lineCount - 1)));
+}
+
+/**
+ * Column for CodeLens so labels line up with indented code.
+ *
+ * Blank anchors must inherit indent from the line *above* first. Preferring the
+ * line below parks ℹ️ under `)` / `else` / dedented closers at column 0.
+ */
+export function lensColumn(document: vscode.TextDocument, line: number): number {
+  const safe = Math.max(0, Math.min(line, Math.max(0, document.lineCount - 1)));
+  const textLine = document.lineAt(safe);
+  if (!textLine.isEmptyOrWhitespace) {
+    return textLine.firstNonWhitespaceCharacterIndex;
+  }
+  for (let i = safe - 1; i >= Math.max(0, safe - 24); i--) {
+    if (!document.lineAt(i).isEmptyOrWhitespace) {
+      return document.lineAt(i).firstNonWhitespaceCharacterIndex;
+    }
+  }
+  for (let i = safe + 1; i < Math.min(document.lineCount, safe + 24); i++) {
+    if (!document.lineAt(i).isEmptyOrWhitespace) {
+      return document.lineAt(i).firstNonWhitespaceCharacterIndex;
+    }
+  }
+  return 0;
+}
+
+/** Indent CodeLens to match the code (not the gutter). */
+export function lensRange(document: vscode.TextDocument, line: number): vscode.Range {
+  const safe = Math.max(0, Math.min(line, Math.max(0, document.lineCount - 1)));
+  const col = lensColumn(document, safe);
+  return new vscode.Range(safe, col, safe, col);
+}
+
 /** Group sorted 1-based lines into contiguous runs. */
 function contiguousRuns(lines: number[]): number[][] {
   if (!lines.length) {

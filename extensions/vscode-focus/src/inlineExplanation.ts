@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 
 import { definitionLine, editorLine, highlightLines, hunkDetailAtLine, lineInSymbol } from "./symbolLayout";
 import { evidenceMarkdown } from "./explainText";
+import { editorIsDiffPane } from "./diffEditor";
 import type { FocusHUD } from "./types";
 
 /** Soft tint on every git-touched line for changed symbols. */
@@ -40,6 +41,12 @@ export class InlineExplanation {
       return;
     }
 
+    // Line tint fights CodeLens spacers in side-by-side SCM diffs — CodeLens only there.
+    if (editorIsDiffPane(editor) || editor.document.uri.scheme !== "file") {
+      editor.setDecorations(this.lineTint, []);
+      return;
+    }
+
     const rel = relPath(this.root, editor.document.uri.fsPath);
     if (!rel) {
       editor.setDecorations(this.lineTint, []);
@@ -56,7 +63,11 @@ export class InlineExplanation {
       const trust = new vscode.MarkdownString(evidenceMarkdown(sym));
       trust.isTrusted = true;
       for (const line of highlightLines(sym)) {
-        if (line < editor.document.lineCount && !seen.has(line)) {
+        if (
+          line < editor.document.lineCount &&
+          !seen.has(line) &&
+          !editor.document.lineAt(line).isEmptyOrWhitespace
+        ) {
           seen.add(line);
           decorations.push({
             range: editor.document.lineAt(line).range,
@@ -82,7 +93,11 @@ export class InlineExplanation {
       trust.isTrusted = true;
       for (const oneBased of note.changed_lines?.length ? note.changed_lines : [note.line]) {
         const line = editorLine(oneBased);
-        if (line < editor.document.lineCount && !seen.has(line)) {
+        if (
+          line < editor.document.lineCount &&
+          !seen.has(line) &&
+          !editor.document.lineAt(line).isEmptyOrWhitespace
+        ) {
           seen.add(line);
           decorations.push({
             range: editor.document.lineAt(line).range,
