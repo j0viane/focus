@@ -55,7 +55,7 @@ Gallery + walkthrough: [`docs/DEMO.md`](docs/DEMO.md) · [`docs/assets/`](docs/a
 | Surface | When | What you get |
 |---|---|---|
 | **A — PR comment** | Every PR (GitHub Action) | Full architecture HUD — summary, Mermaid, Danger Zones. Updates in place on new pushes |
-| **C — IDE diff** | Before you push (Cursor / VS Code) | CodeLens on changed + blast-radius files; click for HUD panel |
+| **C — IDE diff** | Before you push (Cursor / VS Code) | Risk rail + ℹ️ on changed symbols; Save refreshes; HUD panel for the full map |
 | **C — GitHub diff** | PR review (planned) | Inline pins on **Files changed** — companion to the PR comment |
 | ~~**B — git**~~ | — | **Not supported** — no committed `focus-hud.md` |
 
@@ -65,54 +65,52 @@ Same evidence everywhere: parse → graph → `FocusHUD` → renderer (markdown 
 
 ## In Cursor / VS Code (diff-first · surface C)
 
-CodeLens on changed symbols + per-hunk explainers + click for the full HUD panel — blast radius **in the diff you're editing**.
+Risk rail + purpose ℹ️ on changed symbols, plus the full HUD panel — blast radius **in the diff you're editing**.
 
-**What it looks like on a changed function** (virtual UI — nothing written to git):
+**What it looks like in the editor** (virtual UI — nothing written to git):
 
 ```text
-🎯 Focus · _extract_definitions · 🔴 CRITICAL · 22 downstream
-   Part of a CRITICAL blast radius — 22 downstream files may be affected.
-
-    def _extract_definitions(tree: ast.AST) -> list[Definition]:
-        definitions: list[Definition] = []
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                ℹ️ Records this as a function in the AST (Abstract Syntax Tree).
-                definitions.append(
-                    Definition(
-                        name=node.name,
-                        kind="function",
-                        line=node.lineno,
-                        docstring=_first_docstring_line(node),
-                    )
-                )
-            elif isinstance(node, ast.ClassDef):
-                ℹ️ Records this as a class in the AST (Abstract Syntax Tree).
-                definitions.append(
-                    Definition(
-                        name=node.name,
-                        kind="class",
-                        line=node.lineno,
-                        docstring=_first_docstring_line(node),
-                    )
-                )
+🔴 CRITICAL — `focus audit` → IDE captions — bad copy misleads every local review.
+    def _build_hunk_details(
+        symbol: ChangedSymbolInfo,
+        facts: ModuleFacts | None,
+        purpose_fallback: str,
+        *,
+        purpose_is_curated: bool = False,
+    ) -> list[HunkDetail]:
+        """Build ℹ️ rows: one outcome per symbol unless hunks teach different outcomes."""
+        ...
+        for run in runs:
+            ℹ️ Builds each edit's caption (plain English above the changed lines).
+            detail = _hybrid_detail_for_hunk(
+                run_text,
+                facts=facts,
+                hunk_lines=run,
+                symbol_name=symbol.name,
+                purpose_fallback=purpose_fallback,
+            )
+            out.append(HunkDetail(line=anchor, changed_lines=run, detail=detail))
+        return _collapse_hunk_details_to_outcomes(...)
 ```
 
-| Row | Where | What |
+Risk rail above `def`; ℹ️ above the changed lines. A second ℹ️ appears only when two hunks teach **different** outcomes (e.g. function vs class).
+
+| Surface | Where | What |
 |---|---|---|
-| 🎯 Focus header | Above `def` / `class` | Symbol name, risk tier, downstream count + short summary |
-| ℹ️ Detail | Above each edit block | Hunk-local plain English (acronyms expanded for juniors) |
+| **Risk rail** | Above `def` / `class` | Implication: `{emoji} {RISK} — {who} — {what goes wrong}`. Quiet when LOW |
+| **ℹ️ Purpose** | Above the primary edit (or each distinct outcome) | What this edit does — one per symbol unless hunks truly differ |
+| **Trust cues** | Hover highlighted code, or click rail / ℹ️ | *Why trust this* — ≤2 cues (map in HUD). Don’t rely on CodeLens title hover on macOS. |
 
 ```bash
-pip install "focus-hud>=0.3.1"
-./scripts/install-extension.sh   # or: cd extensions/vscode-focus && npm run compile
+./scripts/install-extension.sh   # extension 0.5.1+ (needs focus-hud >=0.3.1 on PATH)
+# or: cd extensions/vscode-focus && npm run compile
 ```
 
-Then open your repo, set `focus.path` if needed, and run **Focus: Audit Local Changes**. Details: [`extensions/vscode-focus/README.md`](extensions/vscode-focus/README.md).
+Open the **repo git root**, set `focus.path` if needed, **Reload Window** once, and run **Focus: Audit Local Changes**. After that, **Save** quietly refreshes the rails (`focus.autoAuditOnSave`). Details: [`extensions/vscode-focus/README.md`](extensions/vscode-focus/README.md).
 
 | Moment | Command | You get |
 |---|---|---|
-| AI rewrote a shared function | `focus audit --local` or **Focus: Audit Local Changes** | **C** — blast radius in your working diff |
+| AI rewrote a shared function | **Focus: Audit Local** (then **Save** to refresh) | **C** — risk rail + ℹ️ in your working diff |
 | Big PR in your queue | Focus Action comment | **A** — diagram + Danger Zones on the PR |
 | Inherited a module | `focus trace path/to/file.py` | Downstream map for one file |
 
@@ -144,7 +142,7 @@ Unchanged files reuse **`.focus-cache/`** (gitignored). Pass `--no-cache` to for
 
 Optional: copy [`.focus.toml.example`](.focus.toml.example) → `.focus.toml` to tune `fan_out_threshold` (default **3**).
 
-Requirements: Python 3.12+. Install: **`pip install focus-hud`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
+Requirements: Python 3.12+. Install: **`pip install "focus-hud>=0.3.1"`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ```bash
 uv run pytest
@@ -211,7 +209,7 @@ flowchart TB
 
 ## Roadmap
 
-Phase 3 **complete**. Phase 4 **in progress** (IDE **C**). Phase 5 **next** (GitHub diff **C** + **A** comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Phase 3 **complete**. Phase 4b **shipped** (IDE risk rail + ℹ️ + Save refresh). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -221,6 +219,12 @@ Phase 3 **complete**. Phase 4 **in progress** (IDE **C**). Phase 5 **next** (Git
 - **Privacy-by-design** — respects `.gitignore`; no source to model APIs
 - **No surveillance** — structure, not developer identity
 - **Opt-in Action** — minimum token scope
+
+Details: [`docs/ETHICS.md`](docs/ETHICS.md) · [`docs/PRIVACY.md`](docs/PRIVACY.md).
+
+---
+
+## Docs
 
 | Doc | Contents |
 |---|---|
