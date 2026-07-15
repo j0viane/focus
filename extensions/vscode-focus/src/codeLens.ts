@@ -76,12 +76,14 @@ function symbolLenses(
   const implication = sym.implication || "";
 
   // Risk rail above `def` — quiet when LOW / empty implication (Phase 4b).
+  // Click (not hover) opens trust cues: CodeLens title tooltips are flaky on macOS/Electron.
   if (implication) {
     lenses.push(
       new vscode.CodeLens(new vscode.Range(defLine, 0, defLine, 0), {
         title: summaryLensTitle(implication),
-        command: "focus.noop",
-        tooltip: evidenceMarkdown(sym),
+        command: "focus.showEvidence",
+        arguments: [document.uri, defLine, evidenceMarkdown(sym)],
+        tooltip: "Click for why to trust this · or hover the highlighted code",
       }),
     );
   }
@@ -95,8 +97,9 @@ function symbolLenses(
       lenses.push(
         new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
           title: explanationLensTitle(hunk.detail),
-          command: "focus.noop",
-          tooltip: evidenceMarkdown(sym, hunk.detail),
+          command: "focus.showEvidence",
+          arguments: [document.uri, line, evidenceMarkdown(sym, hunk.detail)],
+          tooltip: "Click for why to trust this · or hover the highlighted code",
         }),
       );
     }
@@ -109,8 +112,13 @@ function symbolLenses(
     lenses.push(
       new vscode.CodeLens(new vscode.Range(defLine, 0, defLine, 0), {
         title: badge,
-        command: "focus.noop",
-        tooltip: sym.explanation ?? `${sym.kind} ${sym.name} — ${hud.summary}`,
+        command: "focus.showEvidence",
+        arguments: [
+          document.uri,
+          defLine,
+          evidenceMarkdown(sym) || sym.explanation || `${sym.kind} ${sym.name}`,
+        ],
+        tooltip: "Click for why to trust this · or hover the highlighted code",
       }),
     );
   }
@@ -132,8 +140,9 @@ function orphanLineLenses(
   return [
     new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
       title: explanationLensTitle(note.detail),
-      command: "focus.noop",
-      tooltip: note.detail,
+      command: "focus.showEvidence",
+      arguments: [document.uri, line, note.detail],
+      tooltip: "Click for detail · or hover the highlighted code",
     }),
   ];
 }

@@ -156,8 +156,8 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **File-level blast radius** | Symbol-level downstream (who calls *this* def, not just the file) | Planned |
 | **Static-only graph** | Best-effort dynamic import / string-literal hints where parseable | Explore |
 | **Heuristic captions** when no docstring | JSDoc/TSDoc extraction for JS/TS; Typer `@app.command` metadata for CLI | Planned |
-| **Evidence in IDE** | Proven vs heuristic bullets on CodeLens tooltip / hover (`evidence` on HUD symbols) | ✅ slice 4 |
-| **Verbose / low-ROA copy** | Hard caps: max chars for ℹ️ / summary; one idea per lens; no restating the header | Planned (ROA) |
+| **Evidence in IDE** | Hover = *why trust this* only (≤2 cues); no restating rail/ℹ️; importers collapsed → HUD | ✅ ROA slim |
+| **Verbose / low-ROA copy** | Hard caps: max chars for ℹ️ / summary; one idea per lens; no restating the header | 🔄 hover done; caps continue |
 | **Tiny diff, huge output** | Stronger triggers: tiny + low blast radius → pass-through or *tiny* HUD (see [`TRIGGERS.md`](TRIGGERS.md)) | Planned (ROA) |
 | **Auto-refresh on save** | Quiet re-audit after saving a source file; CodeLens/gutters update in place (`focus.autoAuditOnSave`) | ✅ extension 0.5.1 |
 | **Live-as-you-type** | Debounced refresh from the **unsaved buffer** (not only disk/git) — pin: dogfood must not require Save or Audit Local | **Next (pinned)** |

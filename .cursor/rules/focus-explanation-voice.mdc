@@ -36,9 +36,9 @@ Explain **what this change does for the reader**, not what the syntax does.
 |---|---|---|
 | **Risk rail** | Implication: `{emoji} {RISK} — {who} — {what goes wrong}` | LOW, or can't name who/what |
 | **ℹ️** | Purpose (outcome); one per symbol unless hunks differ | — |
-| **Hover / tooltip** | Proven vs heuristic evidence | — |
+| **Trust cues** | Hover **highlighted code**, or **click** rail / ℹ️ — ≤2 proven/heuristic cues | No evidence → one quiet line + HUD |
 
-Never put proof on the visible CodeLens line — hover carries it.
+Never put proof on the visible CodeLens line. Do not rely on CodeLens title-hover (native `title` is flaky on macOS). Import fan-out belongs in the HUD.
 
 ## Return on Attention (ROA)
 

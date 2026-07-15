@@ -4,6 +4,9 @@ import type { ChangedSymbolInfo, EvidenceItem } from "./types";
 /** Readable line width for stacked CodeLens rows (full text, word-wrapped). */
 const WRAP_WIDTH = 96;
 
+/** Max evidence bullets in CodeLens hover (ROA — trust cues only). */
+const MAX_HOVER_EVIDENCE = 2;
+
 /** Strip markdown backticks for readable editor chrome. */
 export function stripMarkdown(text: string): string {
   return text.replace(/`([^`]+)`/g, "$1").replace(/\s+/g, " ").trim();
@@ -54,24 +57,20 @@ export function explanationLensTitle(text: string): string {
   return [EXPLAIN_PREFIX + " " + lines[0], ...lines.slice(1)].join("\n");
 }
 
-/** Markdown for CodeLens tooltip / hover — proof stays off the visible line. */
-export function evidenceMarkdown(sym: ChangedSymbolInfo, purpose?: string): string {
+/**
+ * CodeLens tooltip — answers "why trust this caption?" only.
+ *
+ * Does not restate implication / purpose (those live on the rail and ℹ️).
+ * Graph map belongs in the HUD panel.
+ */
+export function evidenceMarkdown(sym: ChangedSymbolInfo, _purpose?: string): string {
   const parts: string[] = [];
-  const implication = sym.implication || sym.summary;
-  if (implication) {
-    parts.push(`**Implication**\n\n${implication}`);
-  }
-  if (purpose) {
-    parts.push(`**Purpose**\n\n${EXPLAIN_PREFIX} ${stripMarkdown(purpose)}`);
-  }
-  const evidence = sym.evidence ?? [];
+  const evidence = (sym.evidence ?? []).slice(0, MAX_HOVER_EVIDENCE);
   if (evidence.length) {
-    parts.push(
-      evidence
-        .slice(0, 8)
-        .map((item) => formatEvidenceBullet(item))
-        .join("\n\n"),
-    );
+    parts.push("**Why trust this**");
+    parts.push(evidence.map((item) => formatEvidenceBullet(item)).join("\n\n"));
+  } else {
+    parts.push("**Why trust this**\n\nNo cite list on this symbol — open the HUD for graph context.");
   }
   parts.push("Open Focus HUD for the full map");
   return parts.filter(Boolean).join("\n\n");

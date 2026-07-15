@@ -33,6 +33,10 @@
       {
         "command": "focus.refresh",
         "title": "Focus: Refresh"
+      },
+      {
+        "command": "focus.showEvidence",
+        "title": "Focus: Show Evidence (trust cues)"
       }
     ],
     "configuration": {
