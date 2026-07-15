@@ -46,3 +46,5 @@ These are non-negotiable. If a task appears to require breaking one of these rul
     Prefer silence over filler. Prefer one sharp signal over three soft ones. **No feature without a decision it changes.**
 
 15. **ROA is product behavior, not Cursor rules.** Return-on-attention limits live in Focus code and tests (caps, collapse, pass-through, quiet LOW). Anyone installing `focus-hud` + the extension gets the same discipline with no private rules. Agent rules document intent for *building* Focus; they must not be the only place ROA exists.
+
+16. **Caption depth: measure first, LLM last.** Edit-shaped ℹ️ must include **measured slots** when available (return expression, assignment RHS, callee name, import module, blank count) — not verb-only slogans like “Changes what this function returns.” Cap expression length for ROA. An optional LLM **labeler** may later smooth English from an evidence pack Focus already computed; it must not invent facts, nodes, or edges. Do not enable LLM captions until deterministic slots are dogfood-proven insufficient.

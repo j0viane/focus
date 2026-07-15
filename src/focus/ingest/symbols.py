@@ -71,10 +71,11 @@ def changed_symbols(
     *,
     mode: DiffMode = "local",
     facts_by_path: dict[str, ModuleFacts] | None = None,
+    line_ranges: dict[str, list[tuple[int, int]]] | None = None,
 ) -> list[ChangedSymbol]:
     """Definitions that overlap changed line ranges in source files."""
     root = root.resolve()
-    ranges = changed_line_ranges(root, base, mode=mode)
+    ranges = line_ranges if line_ranges is not None else changed_line_ranges(root, base, mode=mode)
     found: list[ChangedSymbol] = []
     for rel, spans in sorted(ranges.items()):
         if Path(rel).suffix.lower() not in SOURCE_EXTENSIONS:

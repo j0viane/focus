@@ -1,6 +1,23 @@
 import * as vscode from "vscode";
 
 /**
+ * Focus rails are CodeLens. VS Code splits the switch:
+ * - `editor.codeLens` → normal file tabs
+ * - `diffEditor.codeLens` → SCM / side-by-side diffs
+ * Enabling only the diff default left the open file blank — turn both on for this workspace.
+ */
+export function ensureCodeLensSurfaces(): void {
+  const editorCfg = vscode.workspace.getConfiguration("editor");
+  if (editorCfg.get<boolean>("codeLens") !== true) {
+    void editorCfg.update("codeLens", true, vscode.ConfigurationTarget.Workspace);
+  }
+  const diffCfg = vscode.workspace.getConfiguration("diffEditor");
+  if (diffCfg.get<boolean>("codeLens") !== true) {
+    void diffCfg.update("codeLens", true, vscode.ConfigurationTarget.Workspace);
+  }
+}
+
+/**
  * CodeLens font size is owned by VS Code (`editor.codeLensFontSize`), not per-lens styling.
  * When `focus.lensFontSize` is set, sync that workspace setting so Focus rows are readable.
  */
@@ -23,6 +40,7 @@ export function applyLensFontSize(): void {
 }
 
 export function watchLensFontSize(context: vscode.ExtensionContext): void {
+  ensureCodeLensSurfaces();
   applyLensFontSize();
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {

@@ -660,18 +660,14 @@ def test_collapse_identical_hunk_purpose_to_one(tmp_path: Path):
 
 
 def test_multi_hunk_collapses_to_symbol_outcome_when_purpose_strong(tmp_path: Path):
-    """Mixed call + docstring fallback hunks → one outcome ℹ️, not five."""
+    """Call-only hunks + curated purpose → one outcome ℹ️ (slots would win if present)."""
     path = tmp_path / "wire.py"
     path.write_text(
         "def explain_symbol_with_evidence(symbol):\n"
         '    """Attach implication, purpose, and evidence for the IDE."""\n'
-        "    implication = _implication_for_symbol(symbol)\n"
-        "    text = 'x'\n"
-        "    evidence = _dedupe_evidence([])\n"
-        "    return SymbolExplanation(\n"
-        "        symbol=symbol.model_copy(update={'implication': implication, 'evidence': evidence}),\n"
-        "        text=text,\n"
-        "    )\n"
+        "    _implication_for_symbol(symbol)\n"
+        "    _dedupe_evidence([])\n"
+        "    _pad_label('x')\n"
     )
     facts = parse_module(path)
     sym = ChangedSymbolInfo(
@@ -679,7 +675,7 @@ def test_multi_hunk_collapses_to_symbol_outcome_when_purpose_strong(tmp_path: Pa
         name="explain_symbol_with_evidence",
         kind="function",
         line=1,
-        changed_lines=[3, 5, 7],
+        changed_lines=[3, 4, 5],
     )
     enriched = enrich_changed_symbols(
         [sym],
@@ -694,8 +690,36 @@ def test_multi_hunk_collapses_to_symbol_outcome_when_purpose_strong(tmp_path: Pa
     detail = enriched.hunk_details[0].detail
     assert "implication" in detail.lower() or "evidence" in detail.lower()
     assert "names the function" not in detail.lower()
-    # Must not spam the docstring on every edit block.
     assert detail.lower().count("attach implication") <= 1
+
+
+def test_return_slot_beats_curated_purpose(tmp_path: Path):
+    """Expression slots outrank registry purpose — dogfood: show the edit, not the slogan."""
+    path = tmp_path / "wire.py"
+    path.write_text(
+        "def explain_symbol_with_evidence(symbol):\n"
+        '    """Attach implication, purpose, and evidence for the IDE."""\n'
+        "    return 2\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="wire.py",
+                name="explain_symbol_with_evidence",
+                kind="function",
+                line=1,
+                changed_lines=[3],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["wire.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"wire.py": facts},
+    )[0]
+    assert enriched.hunk_details[0].detail == "Returns `2`."
 
 
 def test_private_helper_skips_shared_hub_implication():
@@ -719,6 +743,102 @@ def test_private_helper_skips_shared_hub_implication():
     )[0]
     assert enriched.implication == ""
     assert "Shared hub" not in enriched.implication
+
+
+def test_private_helper_quiets_same_file_caller_rail(tmp_path: Path):
+    """Private `_helper` called only in-file must not get a CRITICAL rail."""
+    path = tmp_path / "mod.py"
+    path.write_text(
+        "def public_fn():\n"
+        "    return _helper()\n"
+        "def _helper():\n"
+        "    return 1\n"
+    )
+    # Parse from a path that looks like src so it's not a test path.
+    repo_path = tmp_path / "src" / "pkg" / "mod.py"
+    repo_path.parent.mkdir(parents=True)
+    repo_path.write_text(path.read_text())
+    facts = parse_module(repo_path)
+    rel = "src/pkg/mod.py"
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path=rel,
+                name="_helper",
+                kind="function",
+                line=3,
+                changed_lines=[4],
+            )
+        ],
+        graph=nx.DiGraph([(rel, "other.py")]),
+        seeds=[rel],
+        danger_paths=set(),
+        downstream_count=2,
+        risk="CRITICAL",
+        facts_by_path={rel: facts},
+    )[0]
+    assert enriched.implication == ""
+
+
+def test_code_soup_return_falls_back_to_generic():
+    from focus.hud.explain import _return_detail_for_lines
+
+    # Soup / weak → no return slot (ladder may use purpose instead).
+    assert (
+        _return_detail_for_lines(
+            ["    return bool(details) and all(_is_blank_line_caption(d.detail) for d in details)"]
+        )
+        is None
+    )
+    assert _return_detail_for_lines(["    return None"]) is None
+    assert _return_detail_for_lines(["    return 2"]) == "Returns `2`."
+
+
+def test_return_caption_rejects_incomplete_opener():
+    from focus.hud.explain import _return_detail_for_lines
+
+    assert _return_detail_for_lines(["    return ("]) is None
+    detail = _return_detail_for_lines(
+        [
+            "    return (",
+            '        "hello"',
+            "    )",
+        ]
+    )
+    assert detail is not None
+    assert detail.startswith("Returns `")
+    assert "hello" in detail
+
+
+def test_weak_return_yields_to_curated_purpose(tmp_path: Path):
+    path = tmp_path / "pick.py"
+    path.write_text(
+        "def explain_symbol_with_evidence(symbol):\n"
+        '    """Attach implication, purpose, and evidence for the IDE."""\n'
+        "    return None\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="pick.py",
+                name="explain_symbol_with_evidence",
+                kind="function",
+                line=1,
+                changed_lines=[3],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["pick.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"pick.py": facts},
+    )[0]
+    detail = enriched.hunk_details[0].detail
+    assert "Returns `None`" not in detail
+    assert "Changes what this function returns" not in detail
+    assert "implication" in detail.lower() or "evidence" in detail.lower()
 
 
 def test_blank_only_hunk_gets_quiet_caption(tmp_path: Path):
@@ -813,9 +933,74 @@ def test_return_shape_beats_weak_purpose(tmp_path: Path):
         facts_by_path={"ret.py": facts},
     )[0]
     assert enriched.hunk_details
-    assert "returns" in enriched.hunk_details[0].detail.lower()
+    assert enriched.hunk_details[0].detail == "Returns `2`."
     assert "call path" not in enriched.hunk_details[0].detail.lower()
 
+
+def test_return_caption_includes_expression_slot(tmp_path: Path):
+    path = tmp_path / "greet.py"
+    path.write_text(
+        "def greet(label: str) -> str:\n"
+        '    return f"Hello, {label}! You are now dogfooding Focus."\n'
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="greet.py",
+                name="greet",
+                kind="function",
+                line=1,
+                changed_lines=[2],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["greet.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"greet.py": facts},
+    )[0]
+    detail = enriched.hunk_details[0].detail
+    assert detail.startswith("Returns `")
+    assert "Hello" in detail
+    assert "Changes what this function returns" not in detail
+
+
+def test_return_caption_not_dropped_when_many_earlier_runs(tmp_path: Path):
+    """Busy symbols used to [:6]-cap runs and drop a trailing return edit."""
+    # 7 non-contiguous assigns (gaps), then a return — return must still win.
+    chunks = [f"    x{i} = {i}\n\n" for i in range(7)]
+    path = tmp_path / "busy.py"
+    path.write_text("def busy():\n" + "".join(chunks) + "    return 99\n")
+    facts = parse_module(path)
+    # Odd lines are assigns/return; skip blank even lines in the body.
+    lines = path.read_text().splitlines()
+    changed = [
+        i
+        for i, line in enumerate(lines, 1)
+        if i > 1 and line.strip() and not line.strip().startswith("def")
+    ]
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="busy.py",
+                name="busy",
+                kind="function",
+                line=1,
+                changed_lines=changed,
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["busy.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"busy.py": facts},
+    )[0]
+    assert enriched.hunk_details
+    assert enriched.hunk_details[0].detail == "Returns `99`."
+    assert enriched.hunk_details[0].line == changed[-1]
 
 def test_assignment_shape_caption(tmp_path: Path):
     path = tmp_path / "assign.py"
@@ -843,7 +1028,7 @@ def test_assignment_shape_caption(tmp_path: Path):
         facts_by_path={"assign.py": facts},
     )[0]
     assert enriched.hunk_details
-    assert "Updates `total`" in enriched.hunk_details[0].detail
+    assert enriched.hunk_details[0].detail == "Sets `total` to `0`."
 
 
 def test_import_caption_for_orphan_lines():
@@ -920,9 +1105,10 @@ def test_registry_implication_and_purpose_for_build_hunk_details(tmp_path: Path)
     assert enriched.implication.startswith("🔴 CRITICAL —")
     assert "IDE captions" in enriched.implication or "focus audit" in enriched.implication
     assert "Shared hub" not in enriched.implication
-    # Edit shape (return) beats curated purpose on the ℹ️; rail still carries registry copy.
+    # Weak ``return []`` yields; curated purpose owns the ℹ️.
     detail = enriched.hunk_details[0].detail.lower()
-    assert "returns" in detail
+    assert "caption" in detail or "edit" in detail
+    assert "returns `[]`" not in detail
     assert "phase 4b" not in detail
     assert "callsite" not in detail
 

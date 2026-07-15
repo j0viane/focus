@@ -25,7 +25,7 @@ Focus shows **what else that change touches** — with evidence you can point at
 ## Try in 60 seconds
 
 ```bash
-pip install "focus-hud>=0.3.2"
+pip install "focus-hud>=0.3.3"
 # or: uv tool install focus-hud
 
 focus trace path/to/shared_module.py --out focus-hud.md
@@ -55,7 +55,7 @@ Gallery + walkthrough: [`docs/DEMO.md`](docs/DEMO.md) · [`docs/assets/`](docs/a
 | Surface | When | What you get |
 |---|---|---|
 | **A — PR comment** | Every PR (GitHub Action) | Full architecture HUD — summary, Mermaid, Danger Zones. Updates in place on new pushes |
-| **C — IDE diff** | Before you push (Cursor / VS Code) | Risk rail + edit-shaped ℹ️; Save refreshes; SCM Working Tree (right pane); HUD for the full map |
+| **C — IDE diff** | Before you push (Cursor / VS Code) | Risk rail + edit-shaped ℹ️; **live while typing** (unsaved buffer); Save refresh; SCM Working Tree (right pane); HUD map |
 | **C — GitHub diff** | PR review (planned) | Inline pins on **Files changed** — companion to the PR comment |
 | ~~**B — git**~~ | — | **Not supported** — no committed `focus-hud.md` |
 
@@ -81,7 +81,7 @@ Risk rail + purpose ℹ️ on changed symbols, plus the full HUD panel — blast
         """Build ℹ️ rows: one outcome per symbol unless hunks teach different outcomes."""
         ...
         for run in runs:
-            ℹ️ Changes what this function returns.
+            ℹ️ Returns `2`.
             detail = _hybrid_detail_for_hunk(
                 run_text,
                 facts=facts,
@@ -102,15 +102,21 @@ Risk rail above `def`; ℹ️ describes **this edit** (return, call, import, `Ad
 | **Trust cues** | Hover highlighted code, or click rail / ℹ️ | *Why trust this* — ≤2 cues (map in HUD). Don’t rely on CodeLens title hover on macOS. |
 
 ```bash
-./scripts/install-extension.sh   # extension 0.5.2+ (needs focus-hud >=0.3.2 on PATH)
-# or: cd extensions/vscode-focus && npm run compile
+./scripts/install-extension.sh
 ```
 
-Open the **repo git root**, set `focus.path` if needed, **Reload Window** once, and run **Focus: Audit Local Changes**. After that, **Save** quietly refreshes the rails (`focus.autoAuditOnSave`). Details: [`extensions/vscode-focus/README.md`](extensions/vscode-focus/README.md).
+(Needs `focus-hud` on PATH — the script installs the editable package too.)
+
+Open the **repo git root**, set `focus.path` if needed, **Reload Window** once, and run **Focus: Audit Local Changes**. After that:
+
+- **Live while typing** — dirty buffers refresh rails after a short debounce (`focus.liveBufferOverlay`, default on). No Save required.
+- **Save** still re-audits from disk (`focus.autoAuditOnSave`).
+
+Details: [`extensions/vscode-focus/README.md`](extensions/vscode-focus/README.md).
 
 | Moment | Command | You get |
 |---|---|---|
-| AI rewrote a shared function | **Focus: Audit Local** (then **Save** to refresh) | **C** — risk rail + ℹ️ in your working diff |
+| AI rewrote a shared function | Edit (live) or **Save** / **Focus: Audit Local** | **C** — risk rail + ℹ️ in your working file / diff |
 | Big PR in your queue | Focus Action comment | **A** — diagram + Danger Zones on the PR |
 | Inherited a module | `focus trace path/to/file.py` | Downstream map for one file |
 
@@ -142,7 +148,7 @@ Unchanged files reuse **`.focus-cache/`** (gitignored). Pass `--no-cache` to for
 
 Optional: copy [`.focus.toml.example`](.focus.toml.example) → `.focus.toml` to tune `fan_out_threshold` (default **3**).
 
-Requirements: Python 3.12+. Install: **`pip install "focus-hud>=0.3.2"`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
+Requirements: Python 3.12+. Install: **`pip install "focus-hud>=0.3.3"`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ```bash
 uv run pytest
@@ -209,7 +215,7 @@ flowchart TB
 
 ## Roadmap
 
-Phase 3 **complete**. Phase 4b **shipping** (risk rail + edit-shaped ℹ️ + Save refresh + SCM Working Tree). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Phase 3 **complete**. Phase 4b **shipping** (risk rail + edit-shaped ℹ️ + **live buffer overlay** + Save refresh + SCM Working Tree). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 

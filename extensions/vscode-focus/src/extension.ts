@@ -1,4 +1,6 @@
 import * as path from "node:path";
+import * as fs from "node:fs";
+import * as os from "node:os";
 import * as vscode from "vscode";
 
 import { FocusCodeLensProvider } from "./codeLens";
@@ -22,6 +24,10 @@ const SOURCE_LANGUAGE_IDS = new Set([
 const AUTO_AUDIT_DEBOUNCE_MS = 400;
 /** Debounce quiet audit when opening SCM diffs without an existing HUD. */
 const DIFF_AUDIT_DEBOUNCE_MS = 500;
+/** Debounce live buffer overlay audits while typing. */
+const LIVE_OVERLAY_DEBOUNCE_MS = 400;
+/** Cap dirty files sent in one overlay payload. */
+const MAX_OVERLAY_FILES = 3;
 
 let lastHud: FocusHUD | undefined;
 let statusBar: vscode.StatusBarItem;
@@ -31,6 +37,7 @@ let inlineExplanation: InlineExplanation;
 let auditInFlight: Promise<void> | undefined;
 let autoAuditTimer: ReturnType<typeof setTimeout> | undefined;
 let diffAuditTimer: ReturnType<typeof setTimeout> | undefined;
+let liveOverlayTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   const extVersion = context.extension.packageJSON.version as string;
@@ -47,6 +54,9 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       if (diffAuditTimer) {
         clearTimeout(diffAuditTimer);
+      }
+      if (liveOverlayTimer) {
+        clearTimeout(liveOverlayTimer);
       }
     },
   });
@@ -134,6 +144,10 @@ export function activate(context: vscode.ExtensionContext): void {
     // Focus reads git/disk — refresh after save so rails update in place (no Reload).
     vscode.workspace.onDidSaveTextDocument((document) => {
       scheduleAutoAudit(document, extVersion);
+    }),
+    // Unsaved buffer → overlay audit so rails track what you see before Save.
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      scheduleLiveOverlayAudit(event.document, extVersion);
     }),
   );
 
@@ -238,7 +252,73 @@ function setHud(hud: FocusHUD, root: string, extVersion: string): void {
   statusBar.tooltip = `${hud.summary}\n\nFocus extension v${extVersion}`;
 }
 
-async function runAudit(quiet = false, extVersion = "dev"): Promise<void> {
+function liveBufferOverlayEnabled(): boolean {
+  return vscode.workspace.getConfiguration("focus").get<boolean>("liveBufferOverlay", true);
+}
+
+function scheduleLiveOverlayAudit(document: vscode.TextDocument, extVersion: string): void {
+  if (!liveBufferOverlayEnabled()) {
+    return;
+  }
+  if (!document.isDirty) {
+    return;
+  }
+  if (document.uri.scheme !== "file") {
+    return;
+  }
+  if (!SOURCE_LANGUAGE_IDS.has(document.languageId)) {
+    return;
+  }
+  const root = workspaceRoot();
+  if (!root) {
+    return;
+  }
+  const rel = path.relative(root, document.uri.fsPath).split(path.sep).join("/");
+  if (!rel || rel.startsWith("..")) {
+    return;
+  }
+
+  if (liveOverlayTimer) {
+    clearTimeout(liveOverlayTimer);
+  }
+  liveOverlayTimer = setTimeout(() => {
+    liveOverlayTimer = undefined;
+    void runAudit(true, extVersion, /* withOverlay */ true);
+  }, LIVE_OVERLAY_DEBOUNCE_MS);
+}
+
+function collectOverlayPayload(root: string): Record<string, string> | undefined {
+  const overlays: Record<string, string> = {};
+  const docs = vscode.workspace.textDocuments
+    .filter(
+      (doc) =>
+        doc.isDirty &&
+        doc.uri.scheme === "file" &&
+        SOURCE_LANGUAGE_IDS.has(doc.languageId),
+    )
+    .slice(0, MAX_OVERLAY_FILES);
+
+  // Prefer the active editor's dirty doc first.
+  const active = vscode.window.activeTextEditor?.document;
+  const ordered = active
+    ? [active, ...docs.filter((d) => d.uri.toString() !== active.uri.toString())]
+    : docs;
+
+  for (const doc of ordered.slice(0, MAX_OVERLAY_FILES)) {
+    const rel = path.relative(root, doc.uri.fsPath).split(path.sep).join("/");
+    if (!rel || rel.startsWith("..")) {
+      continue;
+    }
+    overlays[rel] = doc.getText();
+  }
+  return Object.keys(overlays).length ? overlays : undefined;
+}
+
+async function runAudit(
+  quiet = false,
+  extVersion = "dev",
+  withOverlay = false,
+): Promise<void> {
   const root = workspaceRoot();
   if (!root) {
     if (!quiet) {
@@ -251,13 +331,24 @@ async function runAudit(quiet = false, extVersion = "dev"): Promise<void> {
     await auditInFlight;
   }
   const work = (async () => {
+    let overlayPath: string | undefined;
     try {
+      if (withOverlay && liveBufferOverlayEnabled()) {
+        const payload = collectOverlayPayload(root);
+        if (payload) {
+          overlayPath = path.join(
+            os.tmpdir(),
+            `focus-overlay-${process.pid}-${Date.now()}.json`,
+          );
+          fs.writeFileSync(overlayPath, JSON.stringify(payload), "utf8");
+        }
+      }
       const hud = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Window,
           title: "Focus: auditing local changes…",
         },
-        () => auditLocal(root),
+        () => auditLocal(root, overlayPath),
       );
       setHud(hud, root, extVersion);
       if (!quiet) {
@@ -265,6 +356,14 @@ async function runAudit(quiet = false, extVersion = "dev"): Promise<void> {
       }
     } catch (err) {
       reportError(err, quiet);
+    } finally {
+      if (overlayPath) {
+        try {
+          fs.unlinkSync(overlayPath);
+        } catch {
+          // temp cleanup best-effort
+        }
+      }
     }
   })();
   auditInFlight = work.finally(() => {
