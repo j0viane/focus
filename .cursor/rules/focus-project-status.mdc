@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Focus — Project status (memory / handoff)
 
-**Last updated:** 2026-07-15 (evening, America/New_York)  
+**Last updated:** 2026-07-15 (rules C1 + D1, America/New_York)  
 **Product:** Focus — evidence-only blast-radius HUD. PyPI `focus-hud`, CLI `focus`, IDE `extensions/vscode-focus`. Repo: `j0viane/focus`.
 
 **Read this first in a new chat.** Update this file when pausing or before switching windows.
@@ -25,7 +25,7 @@ alwaysApply: true
 | **Extension on this branch** | **0.5.4** (uncommitted; adds `focus.llmCaptions`) |
 | **Tests** | `137 passed` when last run (incl. `tests/test_llm_labeler.py`) |
 | **LLM dogfood** | **Not enabled.** No local `.env` / `.focus.toml` yet. Rule 16: do not turn LLM on until owner dogfoods weak ℹ️ |
-| **Rules hygiene** | Inventory done in prior chat. Hard-gate checklist + AGENTS.md **drafted in chat, not written to disk yet**. Status memory file lives in repo. |
+| **Rules hygiene** | **C1 + D1 done.** Hard-gate always-on. Demoted `focus.mdc` / `focus-learning` / `focus-mentorship` → `alwaysApply: false` (canonical in private `cursor-rules`). Always-on Focus: gates + engineering + status + project. No fat AGENTS.md. Global plugin trim still optional (D3). |
 
 ### Shipped on `main` (do not redo)
 
@@ -48,10 +48,10 @@ Opt-in evidence-pack caption labeler under `src/focus/llm/`:
 
 ## Do next (ordered)
 
-1. Open Cursor on **`~/Cursor/Focus`** (this file should load as always-apply).
-2. Rules cleanup (approved direction, **not started**): short hard-gate checklist + fix loading; do **not** dump all rules into AGENTS.md.
+1. ~~Open Cursor on `~/Cursor/Focus`~~ — done (this workspace).
+2. ~~Rules C1 + D1~~ — hard-gate always-on; demoted identity/learning/mentorship to requestable. Still **no** fat AGENTS.md. Optional later: global plugin trim (D3).
 3. Before enabling LLM: owner grades weak captions in Focus window; add local `.env` key (never commit); only then `FOCUS_LLM_ENABLED` / `--llm-captions`.
-4. Commit / PR for Phase 4c **only when owner asks**.
+4. Commit / PR for Phase 4c **only when owner asks** (Focus rules C1 uncommitted with the rest unless split; D1 lives in private `cursor-rules` — commit there separately if you want).
 5. Later backlog: Tree-sitter macOS crash mitigations; stronger pass-through / tiny HUD; Phase 5 GitHub inline; Marketplace.
 
 ---
