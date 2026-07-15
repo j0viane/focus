@@ -4,6 +4,7 @@ Project-specific rules loaded by Cursor when you work in this repo.
 
 | File | Purpose |
 |---|---|
+| `focus-project-status.mdc` | **Handoff / memory** — versions, branch, next steps *(update when pausing)* |
 | `focus-project.mdc` | Product context, architecture, tech stack *(public, committed)* |
 | `focus-engineering.mdc` | Non-negotiable engineering constraints *(public, committed)* |
 | `focus-explanation-voice.mdc` | Junior-facing explainer voice — expand acronyms, intent over jargon |
@@ -12,3 +13,5 @@ Project-specific rules loaded by Cursor when you work in this repo.
 | `focus-mentorship.mdc` | Mentorship protocol *(symlink → `cursor-rules/focus/`)* |
 
 Global rules (SWE standards, communication, owner profile) live in the private **`cursor-rules`** repo, symlinked to `~/.cursor/plugins/local/swe-standards`.
+
+**Tip:** Open the Focus folder as the Cursor workspace (not parent `Cursor/`) so these project rules attach reliably.

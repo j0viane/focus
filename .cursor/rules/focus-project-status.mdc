@@ -1,0 +1,72 @@
+---
+description: Focus project status handoff — current branch, versions, what to do next (update when pausing)
+alwaysApply: true
+---
+
+# Focus — Project status (memory / handoff)
+
+**Last updated:** 2026-07-15 (evening, America/New_York)  
+**Product:** Focus — evidence-only blast-radius HUD. PyPI `focus-hud`, CLI `focus`, IDE `extensions/vscode-focus`. Repo: `j0viane/focus`.
+
+**Read this first in a new chat.** Update this file when pausing or before switching windows.
+
+---
+
+## Where we are right now
+
+| Item | State |
+|---|---|
+| **Workspace tip** | Open the **`Focus` git root** as the Cursor folder (not parent `Cursor/`) so Focus `.cursor/rules` load cleanly |
+| **Branch** | `feat/llm-caption-labeler` (local only — **not pushed**, no PR yet) |
+| **Base / main** | `main` @ `fe8403e` — includes merged **PR #26** (PR comment ROA caps) |
+| **Working tree** | Phase 4c labeler **implemented, uncommitted** (see below) |
+| **focus-hud on this branch** | **0.3.5** (uncommitted bump; main still **0.3.4** until this ships) |
+| **Extension on this branch** | **0.5.4** (uncommitted; adds `focus.llmCaptions`) |
+| **Tests** | `137 passed` when last run (incl. `tests/test_llm_labeler.py`) |
+| **LLM dogfood** | **Not enabled.** No local `.env` / `.focus.toml` yet. Rule 16: do not turn LLM on until owner dogfoods weak ℹ️ |
+| **Rules hygiene** | Inventory done — too many always-on rules + parent workspace loading. Hard-gate checklist + AGENTS.md **drafted in chat, not written to disk yet** |
+
+### Shipped on `main` (do not redo)
+
+| Version | What |
+|---|---|
+| focus-hud **0.3.4** / PR **#26** | Cap PR comment **Your changes** @ 8 + overflow; blast lists @ 8; prefer short detail |
+| focus-hud **0.3.3** / ext **0.5.3** / PR **#25** | Live buffer overlay (`--overlay-file`), expression-slot captions, caption ROA |
+| Earlier | Edit-shaped captions 0.3.2; SCM Working Tree CodeLens; risk rail / ℹ️ |
+
+### Uncommitted on `feat/llm-caption-labeler` (Phase 4c)
+
+Opt-in evidence-pack caption labeler under `src/focus/llm/`:
+
+- Weak-gate → `CaptionEvidencePack` → OpenAI/Anthropic via `httpx` → validate → `detail` + evidence `llm_label`
+- Default **off**; **never** with live overlay; CLI `--llm-captions`; env `FOCUS_LLM_*`; `.focus.toml [llm] captions`; ext `focus.llmCaptions` (Save/Audit only)
+- Docs: ROADMAP / PRIVACY / STACK / DECISIONS / `.env.example`
+- **Owner not ready for PR** — pause before enable; reconcile engineering **rule 11** (graph JSON vs capped edit lines in pack) by asking, not assuming
+
+---
+
+## Do next (ordered)
+
+1. Open Cursor on **`~/Cursor/Focus`** (this file should load as always-apply).
+2. Rules cleanup (approved direction, **not started**): short hard-gate checklist + fix loading; do **not** dump all rules into AGENTS.md.
+3. Before enabling LLM: owner grades weak captions in Focus window; add local `.env` key (never commit); only then `FOCUS_LLM_ENABLED` / `--llm-captions`.
+4. Commit / PR for Phase 4c **only when owner asks**.
+5. Later backlog: Tree-sitter macOS crash mitigations; stronger pass-through / tiny HUD; Phase 5 GitHub inline; Marketplace.
+
+---
+
+## Standing constraints (always)
+
+- **No commit / push / PR** unless owner asks
+- Dogfood CLI from Focus root: `.venv/bin/focus` (or `focus.path` → that)
+- Mentorship: teach first, **ask before** LLM / graph / ROA design forks
+- ROA lives in **product code + tests**, not only Cursor rules (engineering #15)
+- Captions: measure first, LLM last (#16); labels only — never invent topology (#2)
+- Product language: (1) the changes (2) the implications — not “connections”
+- Plans: do not edit plan files unless iterating the plan itself
+
+---
+
+## Known tension (next chat must not paper over)
+
+Engineering **rule 11** still says LLM receives structured **graph JSON only / not full source**. Phase 4c plan + PRIVACY allow **capped edit-line snippets** in `CaptionEvidencePack`. **Stop and ask** before treating that as settled.
