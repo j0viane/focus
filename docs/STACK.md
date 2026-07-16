@@ -21,7 +21,7 @@ Technology choices for Phase 1–3. **Locked at Phase 0 exit** — change only v
 | **Diagrams** | Mermaid `flowchart` | D2, Graphviz | Native GitHub PR render; LLM-friendly |
 | **Testing** | pytest | unittest | Fixture repos, parametrize for trigger tables |
 | **Lint / format** | ruff | black + flake8 | Single tool |
-| **LLM (Phase 3+)** | Provider-agnostic interface; Claude/GPT-4o first impl | — | Labels only; swappable via env var |
+| **LLM (Phase 4c)** | Provider-agnostic HTTP (`httpx`); OpenAI + Anthropic + Ollama | Labels all ℹ️ from evidence pack when opt-in | Opt-in via env / `.focus.toml` / `--llm-captions`; Ollama = no-key local dogfood |
 | **GitHub** | Actions + `GITHUB_TOKEN` | GitHub App | Minimal scope for MVP PR comments |
 
 ---
@@ -42,9 +42,12 @@ Technology choices for Phase 1–3. **Locked at Phase 0 exit** — change only v
 
 | Variable | Required | Phase | Purpose |
 |---|---|---|---|
-| `FOCUS_LLM_API_KEY` | No | 3+ | LLM label pass (opt-in) |
-| `FOCUS_LLM_PROVIDER` | No | 3+ | `openai` \| `anthropic` |
-| `FOCUS_LLM_ENABLED` | No | 3+ | Default `false` |
+| `FOCUS_LLM_API_KEY` | No* | 4c | Opt-in caption labeler (*required for openai/anthropic; optional for ollama) |
+| `FOCUS_LLM_PROVIDER` | No | 4c | `openai` \| `anthropic` \| `ollama` (default `openai`) |
+| `FOCUS_LLM_ENABLED` | No | 4c | Default `false` — also `.focus.toml [llm] captions` |
+| `FOCUS_LLM_MODEL` | No | 4c | Optional model id (ollama default `qwen2.5:7b`) |
+| `FOCUS_LLM_BASE_URL` | No | 4c | OpenAI-compatible base (ollama default `http://127.0.0.1:11434/v1`) |
+| `FOCUS_LLM_CONCURRENCY` | No | 4c | Parallel caption labels (default `4`, max `16`) |
 | `GITHUB_TOKEN` | Action only | 3 | Provided by Actions runtime |
 
 ---

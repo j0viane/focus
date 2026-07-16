@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0+**; junior-readable inline explainers in **0.3.0+**; Phase 4b risk rail / outcome ℹ️ in **0.3.1**; edit-shaped captions in **0.3.2**; live buffer overlay in **0.3.3**; PR comment ROA caps in **0.3.4**. Phase 3 complete on PyPI.
+**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0+**; junior-readable inline explainers in **0.3.0+**; Phase 4b risk rail / outcome ℹ️ in **0.3.1**; edit-shaped captions in **0.3.2**; live buffer overlay in **0.3.3**; PR comment ROA caps in **0.3.4**; evidence-pack LLM caption labeler in **0.3.5**. Phase 3 complete on PyPI.
 
 ---
 
@@ -165,14 +165,42 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **Edit-shaped captions** | Deterministic ℹ️ from the edit: blank counts, imports, calls, returns, assigns — not static slogans | ✅ focus-hud 0.3.2 / extension 0.5.2 |
 | **Expression-slot captions** | Return/assign ℹ️ include a clipped expression when readable; weak/`None`/code-soup yield to purpose (LLM labeler still planned) | ✅ focus-hud 0.3.3 |
 | **Live-as-you-type** | Debounced refresh from the **unsaved buffer** (not only disk/git) — `--overlay-file` + `focus.liveBufferOverlay` | ✅ focus-hud 0.3.3 / extension 0.5.3 |
+| **Evidence-pack LLM captions** | Opt-in labeler for **all** ℹ️ (incl. blank-line); pack-constrained; never invents edges; never on live overlay | ✅ focus-hud 0.3.5 / extension 0.5.4 |
 
 **Pinned UX (IDE):** Rails and ℹ️ refresh while editing via buffer overlay (`focus.liveBufferOverlay`, default on). Save→auto-audit remains as a disk sync. Marketplace polish can follow once this feels instant in dogfood.
 
-**Trust model:** every caption labels evidence as **proven** (parse/graph/diff) or **heuristic** (name/path rules). `focus explain --why` shows the cite list today; IDE surfacing is next.
+**Trust model:** every caption labels evidence as **proven** (parse/graph/diff) or **heuristic** (name/path rules / optional `llm_label`). `focus explain --why` shows the cite list today; IDE surfacing is next.
 
 **Slice 1 concept:** a *call site* is where code invokes a name (`foo()`). Parser already records these. Hybrid order: structural cues (`kind=`) first, then proven overlapping calls, then weaker text heuristics.
 
 **ROA (product rule, not a separate product):** Focus must never become the “1-line change + 1,430-character description” anti-pattern. Prefer silence or one sentence over filler. Virtual UI only — never write explainers into the repo.
+
+---
+
+## Phase 4c — Evidence-pack caption labeler *(shipped opt-in)*
+
+**Goal:** When caption labeling is opt-in, an LLM may **relabel every ℹ️ from a `CaptionEvidencePack`** Focus already built — including blank-line captions — never invent topology. Fail-closed validate keeps the deterministic caption on reject.
+
+| Knob | Default |
+|---|---|
+| `FOCUS_LLM_ENABLED` / `.focus.toml [llm] captions` | off |
+| `FOCUS_LLM_PROVIDER` | `openai` (cloud) or **`ollama`** (no-key local dogfood) |
+| `focus audit --llm-captions` | dogfood / CI force-on for one run |
+| Extension `focus.llmCaptions` | false (explicit **Audit Local**: deterministic rails first, LLM captions in background — never autosave / overlay) |
+
+**Dogfood checklist (all captions when enabled, before leaving on by default):**
+
+1. Unit grounding tests green (`tests/test_llm_labeler.py`).
+2. **Preferred no-key path:** install [Ollama](https://ollama.com), `ollama pull qwen2.5:7b`, local `.env` (never commit):
+   ```
+   FOCUS_LLM_ENABLED=true
+   FOCUS_LLM_PROVIDER=ollama
+   FOCUS_LLM_MODEL=qwen2.5:7b
+   ```
+   Or cloud: `FOCUS_LLM_API_KEY` + `openai`/`anthropic`. Keep default off in committed configs.
+3. One run: `focus audit --local --llm-captions` (no overlay). Every changed-symbol caption is a candidate; expect more LLM calls / latency than weak-only.
+4. For each caption that gained `llm_label` evidence, score: invent entity? invent behavior not in pack? better than silence/deterministic?
+5. Accept only if **zero** topology invent and no ungrounded scope/entity slips past validate; otherwise leave default off.
 
 ---
 
@@ -194,8 +222,8 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 
 - **Committed HUD markdown in git** (`focus-hud.md` as a tracked artifact) — use PR comment (A) + inline diff (C) instead
 - Diff-only analysis without full-repo graph context
-- LLM inventing dependency edges not in the computed graph
-- LLM free-summarizing hunks without an evidence pack (caption depth: measure slots first; optional labeler later — see engineering rule 16)
+- LLM inventing dependency edges / Mermaid nodes not in the computed graph
+- **LLM free-summarizing hunks without an evidence pack** — v1 labeler is pack-constrained (Phase 4c); free prose remains won't-build
 - Blocking PR merges or developer quizzes
 - Developer surveillance, blame metrics, or performance scoring
 - Interactive hosted code maps (CodeSee-style SaaS)
@@ -209,9 +237,9 @@ Full ethics list: [`docs/ETHICS.md`](ETHICS.md)
 
 ## Parking lot — future ideas (unscoped, not promised)
 
+- **Evidence-pack caption labeler (Phase 4c):** shipped opt-in in focus-hud 0.3.5 — labels all ℹ️ from capped edit packs when enabled; never invents edges. Free-form / topology LLM remains parked.
 - **IDE extension (Phase 4 — deepen C):** symbol-level CodeLens, gutter hop colors, always-on watch, auditable “why this edge” deep links.
 - **GitHub inline diff (Phase 5):** review comments / annotations on PR diff — companion to PR comment (A).
-- **LLM label pass (parked):** optional plain-English node names / short summaries from graph JSON only. **Not scheduled.** Focus’s value is computed topology; we will not add an LLM layer “for show” if it can invent wording that outruns the evidence.
 - **More languages (Go / Rust / Java):** adoption breadth only — not the differentiator. Revisit when a real user is blocked without them.
 - **Auditable “why this edge”:** click from HUD claim → import evidence (line). Trust theater → trust proof. **`focus explain --why`** ships on the inline-explanations branch; IDE deep-link next.
 

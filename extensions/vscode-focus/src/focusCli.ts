@@ -20,8 +20,17 @@ export function resolveFocusBinary(): string {
     .getConfiguration("focus")
     .get<string>("path")
     ?.trim();
-  if (configured) {
+  if (configured && fs.existsSync(configured)) {
     return configured;
+  }
+  // Prefer the editable repo venv over a stale/crashing `focus` on PATH
+  // (uv tool installs have been known to SIGSEGV on macOS Tree-sitter).
+  const root = workspaceRoot();
+  if (root) {
+    const venvFocus = path.join(root, ".venv", "bin", "focus");
+    if (fs.existsSync(venvFocus)) {
+      return venvFocus;
+    }
   }
   return "focus";
 }
@@ -92,9 +101,10 @@ async function runFocus(args: string[], cwd: string): Promise<string> {
     // 139 / SIGSEGV — native Tree-sitter crash (should be rare after JS worker isolation).
     if (e.code === 139 || e.signal === "SIGSEGV") {
       throw new FocusCliError(
-        "focus crashed (segfault) while auditing. Reinstall the editable package " +
-          "(`uv pip install -e .` in the Focus repo) and try again. " +
-          "If it persists, run: focus audit --local --format json",
+        "focus crashed (segfault) while auditing — usually a stale global `focus` on PATH. " +
+          "Set focus.path to this repo's .venv/bin/focus (already in .vscode/settings.json), " +
+          "re-run ./scripts/install-extension.sh, then Developer: Reload Window. " +
+          "CLI check: .venv/bin/focus audit --local --format json",
       );
     }
     const detail = (e.stderr || e.stdout || e.message || String(err)).trim();
@@ -112,15 +122,34 @@ function parseHudJson(stdout: string): FocusHUD {
   return JSON.parse(text.slice(start)) as FocusHUD;
 }
 
+export type AuditLocalOptions = {
+  /**
+   * When true, LLM captions may run if `focus.llmCaptions` is on.
+   * Autosave / live overlay / quiet refresh must pass false so rails stay fast
+   * even when FOCUS_LLM_ENABLED=true in `.env`.
+   */
+  allowLlm?: boolean;
+};
+
 export async function auditLocal(
   root: string,
   overlayFile?: string,
+  options?: AuditLocalOptions,
 ): Promise<FocusHUD> {
   const base =
     vscode.workspace.getConfiguration("focus").get<string>("base") || "main";
   const args = ["audit", "--local", "--base", base, "--path", root, "--format", "json"];
   if (overlayFile) {
     args.push("--overlay-file", overlayFile);
+  }
+  // Prefer --llm-captions only when wanted. Do not pass --no-llm-captions:
+  // older focus-hud installs on PATH lack that flag and toast a Typer error.
+  const settingOn = vscode.workspace
+    .getConfiguration("focus")
+    .get<boolean>("llmCaptions", false);
+  const wantLlm = Boolean(options?.allowLlm) && settingOn && !overlayFile;
+  if (wantLlm) {
+    args.push("--llm-captions");
   }
   const stdout = await runFocus(args, root);
   return parseHudJson(stdout);

@@ -54,6 +54,8 @@ class ExplainContext:
     facts_by_path: dict[str, ModuleFacts]
     # Unsaved buffer text (repo-relative path → full file). Empty in normal audits.
     overlay_texts: dict[str, str] = field(default_factory=dict)
+    # Opt-in evidence-pack LLM caption labeler (never true with live overlays).
+    llm_captions: bool = False
 
 
 def explain_symbols(context: ExplainContext) -> list[SymbolExplanation]:
@@ -1322,6 +1324,10 @@ def _purpose_is_strong_outcome(text: str, symbol_name: str) -> bool:
         "on the call path to other modules",
         "see implementation",
         "is defined here",
+        "automated test that",
+        "instantiate or subclass",
+        "client for talking to",
+        "is a client for talking",
     )
     if any(marker in lower for marker in weak_markers):
         return False
@@ -1539,10 +1545,13 @@ def enrich_changed_symbols(
     risk: RiskTier,
     facts_by_path: dict[str, ModuleFacts] | None = None,
     overlay_texts: dict[str, str] | None = None,
+    llm_captions: bool = False,
 ) -> list[ChangedSymbolInfo]:
     """Attach inline explanations to each changed symbol."""
     if not symbols:
         return []
+    # Live overlay path never labels — latency + cost (Phase 4c).
+    use_llm = bool(llm_captions) and not (overlay_texts or {})
     context = ExplainContext(
         symbols=symbols,
         graph=graph,
@@ -1552,8 +1561,14 @@ def enrich_changed_symbols(
         risk=risk,
         facts_by_path=facts_by_path or {},
         overlay_texts=overlay_texts or {},
+        llm_captions=use_llm,
     )
-    return [explain_symbol_with_evidence(sym, context=context).symbol for sym in symbols]
+    explained = [explain_symbol_with_evidence(sym, context=context) for sym in symbols]
+    if use_llm:
+        from focus.llm.labeler import apply_llm_captions
+
+        explained = apply_llm_captions(explained, context=context)
+    return [item.symbol for item in explained]
 
 
 def _symbol_purpose_with_evidence(
@@ -1627,15 +1642,17 @@ def _symbol_purpose_with_evidence(
         or "/tests/" in padded
         or posix.name.startswith("test_")
     ):
-        subject = _humanize_name(snake.removeprefix("test_"))
+        # Tests already get no risk rail. Name-soup purpose ("automated test that
+        # X still works") fails the impact bar — stay quiet unless the edit ladder
+        # finds a shaped caption (return/call/assign/…).
         return (
-            f"`{name}` is an automated test that {subject} still works.",
+            "",
             [
                 EvidenceItem(
                     confidence="proven",
                     kind="test_module",
                     location=path,
-                    fact="test file path or test_ function name",
+                    fact="test file path or test_ function name — purpose quiet (ROA)",
                 ),
             ],
         )
@@ -1984,7 +2001,9 @@ def _class_purpose(name: str, lower: str, snake: str, path: str, padded: str) ->
             return template.format(name=name, stem=stem, path=path)
     if "provider" in lower:
         return f"`{name}` wires editor features (CodeLens, gutters, panels)."
-    return f"`{name}` — other modules instantiate or subclass this class."
+    # Generic class filler fails the impact bar — stay quiet unless the edit ladder
+    # measured a real shape (or a curated docstring already won above).
+    return ""
 
 
 def _snake_name(name: str) -> str:
@@ -2446,7 +2465,7 @@ _SUFFIX_PURPOSE: list[tuple[str, str]] = [
 _CLASS_SUFFIX_PURPOSE: list[tuple[str, str]] = [
     ("Provider", "`{name}` supplies {stem} behavior to the editor (CodeLens, UI hooks, etc.)."),
     ("Service", "`{name}` groups {stem} logic that other modules call into."),
-    ("Client", "`{name}` is a client for talking to {stem}."),
+    ("Client", "`{name}` talks to {stem}."),
     ("Controller", "`{name}` coordinates {stem} requests and responses."),
     ("Router", "`{name}` maps incoming routes to {stem} handlers."),
     ("Panel", "`{name}` is the webview/panel UI for {stem}."),

@@ -5,3 +5,9 @@
 # A file becomes a Danger Zone when this many other files import it directly
 # (package __init__.py files are never Danger Zones via fan-out alone).
 fan_out_threshold = 3
+
+# Opt-in evidence-pack caption labeler (also needs FOCUS_LLM_ENABLED; API key for
+# openai/anthropic, or FOCUS_LLM_PROVIDER=ollama for local no-key dogfood).
+# Never runs on IDE live-buffer overlay audits.
+[llm]
+captions = false

@@ -84,7 +84,7 @@ When the LLM label pass is enabled (Phase 3+):
 
 | Rule | Rationale |
 |---|---|
-| Send structured graph JSON only — not full source files | Minimize exposure; reduce hallucination surface |
+| Send `CaptionEvidencePack` only (slots + capped edit lines) — not full source files or the full graph | Minimize exposure; reduce hallucination surface |
 | No training opt-out respected per provider policy | User code must not become vendor training data without consent |
 | Validated output only — invalid Mermaid falls back to bullet list | Never post broken or fabricated diagrams |
 | Human-readable summary ≤ 2 sentences | Avoid cognitive overload Focus was built to eliminate |

@@ -150,6 +150,20 @@ def audit(
             help="JSON map of repo-relative paths → unsaved buffer text (IDE live overlay).",
         ),
     ] = None,
+    llm_captions: Annotated[
+        bool,
+        typer.Option(
+            "--llm-captions",
+            help="Force on: evidence-pack LLM captions for all ℹ️ (ollama needs no key; openai/anthropic need FOCUS_LLM_API_KEY).",
+        ),
+    ] = False,
+    no_llm_captions: Annotated[
+        bool,
+        typer.Option(
+            "--no-llm-captions",
+            help="Force off: skip LLM even if FOCUS_LLM_ENABLED / .focus.toml captions is on (IDE autosave / overlay).",
+        ),
+    ] = False,
 ) -> None:
     """Pre-merge blast radius for local changes or a PR branch vs base."""
     overlays: dict[str, str] | None = None
@@ -164,11 +178,32 @@ def audit(
         if not local:
             typer.echo("--overlay-file requires --local")
             raise typer.Exit(1)
+    if llm_captions and no_llm_captions:
+        typer.echo("Use only one of --llm-captions / --no-llm-captions")
+        raise typer.Exit(1)
     try:
+        force_llm: bool | None
+        if llm_captions:
+            force_llm = True
+        elif no_llm_captions:
+            force_llm = False
+        else:
+            force_llm = None
         hud = (
-            audit_local(path, base=base, use_cache=not no_cache, overlays=overlays)
+            audit_local(
+                path,
+                base=base,
+                use_cache=not no_cache,
+                overlays=overlays,
+                llm_captions=force_llm,
+            )
             if local
-            else audit_pr(path, base=base, use_cache=not no_cache)
+            else audit_pr(
+                path,
+                base=base,
+                use_cache=not no_cache,
+                llm_captions=force_llm,
+            )
         )
     except GitDiffError as exc:
         typer.echo(str(exc))

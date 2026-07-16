@@ -21,7 +21,15 @@ from focus.hud.mermaid import render_mermaid, validate_mermaid_edges
 from focus.ingest import changed_files, changed_source_files
 from focus.ingest.diff import DiffMode
 from focus.ingest.symbols import changed_line_ranges, changed_symbols, touches_only_non_symbols
-from focus.models import ChangedSymbolInfo, FocusHUD, ImpactNode, LineExplanation, ModuleFacts, RiskTier
+from focus.llm.settings import resolve_llm_captions
+from focus.models import (
+    ChangedSymbolInfo,
+    FocusHUD,
+    ImpactNode,
+    LineExplanation,
+    ModuleFacts,
+    RiskTier,
+)
 from focus.scan import cache_dir_for, discover_source_files, parse_module_cached
 from focus.triggers import should_emit_diagram
 
@@ -32,16 +40,30 @@ def audit_local(
     *,
     use_cache: bool = True,
     overlays: dict[str, str] | None = None,
+    llm_captions: bool | None = None,
 ) -> FocusHUD:
     """Build a HUD for working-tree changes vs `base`."""
     return run_audit(
-        root, base=base, mode="local", use_cache=use_cache, overlays=overlays
+        root,
+        base=base,
+        mode="local",
+        use_cache=use_cache,
+        overlays=overlays,
+        llm_captions=llm_captions,
     )
 
 
-def audit_pr(root: Path, base: str = "main", *, use_cache: bool = True) -> FocusHUD:
+def audit_pr(
+    root: Path,
+    base: str = "main",
+    *,
+    use_cache: bool = True,
+    llm_captions: bool | None = None,
+) -> FocusHUD:
     """Build a HUD for commits on this branch vs `base` (``base...HEAD``)."""
-    return run_audit(root, base=base, mode="range", use_cache=use_cache)
+    return run_audit(
+        root, base=base, mode="range", use_cache=use_cache, llm_captions=llm_captions
+    )
 
 
 def build_explain_context(
@@ -151,12 +173,18 @@ def run_audit(
     mode: DiffMode = "local",
     use_cache: bool = True,
     overlays: dict[str, str] | None = None,
+    llm_captions: bool | None = None,
 ) -> FocusHUD:
     """Build a HUD for changes vs `base` in local or PR-range mode."""
     root = root.resolve()
     config = load_config(root)
     fan_out = config.fan_out_threshold
     overlays = overlays or {}
+    use_llm = resolve_llm_captions(
+        force=llm_captions,
+        overlays=overlays or None,
+        config=config,
+    )
     all_changed = changed_files(root, base, mode=mode)
     py_changed = changed_source_files(root, base, mode=mode)
     line_ranges = changed_line_ranges(root, base, mode=mode)
@@ -253,6 +281,7 @@ def run_audit(
                 seeds=[],
                 facts_by_path=facts_by_rel,
                 overlay_texts=overlays,
+                llm_captions=use_llm,
             ),
             caveat=DEFAULT_CAVEAT if missing else None,
         ),
@@ -293,6 +322,7 @@ def run_audit(
                 seeds=seeds,
                 facts_by_path=facts_by_rel,
                 overlay_texts=overlays,
+                llm_captions=use_llm,
             ),
         ),
             line_ranges,
@@ -309,6 +339,7 @@ def run_audit(
         fan_out_threshold=fan_out,
         facts_by_path=facts_by_rel,
         overlay_texts=overlays,
+        llm_captions=use_llm,
     ),
         line_ranges,
         facts_by_path=facts_by_rel,
@@ -325,6 +356,7 @@ def _full_audit_hud(
     fan_out_threshold: int,
     facts_by_path: dict[str, ModuleFacts],
     overlay_texts: dict[str, str] | None = None,
+    llm_captions: bool = False,
 ) -> FocusHUD:
     danger, downstream = classify_impacts(
         rings,
@@ -365,6 +397,7 @@ def _full_audit_hud(
         risk=risk,
         facts_by_path=facts_by_path,
         overlay_texts=overlay_texts,
+        llm_captions=llm_captions,
     )
 
     mermaid = render_mermaid(graph, seeds, rings)
@@ -515,6 +548,7 @@ def _enrich_symbols(
     risk: RiskTier = "LOW",
     facts_by_path: dict[str, ModuleFacts] | None = None,
     overlay_texts: dict[str, str] | None = None,
+    llm_captions: bool = False,
 ) -> list[ChangedSymbolInfo]:
     if not symbol_infos:
         return []
@@ -527,6 +561,7 @@ def _enrich_symbols(
         risk=risk,
         facts_by_path=facts_by_path,
         overlay_texts=overlay_texts,
+        llm_captions=llm_captions,
     )
 
 
