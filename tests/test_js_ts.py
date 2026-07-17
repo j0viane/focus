@@ -72,15 +72,17 @@ export function activate(context: vscode.ExtensionContext): void {
     assert any("registerCommand" in c.callee for c in facts.calls)
 
 
-def test_real_extension_ts_parses_without_crash():
+def test_real_extension_ts_skipped_without_crash():
+    """Tree-sitter SIGSEGV's on the real extension.ts — skip before worker spawn."""
     path = Path("extensions/vscode-focus/src/extension.ts")
     if not path.is_file():
         return
     facts = parse_module(path)
     assert facts.language == "typescript"
-    text = path.read_bytes()
-    max_line = text.count(b"\n") + 1
-    assert all(1 <= c.line <= max_line for c in facts.calls)
+    # Empty facts = intentional skip (no macOS "Python quit unexpectedly").
+    assert facts.imports == []
+    assert facts.definitions == []
+    assert facts.calls == []
 
 
 

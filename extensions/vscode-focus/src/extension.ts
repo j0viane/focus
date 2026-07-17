@@ -153,25 +153,9 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
-  whenWorkspaceReady(context, (version) => runAudit(true, version));
-}
-
-function whenWorkspaceReady(
-  context: vscode.ExtensionContext,
-  fn: (extVersion: string) => void | Promise<void>,
-): void {
-  const extVersion = context.extension.packageJSON.version as string;
-  if (vscode.workspace.workspaceFolders?.length) {
-    void fn(extVersion);
-    return;
-  }
-  const sub = vscode.workspace.onDidChangeWorkspaceFolders(() => {
-    if (vscode.workspace.workspaceFolders?.length) {
-      sub.dispose();
-      void fn(extVersion);
-    }
-  });
-  context.subscriptions.push(sub);
+  // Do not auto-audit on window open — Tree-sitter JS workers can SIGSEGV on
+  // some files and macOS pops "Python quit unexpectedly" even when Focus recovers.
+  // Rails still refresh on save / live overlay / explicit Audit Local.
 }
 
 export function deactivate(): void {

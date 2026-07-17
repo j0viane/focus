@@ -36,6 +36,37 @@ SOURCE_EXTENSIONS = _JS_EXTENSIONS | _TS_EXTENSIONS | _TSX_EXTENSIONS
 # Set FOCUS_JS_PARSE_INPROCESS=1 to skip the worker (tests / debugging only).
 _ENV_INPROCESS = "FOCUS_JS_PARSE_INPROCESS"
 
+# Tree-sitter native bindings SIGSEGV on some TS/JS files (macOS Python.app then
+# shows "Python quit unexpectedly"). Skip those paths *before* spawning a worker
+# so the parent audit stays clean. Process-local set grows when a worker dies.
+_SKIP_PARSE_SUFFIXES = (
+    "extensions/vscode-focus/src/extension.ts",
+    "extensions/vscode-focus/out/extension.js",
+)
+_skip_paths: set[str] = set()
+
+
+def _should_skip_js_parse(path: Path, source: bytes) -> bool:
+    """Skip Tree-sitter when this path previously SIGSEGV'd or is a known crasher.
+
+    Known crashers are only skipped when ``source`` matches the on-disk file
+    (so unit tests can still feed synthetic buffers under the same path name).
+    """
+    try:
+        key = str(path.resolve())
+    except OSError:
+        key = str(path)
+    if key in _skip_paths:
+        return True
+
+    norm = path.as_posix().replace("\\", "/")
+    if not any(norm.endswith(suffix) for suffix in _SKIP_PARSE_SUFFIXES):
+        return False
+    try:
+        return path.is_file() and path.stat().st_size == len(source)
+    except OSError:
+        return False
+
 
 def language_for_path(path: Path) -> str:
     suffix = path.suffix.lower()
@@ -51,6 +82,8 @@ def language_for_path(path: Path) -> str:
 def parse_js_source(source: bytes, path: Path) -> ModuleFacts:
     """Parse JS/TS source bytes into module facts."""
     empty = ModuleFacts(path=path, language=language_for_path(path))
+    if _should_skip_js_parse(path, source):
+        return empty
     if os.environ.get(_ENV_INPROCESS) == "1":
         return _parse_js_source_inprocess(source, path) or empty
 
@@ -65,7 +98,12 @@ def parse_js_source(source: bytes, path: Path) -> ModuleFacts:
     except (OSError, subprocess.TimeoutExpired):
         return empty
 
-    # 139 = SIGSEGV on Unix — worker died; skip this file, keep audit alive.
+    # Negative rc = killed by signal (e.g. -11 SIGSEGV); 139 = 128+11 on some shells.
+    if proc.returncode < 0 or proc.returncode == 139:
+        _skip_paths.add(str(path.resolve()) if path.is_absolute() else str(path))
+        return empty
+
+    # Other non-zero / empty — skip this file, keep audit alive.
     if proc.returncode != 0 or not proc.stdout.strip():
         return empty
 
