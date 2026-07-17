@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Focus — Project status (memory / handoff)
 
-**Last updated:** 2026-07-16 (LLM captions merged; Tree-sitter crash-dialog fix in flight)  
+**Last updated:** 2026-07-16 (pin: portable fact ledger; LOW ℹ️ local)  
 **Product:** Focus — evidence-only blast-radius HUD. PyPI `focus-hud`, CLI `focus`, IDE `extensions/vscode-focus`. Repo: `j0viane/focus`.
 
 **Read this first in a new chat.** Update this file when pausing or before switching windows.
@@ -16,18 +16,19 @@ alwaysApply: true
 
 | Item | State |
 |---|---|
-| **Branch** | `fix/js-treesitter-crash-dialog` (after #27 on `main`) |
-| **Extension** | **0.5.9** — no auto-audit on window open; skip known Tree-sitter crash files |
+| **Branch** | `main` |
+| **Extension** | **0.5.10** (local) — LOW still shows ℹ️ captions; no auto-audit on window open; skip known Tree-sitter crash files |
 | **LLM captions** | Merged (#27) — opt-in; `focus.llmCaptions` + Audit Local |
-| **Autosave** | Deterministic only (no LLM) |
+| **Next big bet** | **Phase 4d pinned** — portable fact ledger from *target* repo (see `docs/ROADMAP.md` / `docs/DECISIONS.md`) |
 
 ### Do next
 
-1. Land crash-dialog PR → `./scripts/install-extension.sh` → Reload
-2. Dogfood LLM captions with decision rubric (5–10 symbols)
+1. Commit/PR Option A (LOW ℹ️ + docs pin) when owner asks
+2. Plan mode: Phase 4d — generic edit facts → who → templates → then LLM polish
 3. Optional: `uv tool uninstall focus-hud` (broken global PATH binary)
 
 ### Standing
 
 - No commit/push/PR unless asked
 - Dogfood CLI: `.venv/bin/focus`
+- Captions must stay portable — no Focus-lore special cases

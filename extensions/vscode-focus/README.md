@@ -75,7 +75,7 @@ Risk rail above `def`; ℹ️ describes **this edit** (return, call, import, `Ad
 | Surface | Where |
 |---|---|
 | **Risk rail** | Above each changed `def` / `class` — `{emoji} {RISK} — {who} — {what goes wrong}` (quiet when LOW) |
-| **ℹ️ Purpose** | Above the primary edit — what **this** edit does (edit-shaped: return / call / import / blank count / …) |
+| **ℹ️ caption** | Edit-shaped detail at the change (return / call / import / assign / blank count / …) — **still shown on LOW** (narrate the edit, not the alarm) |
 | **Trust cues** | Hover the **highlighted code** (or click the rail / ℹ️) — ≤2 proven/heuristic cues. CodeLens title tooltips alone are flaky on macOS. |
 | **SCM diff (modified)** | Same rails on the Working Tree right pane (not the base/left side; no tint in diffs) |
 | **Gutter / tint** | Highlight on every git-touched line for that symbol (normal editor only) |

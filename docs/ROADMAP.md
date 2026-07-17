@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 4 **in progress** — IDE CodeLens + HUD panel (`extensions/vscode-focus`). CLI JSON bridge (`--format json`) in **focus-hud 0.2.0+**; junior-readable inline explainers in **0.3.0+**; Phase 4b risk rail / outcome ℹ️ in **0.3.1**; edit-shaped captions in **0.3.2**; live buffer overlay in **0.3.3**; PR comment ROA caps in **0.3.4**; evidence-pack LLM caption labeler in **0.3.5**. Phase 3 complete on PyPI.
+**Current phase:** Phase 4 **in progress** — IDE + evidence-pack LLM captions shipped opt-in (4c). **Phase 4d pinned:** portable fact ledger for scope captions (not shipped). Phase 3 complete on PyPI.
 
 ---
 
@@ -201,6 +201,26 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 3. One run: `focus audit --local --llm-captions` (no overlay). Every changed-symbol caption is a candidate; expect more LLM calls / latency than weak-only.
 4. For each caption that gained `llm_label` evidence, score: invent entity? invent behavior not in pack? better than silence/deterministic?
 5. Accept only if **zero** topology invent and no ungrounded scope/entity slips past validate; otherwise leave default off.
+
+---
+
+## Phase 4d — Portable fact ledger for captions *(pinned)*
+
+**Status:** Design pin only (2026-07-16). Not implemented.
+
+**Problem dogfood surfaced:** Measured ℹ️ often names *edit shape* (`Updates \`weak_hit\` here.`, orphan “outside a function”) without *scope* (what changed in the target code, who uses it). An LLM can invent fluent scope; Focus must not. CEOs’ “AI replaces judgment” narrative does not license ungrounded captions.
+
+**Constraint (non-negotiable):** The ledger is built from the **target codebase** Focus is analyzing — AST + diff + graph for *that* tree. No Focus-specific symbol dictionaries (e.g. special-casing `_WEAK_MARKERS`). The same algorithm must work on a stranger’s repo.
+
+**Direction (ship order when we pick this up):**
+
+1. **Generic edit facts** — literal adds/removes on names, assignment + clipped RHS, return expr, imports; same-file “name `X` read in `f`”.
+2. **Attach who** — importers / local callers from the graph when known.
+3. **Template captions** from those facts (accurate by construction).
+4. **Opt-in LLM labeler** only after 1–3 dogfood — polish English from the richer pack; fail-closed validate unchanged.
+5. **First-class `EditFact` / `UseFact` / `ImpactFact` models** if the pack gets messy (defer).
+
+**Success check:** On any repo, a module-level constant edit reads as defendable scope — not “Edited outside a changed function…” and not insider product jokes.
 
 ---
 

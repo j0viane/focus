@@ -719,7 +719,8 @@ def test_return_slot_beats_curated_purpose(tmp_path: Path):
         risk="LOW",
         facts_by_path={"wire.py": facts},
     )[0]
-    assert enriched.hunk_details[0].detail == "Returns `2`."
+    assert enriched.implication == ""  # LOW: quiet risk rail
+    assert enriched.hunk_details[0].detail == "Returns `2`."  # ℹ️ caption still emits
 
 
 def test_private_helper_skips_shared_hub_implication():

@@ -246,6 +246,9 @@ def _implication_for_symbol(
 
     Quiet when LOW, or when we can't name both who and what goes wrong (ROA).
     Never punch with raw hop/file counts or restating the symbol name.
+
+    LOW silence applies to this *rail only* — edit-shaped ``detail`` /
+    ``hunk_details`` (ℹ️ captions) still emit so the IDE can narrate the change.
     """
     if risk == "LOW":
         return ""

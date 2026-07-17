@@ -84,10 +84,10 @@ function symbolLenses(
   const defLine = definitionLine(sym);
   const lenses: vscode.CodeLens[] = [];
   const implication = sym.implication || "";
-
-  // Risk rail above `def` — quiet when LOW / empty implication (Phase 4b).
-  // Click (not hover) opens trust cues: CodeLens title tooltips are flaky on macOS/Electron.
   const railLine = preferCodeLine(document, defLine);
+
+  // Risk rail above `def` — quiet when implication is empty (LOW, or ROA gaps).
+  // Captions (ℹ️) still show below whenever we have detail — including LOW.
   if (implication) {
     lenses.push(
       new vscode.CodeLens(lensRange(document, railLine), {
@@ -99,6 +99,7 @@ function symbolLenses(
     );
   }
 
+  let captionCount = 0;
   if (inlineExplanationsEnabled()) {
     for (const hunk of hunkDetailsForSymbol(sym)) {
       const raw = editorLine(hunk.line);
@@ -123,11 +124,27 @@ function symbolLenses(
             : "Click for why to trust this · or hover the highlighted code",
         }),
       );
+      captionCount += 1;
+    }
+
+    // Guarantee an ℹ️ when HUD has symbol.detail but no hunk anchors landed
+    // (common on LOW: quiet rail, still narrate the edit).
+    const fallbackDetail = (sym.detail || "").trim();
+    if (captionCount === 0 && fallbackDetail) {
+      lenses.push(
+        new vscode.CodeLens(lensRange(document, railLine), {
+          title: explanationLensTitle(fallbackDetail),
+          command: "focus.showEvidence",
+          arguments: [document.uri, railLine, evidenceMarkdown(sym, fallbackDetail)],
+          tooltip: "Click for why to trust this · or hover the highlighted code",
+        }),
+      );
+      captionCount += 1;
     }
   }
 
-  // Fallback chrome when no implication and no purpose lenses (rare).
-  if (!lenses.length) {
+  // Last-resort badge when we have neither rail nor caption — skip on LOW (ROA).
+  if (!lenses.length && hud.risk_tier !== "LOW") {
     const n = hud.downstream.length;
     const badge = `${FOCUS_BADGE} Focus · ${sym.name} · ${riskEmoji(hud.risk_tier as RiskTier)} ${hud.risk_tier} · ${n} downstream`;
     lenses.push(
