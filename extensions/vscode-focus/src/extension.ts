@@ -35,6 +35,8 @@ let lenses: FocusCodeLensProvider;
 let gutter: FocusGutter;
 let inlineExplanation: InlineExplanation;
 let auditInFlight: Promise<void> | undefined;
+/** Bumped to drop stale background LLM enrich results after a newer audit. */
+let llmEnrichGeneration = 0;
 let autoAuditTimer: ReturnType<typeof setTimeout> | undefined;
 let diffAuditTimer: ReturnType<typeof setTimeout> | undefined;
 let liveOverlayTimer: ReturnType<typeof setTimeout> | undefined;
@@ -332,6 +334,8 @@ async function runAudit(
   }
   const work = (async () => {
     let overlayPath: string | undefined;
+    // Any new audit invalidates an in-flight LLM enrich from an older run.
+    const enrichGen = ++llmEnrichGeneration;
     try {
       if (withOverlay && liveBufferOverlayEnabled()) {
         const payload = collectOverlayPayload(root);
@@ -343,16 +347,57 @@ async function runAudit(
           fs.writeFileSync(overlayPath, JSON.stringify(payload), "utf8");
         }
       }
+      const settingOn = vscode.workspace
+        .getConfiguration("focus")
+        .get<boolean>("llmCaptions", false);
+      // Progressive: always paint deterministic rails first; LLM never blocks autosave.
+      const wantLlmBackground =
+        !quiet && !withOverlay && settingOn && !overlayPath;
+
       const hud = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Window,
           title: "Focus: auditing local changes…",
         },
-        () => auditLocal(root, overlayPath),
+        () =>
+          auditLocal(root, overlayPath, {
+            allowLlm: false,
+          }),
       );
+      if (enrichGen !== llmEnrichGeneration) {
+        return;
+      }
       setHud(hud, root, extVersion);
       if (!quiet) {
         HudPanel.show(hud);
+      }
+
+      if (wantLlmBackground) {
+        statusBar.text = `Focus · ${hud.risk_tier} · labeling…`;
+        statusBar.tooltip = `${hud.summary}\n\nFocus extension v${extVersion}\nLLM captions running in background…`;
+        void (async () => {
+          try {
+            const labeled = await vscode.window.withProgress(
+              {
+                location: vscode.ProgressLocation.Window,
+                title: "Focus: labeling captions (LLM)…",
+              },
+              () => auditLocal(root, undefined, { allowLlm: true }),
+            );
+            if (enrichGen !== llmEnrichGeneration) {
+              return;
+            }
+            setHud(labeled, root, extVersion);
+          } catch (err) {
+            if (enrichGen !== llmEnrichGeneration) {
+              return;
+            }
+            // Keep deterministic rails; surface quietly.
+            reportError(err, true);
+            statusBar.text = `Focus · ${hud.risk_tier}`;
+            statusBar.tooltip = `${hud.summary}\n\nFocus extension v${extVersion}`;
+          }
+        })();
       }
     } catch (err) {
       reportError(err, quiet);

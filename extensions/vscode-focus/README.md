@@ -16,7 +16,7 @@ From repo root:
 ./scripts/install-extension.sh
 ```
 
-Installs editable `focus-hud` + packages extension 0.5.3+. Then **Reload Window**.
+Installs editable `focus-hud` + packages extension 0.5.4+. Then **Reload Window**.
 
 ## Develop
 
@@ -94,4 +94,5 @@ Toggle gutter: `focus.gutter`. Toggle inline explainers: `focus.inlineExplanatio
 | `focus.inlineExplanations` | ℹ️ purpose rows on edit blocks (default `true`) |
 | `focus.autoAuditOnSave` | After Save, quietly re-audit and refresh CodeLens (default `true`) |
 | `focus.liveBufferOverlay` | While editing (dirty buffer), quietly re-audit via overlay — no Save needed (default `true`) |
+| `focus.llmCaptions` | Opt-in: on **Focus: Audit Local**, show deterministic rails immediately then LLM-label captions in the background (parallel; never autosave / overlay). Needs `FOCUS_LLM_API_KEY` or `FOCUS_LLM_PROVIDER=ollama`. |
 | `focus.lensFontSize` | CodeLens size: `0` = editor default, `-1` = match `editor.fontSize` |

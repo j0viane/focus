@@ -1,0 +1,32 @@
+---
+description: Focus project status handoff — current branch, versions, what to do next (update when pausing)
+alwaysApply: true
+---
+
+# Focus — Project status (memory / handoff)
+
+**Last updated:** 2026-07-15 (quiet test ℹ️ + weaker name-soup; ext **0.5.8**)  
+**Product:** Focus — evidence-only blast-radius HUD. PyPI `focus-hud`, CLI `focus`, IDE `extensions/vscode-focus`. Repo: `j0viane/focus`.
+
+**Read this first in a new chat.** Update this file when pausing or before switching windows.
+
+---
+
+## Where we are right now
+
+| Item | State |
+|---|---|
+| **Branch** | `feat/llm-caption-labeler` |
+| **Extension** | **0.5.6** — deterministic rails first; LLM captions background + parallel (`FOCUS_LLM_CONCURRENCY` default 4) |
+| **Autosave** | Always `--no-llm-captions` (fast) |
+| **LLM dogfood** | `focus.llmCaptions=true` → Audit Local → rails now, labels refresh when ready |
+
+### Do next
+
+1. Reload → confirm v0.5.6 → dogfood progressive Audit Local with `focus.llmCaptions`
+2. Commit / PR **only when owner asks**
+
+### Standing
+
+- No commit/push/PR unless asked
+- Dogfood CLI: `.venv/bin/focus`

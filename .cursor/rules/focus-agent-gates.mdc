@@ -1,0 +1,17 @@
+---
+description: Focus agent hard gates — STOP checks before coding (short, always on)
+alwaysApply: true
+---
+
+# Focus — Agent hard gates (always)
+
+Before writing Focus code, confirm out loud (or AskQuestion):
+
+1. **STOP** if a choice touches LLM boundary, graph topology, triggers, or ROA — options table + wait.
+2. **Always teach** — one major concept per session first (Mermaid OK). Explain before you execute; Joviane must understand what you are doing. No black-box PR-sized drops. Hooks + `upskilling.mdc` enforce this globally.
+3. **Impact bar:** who / decision / silence better? / one home / proven-or-labeled.
+4. **LLM:** measure-first. Captions stay opt-in. Do not enable until owner dogfoods captions in the Focus window. Never send full files; packs only; never on live overlay.
+5. If an engineering rule conflicts with a plan → **stop and ask**. Do not silently pick the plan.
+6. End session: what shipped, why, how to defend it in an interview.
+
+Canonical detail: `focus-engineering.mdc` + `focus-mentorship.mdc`.

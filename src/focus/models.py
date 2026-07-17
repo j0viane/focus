@@ -69,6 +69,7 @@ EvidenceKind = Literal[
     "heuristic_path",
     "symbol_registry",
     "test_module",
+    "llm_label",
 ]
 
 

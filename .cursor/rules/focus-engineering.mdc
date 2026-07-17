@@ -27,7 +27,7 @@ These are non-negotiable. If a task appears to require breaking one of these rul
 
 10. **Parse cache is optional, correctness is not.** File-hash AST caches may speed repeat runs but must invalidate on content change. Never serve stale graph data silently.
 
-11. **Privacy-by-design.** Respect `.gitignore` and `.focusignore`. Never parse, log, or transmit `.env`, keys, or credential files. LLM calls (when enabled) receive structured graph JSON only — not full source files. See `docs/PRIVACY.md`.
+11. **Privacy-by-design.** Respect `.gitignore` and `.focusignore`. Never parse, log, or transmit `.env`, keys, or credential files. LLM calls (when enabled) receive a structured **`CaptionEvidencePack` only** — measured slots, allowed tokens, implication who/what, and **capped changed edit-line snippets** — never full source files and never the full dependency graph. Topology stays deterministic; labels are fail-closed against the pack. See `docs/PRIVACY.md`.
 
 12. **No surveillance features.** Do not build developer identity tracking, blame metrics, merge gates, or management dashboards. Focus analyzes code structure for review aid only. See `docs/ETHICS.md`.
 

@@ -37,23 +37,29 @@ Focus operates on **source code the user already has access to** — local clone
 
 ---
 
-## LLM data policy (Phase 3+)
+## LLM data policy (Phase 4c+)
 
-When LLM labeling is enabled:
+When evidence-pack caption labeling is enabled (`FOCUS_LLM_ENABLED` / `--llm-captions` / `.focus.toml [llm] captions`):
 
 | Sent to LLM | Never sent |
 |---|---|
-| Structured graph JSON (node IDs, edge kinds, hop counts) | Full file contents |
-| Symbol names and file paths (already in repo) | `.env` values, API keys, JWT secrets |
-| 1–2 sentence intent hint from diff summary | Raw git patches with embedded secrets |
-| Danger Zone labels (API, schema, etc.) | Entire repository tarball |
+| `CaptionEvidencePack` JSON: symbol path/name, risk tier, implication who/what (already computed) | Full file contents / whole buffers |
+| Capped changed edit lines only (~20 lines / ~1.5k chars) | `.env` values, API keys, JWT secrets |
+| Measured slots (return/assign/callees/imports/blanks) + deterministic caption | Raw git patches with embedded secrets |
+| Allowed token list (names the model may mention) | Entire repository tarball / full dependency graph |
 
-**Default recommendation:** LLM pass is **opt-in** per repo via config flag.
+**Still never invented by the model:** dependency edges, Mermaid nodes, hop counts, or risk tiers.
+
+**Fail-closed label validation:** After the provider returns a caption, Focus keeps the deterministic ℹ️ unless the label clears pack grounding — no hop counts, no wrong risk word, no ``names`` / CamelCase / snake_case entities absent from the pack corpus, and no caller/downstream/depends claims unless implication (or other pack fields) already supports them. See `validate_label` in `src/focus/llm/validate.py`.
+
+**Default:** off. Live-buffer overlay audits never call the labeler (latency + cost).
 
 Provider requirements:
 
-- Use API endpoints with **no training** / enterprise privacy terms when analyzing private code
+- **Ollama (local dogfood):** `FOCUS_LLM_PROVIDER=ollama` — pack stays on-machine; no paid key. Default model `qwen2.5:7b`.
+- Cloud (`openai` / `anthropic`): use API endpoints with **no training** / enterprise privacy terms when analyzing private code
 - Document provider choice in repo README when Action is configured
+- Abort the call and keep the deterministic caption if secret-like patterns appear in edit lines
 
 ---
 

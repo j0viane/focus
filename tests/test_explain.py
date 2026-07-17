@@ -1275,3 +1275,65 @@ def test_symbol_evidence_on_enrich_is_inline_compact(tmp_path: Path):
     # Full trail still available on clauses for --why.
     clause_facts = [e for c in explained.clauses for e in c.evidence]
     assert len(clause_facts) >= len(explained.symbol.evidence)
+
+
+def test_purpose_quiets_name_soup_and_test_modules():
+    from focus.hud.explain import (
+        _class_purpose,
+        _purpose_is_strong_outcome,
+        _symbol_purpose_with_evidence,
+    )
+
+    assert (
+        _purpose_is_strong_outcome(
+            "Is an automated test that raise for status still works.",
+            "raise_for_status",
+        )
+        is False
+    )
+    assert (
+        _purpose_is_strong_outcome(
+            "Other modules instantiate or subclass this class.",
+            "_FakeHttp",
+        )
+        is False
+    )
+    assert (
+        _purpose_is_strong_outcome(
+            "Is a client for talking to open ai.",
+            "OpenAIClient",
+        )
+        is False
+    )
+
+    client = _class_purpose(
+        "OpenAIClient",
+        "openaiclient",
+        "open_ai_client",
+        "src/focus/llm/clients.py",
+        "/src/focus/llm/clients.py/",
+    )
+    assert "talks to" in client.lower()
+    assert "talking to" not in client.lower()
+
+    fake = _class_purpose(
+        "_FakeHttp",
+        "_fakehttp",
+        "_fake_http",
+        "tests/test_x.py",
+        "/tests/test_x.py/",
+    )
+    assert fake == ""
+
+    purpose, _ = _symbol_purpose_with_evidence(
+        ChangedSymbolInfo(
+            path="tests/test_x.py",
+            name="test_foo",
+            kind="function",
+            line=1,
+            changed_lines=[1],
+        ),
+        "tests/test_x.py",
+        None,
+    )
+    assert purpose == ""

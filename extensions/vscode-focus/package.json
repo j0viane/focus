@@ -2,7 +2,7 @@
   "name": "focus-hud",
   "displayName": "Focus",
   "description": "Blast radius you can defend — evidence-only Focus HUD in the editor.",
-  "version": "0.5.3",
+  "version": "0.5.8",
   "publisher": "j0viane",
   "engines": {
     "vscode": "^1.85.0"
@@ -85,6 +85,11 @@
           "type": "boolean",
           "default": true,
           "description": "While you edit (even before Save), quietly re-audit using the unsaved buffer so CodeLens tracks what you see."
+        },
+        "focus.llmCaptions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Opt-in: after Focus: Audit Local, show deterministic rails immediately then LLM-label captions in the background (never on autosave / overlay). Needs FOCUS_LLM_API_KEY for openai/anthropic, or FOCUS_LLM_PROVIDER=ollama with local Ollama."
         }
       }
     }
