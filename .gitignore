@@ -54,3 +54,7 @@ Thumbs.db
 .cursor/rules/focus.mdc
 .cursor/rules/focus-mentorship.mdc
 .cursor/rules/focus-learning.mdc
+
+# --- Private Cursor hooks (canonical copy in ~/Cursor/cursor-rules/focus/) ---
+.cursor/hooks.json
+.cursor/hooks/
