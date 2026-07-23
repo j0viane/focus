@@ -659,6 +659,41 @@ def test_collapse_identical_hunk_purpose_to_one(tmp_path: Path):
     assert "enrich_changed_symbols" in enriched.hunk_details[0].detail
 
 
+def test_line_of_sight_keeps_signature_and_body_when_facts_differ(tmp_path: Path):
+    """Def-line param + body assign → two ℹ️s (line-of-sight), not body-only silence."""
+    path = tmp_path / "sight.py"
+    path.write_text(
+        "def helper(x, llm_captions: bool = False):\n"
+        "    pass\n"
+        "    orphans = apply_llm_line_captions(orphans)\n"
+    )
+    facts = parse_module(path)
+    sym = ChangedSymbolInfo(
+        path="sight.py",
+        name="helper",
+        kind="function",
+        line=1,
+        # Non-contiguous: signature vs body (ROA collapse would drop def otherwise).
+        changed_lines=[1, 3],
+    )
+    enriched = enrich_changed_symbols(
+        [sym],
+        graph=nx.DiGraph(),
+        seeds=["sight.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"sight.py": facts},
+    )[0]
+    assert len(enriched.hunk_details) == 2
+    details = {d.line: d.detail for d in enriched.hunk_details}
+    assert 1 in details
+    assert "parameters" in details[1].lower()
+    assert 3 in details
+    assert details[3].lower().startswith("updates `") or details[3].lower().startswith(
+        "sets `"
+    )
+
 def test_multi_hunk_collapses_to_symbol_outcome_when_purpose_strong(tmp_path: Path):
     """Call-only hunks + curated purpose → one outcome ℹ️ (slots would win if present)."""
     path = tmp_path / "wire.py"
@@ -1043,6 +1078,27 @@ def test_import_caption_for_orphan_lines():
         caption_for_orphan_edit(["", "", ""])
         == "Added 3 blank lines."
     )
+
+
+def test_orphan_module_constant_gets_reader_scope():
+    """Phase 4d: module-constant orphan names a same-file reader, not the fallback."""
+    from focus.hud.explain import caption_for_orphan_edit
+
+    source = (
+        "THRESHOLD = 10\n"
+        "\n"
+        "def gate(value: int) -> bool:\n"
+        "    return value >= THRESHOLD\n"
+    )
+    caption = caption_for_orphan_edit(
+        ["THRESHOLD = 25"],
+        hunk_lines=[1],
+        source_text=source.replace("THRESHOLD = 10", "THRESHOLD = 25"),
+        changed_path="pkg/policy.py",
+    )
+    assert "Edited outside a changed function" not in caption
+    assert "Sets `THRESHOLD` to `25`" in caption
+    assert "read by `gate`" in caption
 
 
 def test_blank_run_dropped_when_code_hunk_exists(tmp_path: Path):

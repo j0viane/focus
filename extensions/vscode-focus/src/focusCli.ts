@@ -129,6 +129,11 @@ export type AuditLocalOptions = {
    * even when FOCUS_LLM_ENABLED=true in `.env`.
    */
   allowLlm?: boolean;
+  /**
+   * Repo-relative paths to label first (visible-file-first). When set with
+   * allowLlm, passes `--llm-path` so only those files hit the model.
+   */
+  llmPaths?: string[];
 };
 
 export async function auditLocal(
@@ -150,6 +155,12 @@ export async function auditLocal(
   const wantLlm = Boolean(options?.allowLlm) && settingOn && !overlayFile;
   if (wantLlm) {
     args.push("--llm-captions");
+    for (const rel of options?.llmPaths ?? []) {
+      const cleaned = rel.replace(/\\/g, "/").replace(/^\.\//, "");
+      if (cleaned) {
+        args.push("--llm-path", cleaned);
+      }
+    }
   }
   const stdout = await runFocus(args, root);
   return parseHudJson(stdout);

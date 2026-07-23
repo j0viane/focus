@@ -45,7 +45,7 @@ Technology choices for Phase 1–3. **Locked at Phase 0 exit** — change only v
 | `FOCUS_LLM_API_KEY` | No* | 4c | Opt-in caption labeler (*required for openai/anthropic; optional for ollama) |
 | `FOCUS_LLM_PROVIDER` | No | 4c | `openai` \| `anthropic` \| `ollama` (default `openai`) |
 | `FOCUS_LLM_ENABLED` | No | 4c | Default `false` — also `.focus.toml [llm] captions` |
-| `FOCUS_LLM_MODEL` | No | 4c | Optional model id (ollama default `qwen2.5:7b`) |
+| `FOCUS_LLM_MODEL` | No | 4c | Optional model id (ollama default `qwen2.5-coder:3b`) |
 | `FOCUS_LLM_BASE_URL` | No | 4c | OpenAI-compatible base (ollama default `http://127.0.0.1:11434/v1`) |
 | `FOCUS_LLM_CONCURRENCY` | No | 4c | Parallel caption labels (default `4`, max `16`) |
 | `GITHUB_TOKEN` | Action only | 3 | Provided by Actions runtime |
