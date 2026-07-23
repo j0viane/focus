@@ -300,6 +300,18 @@ function collectOverlayPayload(root: string): Record<string, string> | undefined
   return Object.keys(overlays).length ? overlays : undefined;
 }
 
+function activeEditorRelPath(root: string): string | undefined {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.uri.scheme !== "file") {
+    return undefined;
+  }
+  const rel = path.relative(root, editor.document.uri.fsPath).split(path.sep).join("/");
+  if (!rel || rel.startsWith("..")) {
+    return undefined;
+  }
+  return rel;
+}
+
 async function runAudit(
   quiet = false,
   extVersion = "dev",
@@ -361,6 +373,26 @@ async function runAudit(
         statusBar.tooltip = `${hud.summary}\n\nFocus extension v${extVersion}\nLLM captions running in background…`;
         void (async () => {
           try {
+            // Visible-file-first: label the open file ASAP, then the rest.
+            const activeRel = activeEditorRelPath(root);
+            if (activeRel) {
+              const first = await vscode.window.withProgress(
+                {
+                  location: vscode.ProgressLocation.Window,
+                  title: "Focus: labeling open file (LLM)…",
+                },
+                () =>
+                  auditLocal(root, undefined, {
+                    allowLlm: true,
+                    llmPaths: [activeRel],
+                  }),
+              );
+              if (enrichGen !== llmEnrichGeneration) {
+                return;
+              }
+              setHud(first, root, extVersion);
+              statusBar.text = `Focus · ${first.risk_tier} · labeling…`;
+            }
             const labeled = await vscode.window.withProgress(
               {
                 location: vscode.ProgressLocation.Window,

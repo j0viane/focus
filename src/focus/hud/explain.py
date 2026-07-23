@@ -1016,6 +1016,8 @@ def _is_shaped_edit_caption(detail: str) -> bool:
         return True
     if lower.startswith("updates `") or lower.startswith("sets `"):
         return True
+    if lower.startswith("changes this function's parameters"):
+        return True
     if lower.startswith("adds this ") or lower.startswith("adds a new item"):
         return True
     if lower.startswith("uses the node's name") or lower.startswith("keeps the first line"):
@@ -1111,6 +1113,10 @@ def _caption_for_edit_block(
     if assigned:
         return assigned
 
+    signature = _signature_detail_for_lines(run_text, symbol_name=symbol_name)
+    if signature:
+        return signature
+
     proven = _proven_detail_for_hunk(facts, hunk_lines, symbol_name=symbol_name)
     if proven:
         return proven
@@ -1159,8 +1165,26 @@ def caption_for_orphan_edit(
     *,
     facts: ModuleFacts | None = None,
     hunk_lines: list[int] | None = None,
+    source_text: str | None = None,
+    changed_path: str = "",
+    facts_by_path: dict[str, ModuleFacts] | None = None,
 ) -> str:
-    """Same caption ladder for diffs outside a changed function/class body."""
+    """Same caption ladder for diffs outside a changed function/class body.
+
+    When ``source_text`` is available, Phase 4d module-assign scope captions
+    (def–use + importers) beat edit-shape-only text.
+    """
+    from focus.hud.edit_facts import caption_for_overlapping_module_assign
+
+    scoped = caption_for_overlapping_module_assign(
+        source_text=source_text or "",
+        hunk_lines=hunk_lines or [],
+        changed_path=changed_path or (str(facts.path) if facts is not None else ""),
+        facts_by_path=facts_by_path,
+    )
+    if scoped:
+        return scoped
+
     caption = _caption_for_edit_block(
         run_text,
         facts=facts,
@@ -1380,6 +1404,90 @@ def _pick_slot_hunk(slots: list[HunkDetail], symbol_line: int) -> HunkDetail:
     )
 
 
+def _signature_detail_for_lines(lines: list[str], *, symbol_name: str) -> str | None:
+    """Caption for def-header edits (new params / defaults) — not body statements."""
+    if not symbol_name or not lines:
+        return None
+    joined = "\n".join(lines)
+    def_re = re.compile(
+        rf"^\s*(async\s+)?def\s+{re.escape(symbol_name)}\b",
+        re.MULTILINE,
+    )
+    if not def_re.search(joined):
+        return None
+    for raw in lines:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if def_re.match(raw):
+            continue
+        # Continuation of a multi-line signature.
+        if stripped.endswith((",", "\\")) or stripped.startswith(")"):
+            continue
+        if stripped == ":" or stripped.endswith("):") or stripped.endswith(") ->"):
+            continue
+        # Docstring / type-comment only — still signature-adjacent.
+        if stripped.startswith(('"""', "'''", "# type:")):
+            continue
+        # Any real body statement means this hunk is not signature-only.
+        return None
+    return "Changes this function's parameters or defaults."
+
+
+def _is_signature_caption(detail: str) -> bool:
+    return detail.lower().startswith("changes this function's parameters")
+
+
+def _touches_def_line(hunk: HunkDetail, symbol_line: int) -> bool:
+    touched = hunk.changed_lines or [hunk.line]
+    return symbol_line in touched
+
+
+def _same_outcome_fact(a: str, b: str) -> bool:
+    """True when two captions teach the same structural outcome (ROA collapse)."""
+    if not a or not b:
+        return False
+    if a.strip() == b.strip():
+        return True
+    fam_a = _structural_family(a)
+    fam_b = _structural_family(b)
+    if fam_a and fam_a == fam_b:
+        return True
+    if _is_signature_caption(a) and _is_signature_caption(b):
+        return True
+    if _is_return_or_assign_caption(a) and _is_return_or_assign_caption(b):
+        return True
+    if _is_call_site_detail(a) and _is_call_site_detail(b):
+        return _call_bare_from_detail(a) == _call_bare_from_detail(b)
+    return False
+
+
+def _with_line_of_sight_companions(
+    winners: list[HunkDetail],
+    details: list[HunkDetail],
+    symbol_line: int,
+) -> list[HunkDetail]:
+    """Keep one def-line ℹ️ when it teaches a different fact from the body winner.
+
+    Dogfood: looking at a new parameter must not be silent while the assign
+    hunk owns the single collapsed caption.
+    """
+    if not winners:
+        return winners
+    # Def line already has a caption among winners — no companion needed.
+    if any(_touches_def_line(w, symbol_line) for w in winners):
+        return winners
+    for detail in details:
+        if not _touches_def_line(detail, symbol_line):
+            continue
+        if not detail.detail:
+            continue
+        if any(_same_outcome_fact(detail.detail, w.detail) for w in winners):
+            continue
+        return sorted([*winners, detail], key=lambda d: d.line)
+    return winners
+
+
 def _collapse_hunk_details_to_outcomes(
     details: list[HunkDetail],
     *,
@@ -1392,6 +1500,7 @@ def _collapse_hunk_details_to_outcomes(
 
     Litmus (Phase 4b): if deleting an ℹ️ loses no new fact → delete it.
     Exception: function-vs-class structural cues on the same symbol stay separate.
+    Exception (line-of-sight): signature/def-line hunks stay when body fact differs.
 
     Curated docstring / registry outcomes may replace call-site chrome. Heuristic
     file/name purpose must not — that stole ``enrich_changed_symbols`` in dogfood.
@@ -1431,13 +1540,14 @@ def _collapse_hunk_details_to_outcomes(
     # Expression slots (return/assign) are the edit the author is looking at.
     if slot_rows:
         slot = _pick_slot_hunk(slot_rows, symbol_line)
-        return [
+        winners = [
             HunkDetail(
                 line=slot.line,
                 changed_lines=slot.changed_lines,
                 detail=slot.detail,
             )
         ]
+        return _with_line_of_sight_companions(winners, details, symbol_line)
 
     if (
         use_outcome
@@ -1464,13 +1574,14 @@ def _collapse_hunk_details_to_outcomes(
             chosen = purpose_outcome
         else:
             chosen = primary.detail or ""
-    return [
+    winners = [
         HunkDetail(
             line=primary.line,
             changed_lines=primary.changed_lines,
             detail=chosen,
         )
     ]
+    return _with_line_of_sight_companions(winners, details, symbol_line)
 
 
 def _finalize_single_hunk_detail(
@@ -1549,6 +1660,7 @@ def enrich_changed_symbols(
     facts_by_path: dict[str, ModuleFacts] | None = None,
     overlay_texts: dict[str, str] | None = None,
     llm_captions: bool = False,
+    llm_paths: set[str] | None = None,
 ) -> list[ChangedSymbolInfo]:
     """Attach inline explanations to each changed symbol."""
     if not symbols:
@@ -1570,7 +1682,11 @@ def enrich_changed_symbols(
     if use_llm:
         from focus.llm.labeler import apply_llm_captions
 
-        explained = apply_llm_captions(explained, context=context)
+        explained = apply_llm_captions(
+            explained,
+            context=context,
+            path_filter=llm_paths,
+        )
     return [item.symbol for item in explained]
 
 

@@ -34,7 +34,7 @@ class LlmSettings(BaseSettings):
         description="OpenAI-compatible base URL (Ollama default when provider=ollama).",
     )
     concurrency: int = Field(
-        default=4,
+        default=8,
         ge=1,
         le=16,
         description="Max parallel caption label requests (FOCUS_LLM_CONCURRENCY).",

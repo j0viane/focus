@@ -14,7 +14,7 @@ Resolved open questions from ethics, privacy, and planning reviews.
 | LLM caption labeler (evidence pack) | **Shipped opt-in (Phase 4c / 0.3.5)** | Labels **all** ℹ️ when enabled (incl. blank-line); never invents topology; fail-closed validate. See [`PRIVACY.md`](PRIVACY.md) |
 | LLM pack payload vs engineering rule 11 | **Capped edit lines + measured slots** (never full files / never full graph) | Aligns product with PRIVACY; topology stays deterministic |
 | Grounded caption validate before enable | **Fail-closed `validate_label`** | Reject hops, wrong risk, ungrounded identifiers/scope claims; keep deterministic on reject |
-| No-key caption dogfood provider | **Ollama** (OpenAI-compatible localhost; default `qwen2.5:7b`) | Free local try without paid OpenAI/Anthropic key; pack stays on-machine |
+| No-key caption dogfood provider | **Ollama** (OpenAI-compatible localhost; default `qwen2.5-coder:3b`, fallback `qwen2.5-coder:7b`) | Free local try; 3B for detail+latency on many short captions; 7B if meaning feels shallow |
 | Portable caption facts (target repo) | **Pinned — not shipped** | Captions must speak from a **generic fact ledger** extracted from *whatever codebase Focus is pointed at* (edit + same-file uses + graph who) — never Focus-product lore. See [`ROADMAP.md`](ROADMAP.md) Phase 4d pin |
 | Fixture repo license | MIT for `tests/fixtures/` (same as Focus) | Clear redistribution for open-source / portfolio adoption |
 | Project license | **MIT** (briefly tried GPL-3.0 for copyleft, reverted for adoption) | Credit via copyright notice; maximize try/fork friction-free use |

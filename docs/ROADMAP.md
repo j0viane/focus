@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 4 **in progress** — IDE + evidence-pack LLM captions shipped opt-in (4c). **Phase 4d pinned:** portable fact ledger for scope captions (not shipped). Phase 3 complete on PyPI.
+**Current phase:** Phase 4 **in progress** — IDE + evidence-pack LLM captions shipped opt-in (4c). **Phase 4d thin slice** (module-constant def–use captions) implemented locally — not committed yet. Phase 3 complete on PyPI.
 
 ---
 
@@ -191,36 +191,36 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 **Dogfood checklist (all captions when enabled, before leaving on by default):**
 
 1. Unit grounding tests green (`tests/test_llm_labeler.py`).
-2. **Preferred no-key path:** install [Ollama](https://ollama.com), `ollama pull qwen2.5:7b`, local `.env` (never commit):
+2. **Preferred no-key path:** install [Ollama](https://ollama.com), `ollama pull qwen2.5-coder:3b`, local `.env` (never commit):
    ```
    FOCUS_LLM_ENABLED=true
    FOCUS_LLM_PROVIDER=ollama
-   FOCUS_LLM_MODEL=qwen2.5:7b
+   FOCUS_LLM_MODEL=qwen2.5-coder:3b
    ```
-   Or cloud: `FOCUS_LLM_API_KEY` + `openai`/`anthropic`. Keep default off in committed configs.
+   Quality fallback: `qwen2.5-coder:7b`. Or cloud: `FOCUS_LLM_API_KEY` + `openai`/`anthropic`. Keep default off in committed configs.
 3. One run: `focus audit --local --llm-captions` (no overlay). Every changed-symbol caption is a candidate; expect more LLM calls / latency than weak-only.
 4. For each caption that gained `llm_label` evidence, score: invent entity? invent behavior not in pack? better than silence/deterministic?
 5. Accept only if **zero** topology invent and no ungrounded scope/entity slips past validate; otherwise leave default off.
 
 ---
 
-## Phase 4d — Portable fact ledger for captions *(pinned)*
+## Phase 4d — Portable fact ledger for captions *(thin slice local)*
 
-**Status:** Design pin only (2026-07-16). Not implemented.
+**Status:** Thin slice implemented locally (2026-07-22) — module-level assign + same-file readers + importers → template orphan captions. Kill-or-keep PASS on Focus + stranger fixture. Not committed/PR'd yet.
 
 **Problem dogfood surfaced:** Measured ℹ️ often names *edit shape* (`Updates \`weak_hit\` here.`, orphan “outside a function”) without *scope* (what changed in the target code, who uses it). An LLM can invent fluent scope; Focus must not. CEOs’ “AI replaces judgment” narrative does not license ungrounded captions.
 
 **Constraint (non-negotiable):** The ledger is built from the **target codebase** Focus is analyzing — AST + diff + graph for *that* tree. No Focus-specific symbol dictionaries (e.g. special-casing `_WEAK_MARKERS`). The same algorithm must work on a stranger’s repo.
 
-**Direction (ship order when we pick this up):**
+**Direction (ship order):**
 
-1. **Generic edit facts** — literal adds/removes on names, assignment + clipped RHS, return expr, imports; same-file “name `X` read in `f`”.
-2. **Attach who** — importers / local callers from the graph when known.
-3. **Template captions** from those facts (accurate by construction).
-4. **Opt-in LLM labeler** only after 1–3 dogfood — polish English from the richer pack; fail-closed validate unchanged.
+1. **Generic edit facts** — ~~module-level assign + clipped RHS + same-file readers~~ *(done in `src/focus/hud/edit_facts.py`)*; more edit shapes later.
+2. **Attach who** — ~~importers from `facts_by_path`~~ *(done for module names)*; expand as needed.
+3. **Template captions** from those facts *(done for orphan module assigns)*.
+4. **Opt-in LLM labeler** — orphan packs can carry readers/importers/reader_doc for polish; **happy path must not wait on the model** (owner dogfood: local Ollama latency unacceptable for all-line captions). Prefer richer ledger templates first.
 5. **First-class `EditFact` / `UseFact` / `ImpactFact` models** if the pack gets messy (defer).
 
-**Success check:** On any repo, a module-level constant edit reads as defendable scope — not “Edited outside a changed function…” and not insider product jokes.
+**Success check:** On any repo, a module-level constant edit reads as defendable scope — not “Edited outside a changed function…” and not insider product jokes. *(Ledger thin slice verified: Focus `_WEAK_MARKERS` → `is_weak_caption` and stranger `RETRY_LIMIT` → `charge`.)*
 
 ---
 

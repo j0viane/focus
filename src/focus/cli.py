@@ -164,6 +164,16 @@ def audit(
             help="Force off: skip LLM even if FOCUS_LLM_ENABLED / .focus.toml captions is on (IDE autosave / overlay).",
         ),
     ] = False,
+    llm_path: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--llm-path",
+            help=(
+                "With --llm-captions: only label captions in these repo-relative paths "
+                "(visible-file-first). Repeatable. Omit to label all non-test captions."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Pre-merge blast radius for local changes or a PR branch vs base."""
     overlays: dict[str, str] | None = None
@@ -181,6 +191,9 @@ def audit(
     if llm_captions and no_llm_captions:
         typer.echo("Use only one of --llm-captions / --no-llm-captions")
         raise typer.Exit(1)
+    path_filter: set[str] | None = None
+    if llm_path:
+        path_filter = {p.replace("\\", "/").lstrip("./") for p in llm_path if p.strip()}
     try:
         force_llm: bool | None
         if llm_captions:
@@ -196,6 +209,7 @@ def audit(
                 use_cache=not no_cache,
                 overlays=overlays,
                 llm_captions=force_llm,
+                llm_paths=path_filter,
             )
             if local
             else audit_pr(
@@ -203,6 +217,7 @@ def audit(
                 base=base,
                 use_cache=not no_cache,
                 llm_captions=force_llm,
+                llm_paths=path_filter,
             )
         )
     except GitDiffError as exc:
