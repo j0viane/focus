@@ -1,0 +1,26 @@
+---
+description: Focus PR test plan — agent must execute automatable checkboxes and update the PR body
+alwaysApply: true
+---
+
+# Focus — PR Test plan (always)
+
+When a Focus PR exists or is being opened, **own the Test plan**. Do not leave a full unchecked list for Joviane.
+
+## Must do (agent)
+
+1. Run every automatable checkbox (pytest, CLI dogfood, code-path / opt-in / overlay proofs).
+2. Mark `[x]` in the PR body with one-line evidence (`gh pr create` or `gh pr edit`).
+3. Leave unchecked only true owner-only items (IDE click, subjective caption feel). Label those *(owner)*.
+
+## Focus defaults (use unless the PR plan says otherwise)
+
+| Agent runs | Owner only |
+|---|---|
+| `.venv/bin/python -m pytest -q` | Focus window / CodeLens paint order |
+| `.venv/bin/focus audit --local …` (incl. `--llm-captions` when the plan says) | Subjective ℹ️ quality |
+| Confirm no `.env` / private settings in the diff; opt-in + never on overlay | — |
+
+**Never** open or leave a Focus PR with a full unchecked plan if those commands were runnable.
+
+Canonical global wording: private `cursor-rules` → `rules/pr-test-plan.mdc` (same duty, all projects).
