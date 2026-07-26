@@ -14,5 +14,6 @@ Before writing Focus code, confirm out loud (or AskQuestion):
 5. If an engineering rule conflicts with a plan → **stop and ask**. Do not silently pick the plan.
 6. End session: what shipped, why, how to defend it in an interview.
 7. **PR Test plan:** if a PR exists or is being opened, run every automatable checkbox, mark `[x]` with evidence (`gh pr edit` / create), leave only *(owner)* items. See `focus-pr-test-plan.mdc`.
+8. **README honesty:** if the change is user-visible, update root `README.md` and/or `extensions/vscode-focus/README.md` (versions, install pins, flags, phases, privacy) — global duty in `readme-honesty.mdc`. Be honest about PyPI vs this checkout.
 
 Canonical detail: `focus-engineering.mdc` + `focus-mentorship.mdc`.

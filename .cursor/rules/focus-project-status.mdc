@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Focus — Project status (memory / handoff)
 
-**Last updated:** 2026-07-22 (Phase 4d + fast accurate captions: coder:3b, cache, visible-file-first, line-of-sight)  
+**Last updated:** 2026-07-26 (#29 merged — Phase 4d + caption latency on main)  
 **Product:** Focus — evidence-only blast-radius HUD. PyPI `focus-hud`, CLI `focus`, IDE `extensions/vscode-focus`. Repo: `j0viane/focus`.
 
 **Read this first in a new chat.** Update this file when pausing or before switching windows.
@@ -16,38 +16,28 @@ alwaysApply: true
 
 | Item | State |
 |---|---|
-| **Branch** | `main` (local uncommitted: Phase 4d + LLM everywhere latency work) |
+| **Branch** | `main` (clean; #29 merged) |
 | **Extension** | **0.5.11** — progressive paint → LLM open-file (`--llm-path`) → full LLM; pack-hash cache + concurrency 8 |
 | **LLM captions** | Opt-in; default model **`qwen2.5-coder:3b`** (fallback `qwen2.5-coder:7b`); no weak-gate; never on overlay |
-| **Global binary** | Broken `uv tool` focus-hud **uninstalled** (2026-07-22); only `.venv/bin/focus` remains |
-| **Phase 4d** | Ledger `edit_facts.py` + orphan packs (readers/importers/reader_doc) + LLM polish + line-of-sight (signature ℹ️ kept when body fact differs) |
+| **Global binary** | Broken `uv tool` focus-hud **uninstalled**; only `.venv/bin/focus` remains |
+| **Phase 4d** | **Shipped on main** — ledger `edit_facts.py` + orphan packs + LLM polish + line-of-sight |
 
-### Dogfood notes (2026-07-22)
+### Dogfood notes
 
 - Bake-off winner: `qwen2.5-coder:3b` (~8.8s / 10 packs, 8/10 validate) vs 7b slower / 3b non-coder worse
-- Visible-file-first CLI: `focus audit --local --llm-captions --llm-path <rel>` — small file ~12s cold / pack cache ~0s per hit; huge `explain.py` still ~30s when many symbols changed
-- IDE dogfood on `src/focus/llm/cache.py`: option A works (rails + captions); CRITICAL rails correct; ℹ️ quality mixed (chatty / some confused) — quality pass is separate from latency UX
+- Visible-file-first CLI: `focus audit --local --llm-captions --llm-path <rel>`
+- IDE dogfood on `cache.py` (2026-07-26, #29 owner Test plan): CRITICAL rails + ℹ️ + proven hover — progressive paint OK; **ℹ️ quality still mixed** (chatty / confused) — quality pass is next
 - Workspace `.vscode/settings.json`: `focus.llmCaptions: true` for IDE dogfood (gitignored)
 
 ### Bloat / size tooling (owner ask — memory only; not installed, not committed)
 
-Deps are lean; perceived bloat is mostly **code concentration** (`explain.py` ~2591 LOC). When owner wants a pass later:
-
-| Tool | Use |
-|---|---|
-| **vulture** | Dead / unused code |
-| **radon** (`cc`, `mi`) | Complexity / maintainability hotspots |
-| **ruff** (unused-import rules) | Quick unused imports if adopted |
-| **cloc** / **tokei** | LOC heat map by file |
-| **pipdeptree** / `uv tree` | Dependency tree (expect little) |
-
-Product ROA / impact bar still decides whether a surface should exist — tools find dead/complex code, they don’t replace that judgment. Prefer a targeted `explain.py` look over a drive-by rewrite.
+Deps are lean; perceived bloat is mostly **code concentration** (`explain.py` ~2591 LOC). When owner wants a pass later: vulture / radon / ruff / cloc / `uv tree` — prefer targeted `explain.py` look over drive-by rewrite.
 
 ### Do next
 
-1. Commit/PR when owner asks (ledger + cache + visible-file-first + line-of-sight) — **separate** from memory/docs tweaks
-2. Caption quality (prompt/pack vs 7B) — options table when fresh
-3. Optional later: vulture/radon on `explain.py` only
+1. **Caption quality** (prompt/pack vs 7B vs tighter templates) — options table when fresh (STOP: LLM boundary)
+2. Optional: refresh `docs/ROADMAP.md` Phase 4d status to “shipped on main” if still stale
+3. Optional later: Marketplace polish; Phase 4 leftovers (symbol-level downstream, tiny-diff HUD); Phase 5 GitHub inline; vulture/radon on `explain.py`
 
 ### Standing
 

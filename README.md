@@ -25,8 +25,8 @@ Focus shows **what else that change touches** — with evidence you can point at
 ## Try in 60 seconds
 
 ```bash
-pip install "focus-hud>=0.3.3"
-# or: uv tool install focus-hud
+pip install "focus-hud>=0.3.1"    # PyPI — last published release
+# Latest from this repo (Phase 4c/4d): git clone + uv sync (see below)
 
 focus trace path/to/shared_module.py --out focus-hud.md
 # open focus-hud.md → Markdown preview for Mermaid
@@ -111,6 +111,7 @@ Open the **repo git root**, set `focus.path` if needed, **Reload Window** once, 
 
 - **Live while typing** — dirty buffers refresh rails after a short debounce (`focus.liveBufferOverlay`, default on). No Save required.
 - **Save** still re-audits from disk (`focus.autoAuditOnSave`).
+- **Opt-in LLM ℹ️** — `focus.llmCaptions` (off by default): on **Audit Local**, rails paint first, then pack-constrained captions for the **open file**, then the rest. Never on live overlay. Local dogfood: Ollama + `qwen2.5-coder:3b` (see extension README / [`docs/PRIVACY.md`](docs/PRIVACY.md)).
 
 Details: [`extensions/vscode-focus/README.md`](extensions/vscode-focus/README.md).
 
@@ -148,7 +149,7 @@ Unchanged files reuse **`.focus-cache/`** (gitignored). Pass `--no-cache` to for
 
 Optional: copy [`.focus.toml.example`](.focus.toml.example) → `.focus.toml` to tune `fan_out_threshold` (default **3**).
 
-Requirements: Python 3.12+. Install: **`pip install "focus-hud>=0.3.3"`** (CLI: `focus`). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
+Requirements: Python 3.12+. **PyPI:** `pip install "focus-hud>=0.3.1"` (last published). **This checkout:** `uv sync` → local **0.3.5** (captions ledger + cache). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ```bash
 uv run pytest
@@ -197,7 +198,8 @@ flowchart TB
 | Graph | NetworkX |
 | Diagrams | Mermaid (GitHub + IDE webview) |
 | CI | Opt-in GitHub Action — PR comment (A); inline diff (C) planned |
-| IDE | VS Code / Cursor — CodeLens + HUD panel (C) |
+| IDE | VS Code / Cursor — CodeLens + HUD panel (C); extension **0.5.11** |
+| LLM (opt-in) | Pack-only ℹ️ labels — never invents graph edges; off by default |
 
 ---
 
@@ -209,20 +211,23 @@ flowchart TB
 | `focus trace [file]` | HUD for one file (`--format json` for tools) |
 | `focus audit --local` | Working tree vs `main` |
 | `focus audit --base <sha>` | PR / branch range |
+| `focus audit --local --llm-captions` | Opt-in pack-constrained LLM ℹ️ (Ollama or cloud key) |
+| `focus audit --local --llm-captions --llm-path <rel>` | Label the open/visible file first (faster dogfood) |
 | `focus version` | Installed version |
 
 ---
 
 ## Roadmap
 
-Phase 3 **complete**. Phase 4b **shipping** (risk rail + edit-shaped ℹ️ + **live buffer overlay** + Save refresh + SCM Working Tree). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Phase 3 **complete**. Phase 4 IDE **C** shipping (risk rail + edit-shaped ℹ️ + live buffer + SCM Working Tree). Phase **4c/4d** on main: opt-in evidence-pack LLM captions + portable edit ledger + visible-file-first latency UX (extension **0.5.11**). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
 ## Ethics & privacy
 
-- **Evidence-based** — no LLM inventing edges
-- **Privacy-by-design** — respects `.gitignore`; no source to model APIs
+- **Evidence-based** — no LLM inventing edges, nodes, or risk tiers
+- **Privacy-by-design** — respects `.gitignore`; default path sends **no** source to model APIs
+- **Opt-in caption labels only** — when enabled, a capped `CaptionEvidencePack` (not full files / not the full graph); never on live overlay
 - **No surveillance** — structure, not developer identity
 - **Opt-in Action** — minimum token scope
 

@@ -3,9 +3,11 @@ Sideload this extension to see Focus **in the diff**: risk rail + ℹ️ on chan
 ## Prerequisites
 
 ```bash
-pip install "focus-hud>=0.3.3"
-# or: uv tool install focus-hud --force --python 3.13
-focus version   # must support --format json (0.3.3+)
+# Prefer editable install from this repo (tracks main / 0.3.5+ features):
+#   ./scripts/install-extension.sh
+# Or older PyPI-only:
+pip install "focus-hud>=0.3.1"
+focus version   # must support --format json
 ```
 
 ## Install (easiest)
@@ -16,7 +18,7 @@ From repo root:
 ./scripts/install-extension.sh
 ```
 
-Installs editable `focus-hud` + packages extension 0.5.4+. Then **Reload Window**.
+Installs editable `focus-hud` + packages extension **0.5.11**. Then **Reload Window**.
 
 ## Develop
 
