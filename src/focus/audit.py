@@ -41,6 +41,7 @@ def audit_local(
     use_cache: bool = True,
     overlays: dict[str, str] | None = None,
     llm_captions: bool | None = None,
+    llm_paths: set[str] | None = None,
 ) -> FocusHUD:
     """Build a HUD for working-tree changes vs `base`."""
     return run_audit(
@@ -50,6 +51,7 @@ def audit_local(
         use_cache=use_cache,
         overlays=overlays,
         llm_captions=llm_captions,
+        llm_paths=llm_paths,
     )
 
 
@@ -59,10 +61,16 @@ def audit_pr(
     *,
     use_cache: bool = True,
     llm_captions: bool | None = None,
+    llm_paths: set[str] | None = None,
 ) -> FocusHUD:
     """Build a HUD for commits on this branch vs `base` (``base...HEAD``)."""
     return run_audit(
-        root, base=base, mode="range", use_cache=use_cache, llm_captions=llm_captions
+        root,
+        base=base,
+        mode="range",
+        use_cache=use_cache,
+        llm_captions=llm_captions,
+        llm_paths=llm_paths,
     )
 
 
@@ -174,6 +182,7 @@ def run_audit(
     use_cache: bool = True,
     overlays: dict[str, str] | None = None,
     llm_captions: bool | None = None,
+    llm_paths: set[str] | None = None,
 ) -> FocusHUD:
     """Build a HUD for changes vs `base` in local or PR-range mode."""
     root = root.resolve()
@@ -185,6 +194,7 @@ def run_audit(
         overlays=overlays or None,
         config=config,
     )
+    path_filter = llm_paths if use_llm else None
     all_changed = changed_files(root, base, mode=mode)
     py_changed = changed_source_files(root, base, mode=mode)
     line_ranges = changed_line_ranges(root, base, mode=mode)
@@ -282,12 +292,15 @@ def run_audit(
                 facts_by_path=facts_by_rel,
                 overlay_texts=overlays,
                 llm_captions=use_llm,
+                llm_paths=path_filter,
             ),
             caveat=DEFAULT_CAVEAT if missing else None,
         ),
             line_ranges,
             facts_by_path=facts_by_rel,
             overlay_texts=overlays,
+            llm_captions=use_llm,
+            llm_paths=path_filter,
         )
 
     rings = _merge_rings(graph, seeds)
@@ -323,11 +336,14 @@ def run_audit(
                 facts_by_path=facts_by_rel,
                 overlay_texts=overlays,
                 llm_captions=use_llm,
+                llm_paths=path_filter,
             ),
         ),
             line_ranges,
             facts_by_path=facts_by_rel,
             overlay_texts=overlays,
+            llm_captions=use_llm,
+            llm_paths=path_filter,
         )
 
     return _with_line_explanations(
@@ -340,10 +356,13 @@ def run_audit(
         facts_by_path=facts_by_rel,
         overlay_texts=overlays,
         llm_captions=use_llm,
+        llm_paths=path_filter,
     ),
         line_ranges,
         facts_by_path=facts_by_rel,
         overlay_texts=overlays,
+        llm_captions=use_llm,
+        llm_paths=path_filter,
     )
 
 
@@ -357,6 +376,7 @@ def _full_audit_hud(
     facts_by_path: dict[str, ModuleFacts],
     overlay_texts: dict[str, str] | None = None,
     llm_captions: bool = False,
+    llm_paths: set[str] | None = None,
 ) -> FocusHUD:
     danger, downstream = classify_impacts(
         rings,
@@ -398,6 +418,7 @@ def _full_audit_hud(
         facts_by_path=facts_by_path,
         overlay_texts=overlay_texts,
         llm_captions=llm_captions,
+        llm_paths=llm_paths,
     )
 
     mermaid = render_mermaid(graph, seeds, rings)
@@ -494,13 +515,17 @@ def orphan_line_explanations(
                     orphan_lines.append(line)
         facts = facts_by_path.get(path)
         source: list[str] | None = None
+        source_text: str | None = None
         if path in overlay_texts:
-            source = overlay_texts[path].splitlines()
+            source_text = overlay_texts[path]
+            source = source_text.splitlines()
         elif facts is not None and facts.path.is_file():
             try:
-                source = facts.path.read_text(encoding="utf-8", errors="replace").splitlines()
+                source_text = facts.path.read_text(encoding="utf-8", errors="replace")
+                source = source_text.splitlines()
             except OSError:
                 source = None
+                source_text = None
         for run in _contiguous_line_runs(orphan_lines):
             if source is not None:
                 run_text = [source[line - 1] for line in run if 0 < line <= len(source)]
@@ -515,6 +540,9 @@ def orphan_line_explanations(
                         run_text,
                         facts=facts,
                         hunk_lines=run,
+                        source_text=source_text,
+                        changed_path=path,
+                        facts_by_path=facts_by_path,
                     ),
                 )
             )
@@ -526,6 +554,8 @@ def _with_line_explanations(
     ranges: dict[str, list[tuple[int, int]]],
     facts_by_path: dict[str, ModuleFacts] | None = None,
     overlay_texts: dict[str, str] | None = None,
+    llm_captions: bool = False,
+    llm_paths: set[str] | None = None,
 ) -> FocusHUD:
     orphans = orphan_line_explanations(
         hud.changed_symbols,
@@ -535,6 +565,16 @@ def _with_line_explanations(
     )
     if not orphans:
         return hud
+    if llm_captions and not overlay_texts:
+        from focus.llm.labeler import apply_llm_line_captions
+
+        orphans = apply_llm_line_captions(
+            orphans,
+            risk=hud.risk_tier,
+            facts_by_path=facts_by_path or {},
+            overlay_texts=overlay_texts,
+            path_filter=llm_paths,
+        )
     return hud.model_copy(update={"line_explanations": orphans})
 
 
@@ -549,6 +589,7 @@ def _enrich_symbols(
     facts_by_path: dict[str, ModuleFacts] | None = None,
     overlay_texts: dict[str, str] | None = None,
     llm_captions: bool = False,
+    llm_paths: set[str] | None = None,
 ) -> list[ChangedSymbolInfo]:
     if not symbol_infos:
         return []
@@ -562,6 +603,7 @@ def _enrich_symbols(
         facts_by_path=facts_by_path,
         overlay_texts=overlay_texts,
         llm_captions=llm_captions,
+        llm_paths=llm_paths,
     )
 
 

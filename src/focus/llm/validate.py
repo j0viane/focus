@@ -46,6 +46,10 @@ def validate_label(detail: str, pack: CaptionEvidencePack) -> str | None:
 
     if len(text) > MAX_LABEL_CHARS:
         text = text[: MAX_LABEL_CHARS - 1].rstrip() + "…"
+        # Clip broke a `code` span — dangling backtick reads as garbage.
+        # Fail closed; the deterministic caption is better than a torn sentence.
+        if text.count("`") % 2 == 1:
+            return None
     return text
 
 
@@ -62,6 +66,11 @@ def _pack_support_corpus(pack: CaptionEvidencePack) -> set[str]:
     ]
     for line in pack.edit_lines:
         parts.append(line.text)
+    # Phase 4d ledger facts — readers / importers are measured, so the label
+    # may name them (fail-closed still rejects anything outside this corpus).
+    parts.extend(pack.readers)
+    parts.extend(pack.importers)
+    parts.append(pack.reader_doc)
     measured = pack.measured
     if measured.return_expr:
         parts.append(measured.return_expr)

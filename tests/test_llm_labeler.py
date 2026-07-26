@@ -84,6 +84,9 @@ def test_validate_label_caps_and_rejects_hops():
     assert clipped is not None
     assert len(clipped) <= 110
     assert clipped.endswith("…")
+    # Clip that tears a `code` span open must fail closed (dogfood: dangling backtick).
+    torn = "x" * 105 + " `helper` tail"
+    assert validate_label(torn, pack) is None
 
 
 def test_validate_rejects_unknown_backticks():
@@ -186,12 +189,12 @@ def test_build_client_ollama_uses_local_base_url():
         LlmSettings(
             provider="ollama",
             base_url="http://localhost:11434/v1/",
-            model="qwen2.5:3b",
+            model="qwen2.5-coder:7b",
         )
     )
     assert isinstance(custom, OpenAIClient)
     assert custom.base_url == "http://localhost:11434/v1"
-    assert custom.model == "qwen2.5:3b"
+    assert custom.model == "qwen2.5-coder:7b"
 
 
 def test_openai_client_posts_to_base_url(monkeypatch):
@@ -306,12 +309,15 @@ def test_apply_llm_captions_skips_test_paths():
         client=_Boom(),
     )
     assert out[0].symbol.detail == ""
-    """When opt-in, every caption is a candidate — including strong / blank-line."""
+
+
+def test_apply_llm_captions_labels_strong_and_weak():
+    """Everywhere: strong Returns/blank captions are also LLM candidates."""
     from focus.hud.explain import ExplainContext
     from focus.llm.labeler import apply_llm_captions
     from focus.models import HunkDetail, SymbolExplanation
 
-    symbol = ChangedSymbolInfo(
+    blank = ChangedSymbolInfo(
         path="a.py",
         name="fn",
         kind="function",
@@ -322,7 +328,6 @@ def test_apply_llm_captions_skips_test_paths():
             HunkDetail(line=1, changed_lines=[1], detail="Added a blank line."),
         ],
     )
-    # Strong-shaped caption would previously skip the weak-gate.
     strong = ChangedSymbolInfo(
         path="b.py",
         name="go",
@@ -334,21 +339,30 @@ def test_apply_llm_captions_skips_test_paths():
             HunkDetail(line=1, changed_lines=[1], detail="Returns `helper`."),
         ],
     )
+    weak = ChangedSymbolInfo(
+        path="c.py",
+        name="helper",
+        kind="function",
+        line=1,
+        changed_lines=[1],
+        detail="Other code may call this.",
+        hunk_details=[
+            HunkDetail(line=1, changed_lines=[1], detail="Other code may call this."),
+        ],
+    )
 
-    class _AllClient:
+    class _Client:
         def __init__(self) -> None:
             self.calls = 0
 
         def label(self, pack_json):
             self.calls += 1
             name = pack_json.get("symbol_name", "")
-            if name == "fn":
-                return "Whitespace-only edit."
-            return "Returns the edited value."
+            return f"Labeled `{name}`."
 
-    client = _AllClient()
+    client = _Client()
     context = ExplainContext(
-        symbols=[symbol, strong],
+        symbols=[blank, strong, weak],
         graph=__import__("networkx").DiGraph(),
         seeds=[],
         danger_paths=set(),
@@ -358,16 +372,177 @@ def test_apply_llm_captions_skips_test_paths():
     )
     out = apply_llm_captions(
         [
-            SymbolExplanation(symbol=symbol, text=""),
+            SymbolExplanation(symbol=blank, text=""),
             SymbolExplanation(symbol=strong, text=""),
+            SymbolExplanation(symbol=weak, text=""),
         ],
         context=context,
         client=client,
     )
-    assert client.calls == 2
-    assert out[0].symbol.detail == "Whitespace-only edit."
-    assert out[1].symbol.detail == "Returns the edited value."
-    assert any(e.kind == "llm_label" for e in out[0].symbol.evidence)
+    assert client.calls == 3
+    assert out[0].symbol.detail == "Labeled `fn`."
+    assert out[1].symbol.detail == "Labeled `go`."
+    assert out[2].symbol.detail == "Labeled `helper`."
+    assert any(e.kind == "llm_label" for e in out[2].symbol.evidence)
+
+
+_ORPHAN_SOURCE = '''\
+"""Stranger repo — retry policy."""
+
+WEAK_PHRASES = (
+    "maybe",
+    "unclear",
+)
+
+
+def is_weak(text: str) -> bool:
+    """True when the text sounds uncertain."""
+    return any(p in text for p in WEAK_PHRASES)
+'''
+
+
+def _orphan_line() -> "LineExplanation":
+    from focus.models import LineExplanation
+
+    return LineExplanation(
+        path="policy/weak.py",
+        line=3,
+        changed_lines=[3, 4, 5, 6],
+        detail="Sets `WEAK_PHRASES` to `( \"maybe\",…` — read by `is_weak` in this file",
+    )
+
+
+def _orphan_facts() -> dict:
+    from pathlib import Path
+
+    from focus.models import Definition, ModuleFacts
+
+    return {
+        "policy/weak.py": ModuleFacts(
+            path=Path("policy/weak.py"),
+            language="python",
+            definitions=[
+                Definition(
+                    name="is_weak",
+                    kind="function",
+                    line=10,
+                    docstring="True when the text sounds uncertain.",
+                )
+            ],
+        )
+    }
+
+
+def test_orphan_pack_carries_ledger_facts():
+    from focus.llm.pack import build_orphan_evidence_pack
+
+    pack = build_orphan_evidence_pack(
+        path="policy/weak.py",
+        name="WEAK_PHRASES",
+        risk="LOW",
+        run_lines=[3, 4, 5, 6],
+        source_lines=_ORPHAN_SOURCE.splitlines(),
+        deterministic_caption="Sets `WEAK_PHRASES` …",
+        readers=["is_weak"],
+        importers=["api/moderate.py"],
+        reader_doc="True when the text sounds uncertain.",
+    )
+    assert pack.symbol_kind == "constant"
+    assert pack.readers == ["is_weak"]
+    assert pack.importers == ["api/moderate.py"]
+    assert "is_weak" in pack.allowed_tokens
+    assert "moderate.py" in pack.allowed_tokens
+
+
+def test_validate_accepts_grounded_reader_mention():
+    from focus.llm.pack import build_orphan_evidence_pack
+
+    pack = build_orphan_evidence_pack(
+        path="policy/weak.py",
+        name="WEAK_PHRASES",
+        risk="LOW",
+        run_lines=[3],
+        source_lines=_ORPHAN_SOURCE.splitlines(),
+        deterministic_caption="",
+        readers=["is_weak"],
+        importers=[],
+        reader_doc="True when the text sounds uncertain.",
+    )
+    out = validate_label("Adds a phrase so `is_weak` flags more text.", pack)
+    assert out == "Adds a phrase so `is_weak` flags more text."
+    # Fail closed: reader the ledger never measured.
+    assert validate_label("Now `score_toxicity` flags more text.", pack) is None
+
+
+def test_apply_llm_line_captions_labels_module_assign(monkeypatch, tmp_path):
+    from focus.llm.labeler import apply_llm_line_captions
+
+    # Real file on disk so _source_for_pack can read it.
+    target = tmp_path / "weak.py"
+    target.write_text(_ORPHAN_SOURCE)
+    facts = _orphan_facts()
+    facts["policy/weak.py"] = facts["policy/weak.py"].model_copy(
+        update={"path": target}
+    )
+
+    client = _FakeClient("Adds a phrase so `is_weak` flags more text.")
+    out = apply_llm_line_captions(
+        [_orphan_line()],
+        risk="LOW",
+        facts_by_path=facts,
+        client=client,
+    )
+    assert out[0].detail == "Adds a phrase so `is_weak` flags more text."
+    assert client.calls == 1
+
+
+def test_apply_llm_line_captions_keeps_deterministic_on_ungrounded(tmp_path):
+    from focus.llm.labeler import apply_llm_line_captions
+
+    target = tmp_path / "weak.py"
+    target.write_text(_ORPHAN_SOURCE)
+    facts = _orphan_facts()
+    facts["policy/weak.py"] = facts["policy/weak.py"].model_copy(
+        update={"path": target}
+    )
+
+    before = _orphan_line()
+    client = _FakeClient("Now `InventedHelper` rejects all captions downstream.")
+    out = apply_llm_line_captions(
+        [before],
+        risk="LOW",
+        facts_by_path=facts,
+        client=client,
+    )
+    # Fail closed — deterministic ledger caption survives.
+    assert out[0].detail == before.detail
+
+
+def test_apply_llm_line_captions_labels_assign_without_who(tmp_path):
+    """Everywhere: module assigns without readers still get a pack + label attempt."""
+    from focus.llm.labeler import apply_llm_line_captions
+    from focus.models import LineExplanation, ModuleFacts
+
+    source = "UNUSED = 1\n"
+    target = tmp_path / "lonely.py"
+    target.write_text(source)
+    facts = {"pkg/lonely.py": ModuleFacts(path=target, language="python")}
+
+    client = _FakeClient("Sets an unused module constant.")
+    item = LineExplanation(
+        path="pkg/lonely.py",
+        line=1,
+        changed_lines=[1],
+        detail="Sets `UNUSED` to `1`.",
+    )
+    out = apply_llm_line_captions(
+        [item],
+        risk="LOW",
+        facts_by_path=facts,
+        client=client,
+    )
+    assert client.calls == 1
+    assert out[0].detail == "Sets an unused module constant."
 
 
 def test_apply_llm_captions_parallel_preserves_order(monkeypatch):

@@ -41,6 +41,11 @@ class CaptionEvidencePack(BaseModel):
     deterministic_caption: str = ""
     purpose_hint: str = ""
     allowed_tokens: list[str] = Field(default_factory=list)
+    # Phase 4d ledger facts — same-file readers / repo importers of the edited
+    # name, plus the primary reader's first docstring line. Measured, never invented.
+    readers: list[str] = Field(default_factory=list)
+    importers: list[str] = Field(default_factory=list)
+    reader_doc: str = ""
 
 
 def build_evidence_pack(
@@ -69,6 +74,59 @@ def build_evidence_pack(
         deterministic_caption=(symbol.detail or "").strip(),
         purpose_hint=(purpose_hint or "").strip()[:200],
         allowed_tokens=sorted(allowed),
+    )
+
+
+def build_orphan_evidence_pack(
+    *,
+    path: str,
+    name: str,
+    risk: RiskTier,
+    run_lines: list[int],
+    source_lines: list[str],
+    deterministic_caption: str,
+    readers: list[str],
+    importers: list[str],
+    reader_doc: str = "",
+) -> CaptionEvidencePack:
+    """Pack for a module-level edit outside any def (Phase 4d ledger facts).
+
+    Same caps as symbol packs; readers/importers come from the target repo's
+    own AST + import facts, so the validator can ground every mention.
+    """
+    edit_lines: list[EditLine] = []
+    chars = 0
+    for line_no in run_lines[:MAX_EDIT_LINES]:
+        if line_no < 1 or line_no > len(source_lines):
+            continue
+        text = source_lines[line_no - 1].rstrip("\n")
+        if chars + len(text) > MAX_EDIT_CHARS:
+            break
+        edit_lines.append(EditLine(line=line_no, text=text))
+        chars += len(text)
+    measured = _measure(edit_lines, facts=None, hunk_lines=run_lines)
+    tokens: set[str] = {name, path, path.split("/")[-1]}
+    tokens.update(readers)
+    tokens.update(importers)
+    for imp_path in importers:
+        tokens.add(imp_path.split("/")[-1])
+    for c in measured.callees:
+        tokens.add(c)
+    for mod in measured.import_modules:
+        tokens.add(mod)
+        tokens.add(mod.split(".")[-1])
+    return CaptionEvidencePack(
+        path=path,
+        symbol_name=name,
+        symbol_kind="constant",
+        risk_tier=risk,
+        edit_lines=edit_lines,
+        measured=measured,
+        deterministic_caption=(deterministic_caption or "").strip(),
+        allowed_tokens=sorted(t for t in tokens if t),
+        readers=readers[:8],
+        importers=importers[:8],
+        reader_doc=(reader_doc or "").strip()[:200],
     )
 
 

@@ -23,9 +23,12 @@ export class FocusCodeLensProvider implements vscode.CodeLensProvider {
   refresh(hud: FocusHUD | undefined, root: string | undefined): void {
     this.hud = hud;
     this.root = root;
-    // Fire twice: some editors keep stale CodeLens titles until a second invalidate.
+    // VS Code often keeps stale CodeLens titles on already-open tabs (file vs Diff).
+    // Fire now, next microtask, and once more after a short delay so both surfaces
+    // re-query the provider.
     this._onDidChange.fire();
     queueMicrotask(() => this._onDidChange.fire());
+    setTimeout(() => this._onDidChange.fire(), 120);
   }
 
   provideCodeLenses(

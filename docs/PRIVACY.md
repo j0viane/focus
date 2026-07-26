@@ -56,7 +56,7 @@ When evidence-pack caption labeling is enabled (`FOCUS_LLM_ENABLED` / `--llm-cap
 
 Provider requirements:
 
-- **Ollama (local dogfood):** `FOCUS_LLM_PROVIDER=ollama` — pack stays on-machine; no paid key. Default model `qwen2.5:7b`.
+- **Ollama (local dogfood):** `FOCUS_LLM_PROVIDER=ollama` — pack stays on-machine; no paid key. Default model `qwen2.5-coder:3b` (fallback `qwen2.5-coder:7b` for quality).
 - Cloud (`openai` / `anthropic`): use API endpoints with **no training** / enterprise privacy terms when analyzing private code
 - Document provider choice in repo README when Action is configured
 - Abort the call and keep the deterministic caption if secret-like patterns appear in edit lines

@@ -94,5 +94,5 @@ Toggle gutter: `focus.gutter`. Toggle inline explainers: `focus.inlineExplanatio
 | `focus.inlineExplanations` | ℹ️ purpose rows on edit blocks (default `true`) |
 | `focus.autoAuditOnSave` | After Save, quietly re-audit and refresh CodeLens (default `true`) |
 | `focus.liveBufferOverlay` | While editing (dirty buffer), quietly re-audit via overlay — no Save needed (default `true`) |
-| `focus.llmCaptions` | Opt-in: on **Focus: Audit Local**, show deterministic rails immediately then LLM-label captions in the background (parallel; never autosave / overlay). Needs `FOCUS_LLM_API_KEY` or `FOCUS_LLM_PROVIDER=ollama`. |
+| `focus.llmCaptions` | Opt-in: on **Focus: Audit Local**, show deterministic rails immediately, then LLM-label the **open file first** and the rest in the background (pack-hash cache + parallel; never autosave / overlay). Needs `FOCUS_LLM_API_KEY` or `FOCUS_LLM_PROVIDER=ollama` (default `qwen2.5-coder:3b`). |
 | `focus.lensFontSize` | CodeLens size: `0` = editor default, `-1` = match `editor.fontSize` |

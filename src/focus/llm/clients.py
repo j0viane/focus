@@ -19,9 +19,28 @@ SYSTEM_PROMPT = (
     'Respond with JSON only: {"detail": "..."}'
 )
 
+# Module-constant orphans (Phase 4d): the pack carries readers + reader_doc,
+# so the model must explain consequence for the reader — not re-dump the value.
+ORPHAN_SYSTEM_PROMPT = (
+    "You explain one code edit to a reviewer. ≤110 chars, one sentence. "
+    "Facts: symbol_name is a module constant; readers use it; reader_doc "
+    "says what the reader does. Say what changing this constant means for "
+    "the reader's behavior. Do not quote the constant's contents. "
+    "Do not repeat deterministic_caption. Only name identifiers from the pack. "
+    'JSON only: {"detail": "..."}'
+)
+
+
+def _prompt_for(pack_json: dict[str, Any]) -> str:
+    if pack_json.get("symbol_kind") == "constant" and (
+        pack_json.get("readers") or pack_json.get("importers")
+    ):
+        return ORPHAN_SYSTEM_PROMPT
+    return SYSTEM_PROMPT
+
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_ANTHROPIC_MODEL = "claude-3-5-haiku-latest"
-DEFAULT_OLLAMA_MODEL = "qwen2.5:7b"
+DEFAULT_OLLAMA_MODEL = "qwen2.5-coder:3b"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
@@ -64,7 +83,7 @@ class OpenAIClient:
             "temperature": 0,
             "response_format": {"type": "json_object"},
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": _prompt_for(pack_json)},
                 {"role": "user", "content": json.dumps(pack_json)},
             ],
         }
@@ -97,7 +116,7 @@ class AnthropicClient:
             "model": self.model,
             "max_tokens": 128,
             "temperature": 0,
-            "system": SYSTEM_PROMPT,
+            "system": _prompt_for(pack_json),
             "messages": [
                 {"role": "user", "content": json.dumps(pack_json)},
             ],
