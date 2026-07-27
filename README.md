@@ -55,7 +55,7 @@ Gallery + walkthrough: [`docs/DEMO.md`](docs/DEMO.md) · [`docs/assets/`](docs/a
 | Surface | When | What you get |
 |---|---|---|
 | **A — PR comment** | Every PR (GitHub Action) | Full architecture HUD — summary, Mermaid, Danger Zones. Updates in place on new pushes |
-| **C — IDE diff** | Before you push (Cursor / VS Code) | Risk rail + edit-shaped ℹ️; **live while typing** (unsaved buffer); Save refresh; SCM Working Tree (right pane); HUD map |
+| **C — IDE diff** | Before you push (Cursor / VS Code) | Edit-shaped ℹ️ on the change; **live while typing** (unsaved buffer); Save refresh; SCM Working Tree (right pane); full HUD map for risk / blast radius |
 | **C — GitHub diff** | PR review (planned) | Inline pins on **Files changed** — companion to the PR comment |
 | ~~**B — git**~~ | — | **Not supported** — no committed `focus-hud.md` |
 
@@ -65,41 +65,30 @@ Same evidence everywhere: parse → graph → `FocusHUD` → renderer (markdown 
 
 ## In Cursor / VS Code (diff-first · surface C)
 
-Risk rail + purpose ℹ️ on changed symbols, plus the full HUD panel — blast radius **in the diff you're editing**.
+Edit-shaped ℹ️ on the change you're looking at, plus the full HUD panel — blast radius **in the diff you're editing**. Risk / who-breaks lives in the **HUD** (and PR comment), not as a second CodeLens on `def`.
 
 **What it looks like in the editor** (virtual UI — nothing written to git):
 
 ```text
-🔴 CRITICAL — `focus audit` → IDE captions — bad copy misleads every local review.
-    def _build_hunk_details(
-        symbol: ChangedSymbolInfo,
-        facts: ModuleFacts | None,
-        purpose_fallback: str,
-        *,
-        purpose_is_curated: bool = False,
-    ) -> list[HunkDetail]:
-        """Build ℹ️ rows: one outcome per symbol unless hunks teach different outcomes."""
-        ...
-        for run in runs:
-            ℹ️ Returns `2`.
-            detail = _hybrid_detail_for_hunk(
-                run_text,
-                facts=facts,
-                hunk_lines=run,
-                symbol_name=symbol.name,
-                purpose_fallback=purpose_fallback,
-            )
-            out.append(HunkDetail(line=anchor, changed_lines=run, detail=detail))
-        return _collapse_hunk_details_to_outcomes(...)
+    def pack_fingerprint(pack: CaptionEvidencePack, *, model: str) -> str:
+        """Hash pack JSON + model + prompt rev so matching captions reuse the cache."""
+        payload: dict[str, Any] = {
+            "model": model,
+            ℹ️ The pack_fingerprint function now includes the prompt revision in its
+               hash so callers reuse cached captions when the pack matches.
+            "prompt_rev": _PROMPT_REV,
+            "pack": pack.model_dump(mode="json"),
+        }
+        return hashlib.sha256(...).hexdigest()
 ```
 
-Risk rail above `def`; ℹ️ describes **this edit** (return, call, import, `Added N blank lines.`, …) — not a static slogan. A second ℹ️ appears only when two edit blocks teach **different** outcomes.
+ℹ️ sits on the **body edit** (not the docstring when both changed). It names **what changed and why it matters** — return / call / import / assign / blank count / ledger scope — not a static slogan. A second ℹ️ appears only when two edit blocks teach **different** outcomes.
 
 | Surface | Where | What |
 |---|---|---|
-| **Risk rail** | Above `def` / `class` | Implication: `{emoji} {RISK} — {who} — {what goes wrong}`. Quiet when LOW |
-| **ℹ️ Purpose** | Above the primary edit (or each distinct outcome) | What this edit does — one per symbol unless hunks truly differ |
-| **Trust cues** | Hover highlighted code, or click rail / ℹ️ | *Why trust this* — ≤2 cues (map in HUD). Don’t rely on CodeLens title hover on macOS. |
+| **ℹ️ Caption** | Above the primary edit (or each distinct outcome) | What this edit does + so-that when the pack supports it |
+| **Trust cues** | Hover highlighted code, or click ℹ️ | *Why trust this* — ≤2 cues (map in HUD). Don’t rely on CodeLens title hover on macOS. |
+| **HUD panel** | Focus: Show HUD / Audit Local | Full Mermaid + Danger Zones + risk / implication |
 
 ```bash
 ./scripts/install-extension.sh
@@ -109,15 +98,15 @@ Risk rail above `def`; ℹ️ describes **this edit** (return, call, import, `Ad
 
 Open the **repo git root**, set `focus.path` if needed, **Reload Window** once, and run **Focus: Audit Local Changes**. After that:
 
-- **Live while typing** — dirty buffers refresh rails after a short debounce (`focus.liveBufferOverlay`, default on). No Save required.
+- **Live while typing** — dirty buffers refresh ℹ️ after a short debounce (`focus.liveBufferOverlay`, default on). No Save required.
 - **Save** still re-audits from disk (`focus.autoAuditOnSave`).
-- **Opt-in LLM ℹ️** — `focus.llmCaptions` (off by default): on **Audit Local**, rails paint first, then pack-constrained captions for the **open file**, then the rest. Never on live overlay. Local dogfood: Ollama + `qwen2.5-coder:3b` (see extension README / [`docs/PRIVACY.md`](docs/PRIVACY.md)).
+- **Opt-in LLM ℹ️** — `focus.llmCaptions` (off by default): on **Audit Local**, wait for pack-constrained captions on the **open file** before painting, then label the rest in the background. Never on live overlay. Local dogfood: Ollama + `qwen2.5-coder:3b` (see extension README / [`docs/PRIVACY.md`](docs/PRIVACY.md)).
 
 Details: [`extensions/vscode-focus/README.md`](extensions/vscode-focus/README.md).
 
 | Moment | Command | You get |
 |---|---|---|
-| AI rewrote a shared function | Edit (live) or **Save** / **Focus: Audit Local** | **C** — risk rail + ℹ️ in your working file / diff |
+| AI rewrote a shared function | Edit (live) or **Save** / **Focus: Audit Local** | **C** — ℹ️ on the edit; open HUD for risk / map |
 | Big PR in your queue | Focus Action comment | **A** — diagram + Danger Zones on the PR |
 | Inherited a module | `focus trace path/to/file.py` | Downstream map for one file |
 
@@ -198,7 +187,7 @@ flowchart TB
 | Graph | NetworkX |
 | Diagrams | Mermaid (GitHub + IDE webview) |
 | CI | Opt-in GitHub Action — PR comment (A); inline diff (C) planned |
-| IDE | VS Code / Cursor — CodeLens + HUD panel (C); extension **0.5.11** |
+| IDE | VS Code / Cursor — CodeLens + HUD panel (C); extension **0.5.15** |
 | LLM (opt-in) | Pack-only ℹ️ labels — never invents graph edges; off by default |
 
 ---
@@ -219,7 +208,7 @@ flowchart TB
 
 ## Roadmap
 
-Phase 3 **complete**. Phase 4 IDE **C** shipping (risk rail + edit-shaped ℹ️ + live buffer + SCM Working Tree). Phase **4c/4d** on main: opt-in evidence-pack LLM captions + portable edit ledger + visible-file-first latency UX (extension **0.5.11**). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Phase 3 **complete**. Phase 4 IDE **C** shipping (edit-shaped ℹ️ + live buffer + SCM Working Tree; risk / implication in HUD). Phase **4c/4d** on main + PyPI **0.3.5**: opt-in evidence-pack LLM captions + portable edit ledger + caption sweet-spot (extension **0.5.15**). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
