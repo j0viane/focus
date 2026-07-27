@@ -15,7 +15,7 @@ from focus.llm.pack import (
     pack_contains_secrets,
 )
 from focus.llm.settings import load_llm_settings
-from focus.llm.validate import validate_label
+from focus.llm.validate import prefer_polish_label, validate_label
 from focus.models import (
     ChangedSymbolInfo,
     EvidenceItem,
@@ -77,6 +77,9 @@ def label_caption(
     if raw is None:
         return None
     labeled = validate_label(raw, pack)
+    if labeled is None:
+        return None
+    labeled = prefer_polish_label(labeled, pack)
     if labeled and key is not None:
         put_cached_caption(key, labeled)
     return labeled

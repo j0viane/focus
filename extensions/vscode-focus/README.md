@@ -1,4 +1,4 @@
-Sideload this extension to see Focus **in the diff**: risk rail + ℹ️ on changed **symbols**, gutter highlights, and a HUD webview.
+Sideload this extension to see Focus **in the diff**: ℹ️ on changed **symbols**, gutter highlights, and a HUD webview.
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ From repo root:
 ./scripts/install-extension.sh
 ```
 
-Installs editable `focus-hud` + packages extension **0.5.11**. Then **Reload Window**.
+Installs editable `focus-hud` + packages extension **0.5.15**. Then **Reload Window**.
 
 ## Develop
 
@@ -38,18 +38,17 @@ cd ../..
 - **Focus: Show Why** — blast-radius reason (from CodeLens on Danger Zone files)
 - **Focus: Refresh** — re-run audit for CodeLens + gutter
 
-**Default dogfood loop:** edit a real line — rails update live from the unsaved buffer (`focus.liveBufferOverlay`). **Save** still syncs disk (`focus.autoAuditOnSave`). Use Audit Local when you want the HUD panel or a forced refresh.
+**Default dogfood loop:** edit a real line — ℹ️ updates live from the unsaved buffer (`focus.liveBufferOverlay`). **Save** still syncs disk (`focus.autoAuditOnSave`). Use Audit Local when you want the HUD panel or a forced refresh.
 
-**Where rails show:** the **open file** and the SCM **Working Tree** modified (right) pane — Focus enables both `editor.codeLens` and `diffEditor.codeLens`. Left/base diff pane stays quiet.
+**Where ℹ️ show:** the **open file** and the SCM **Working Tree** modified (right) pane — Focus enables both `editor.codeLens` and `diffEditor.codeLens`. Left/base diff pane stays quiet.
 
-**Live buffer:** with `focus.liveBufferOverlay` (default on), dirty unsaved edits refresh rails after a short debounce — no Save required.
+**Live buffer:** with `focus.liveBufferOverlay` (default on), dirty unsaved edits refresh ℹ️ after a short debounce — no Save required.
 
 ## What you should see (inline explanations)
 
 Virtual UI only — **not** written to disk or git:
 
 ```text
-🔴 CRITICAL — `focus audit` → IDE captions — bad copy misleads every local review.
     def _build_hunk_details(
         symbol: ChangedSymbolInfo,
         facts: ModuleFacts | None,
@@ -72,17 +71,16 @@ Virtual UI only — **not** written to disk or git:
         return _collapse_hunk_details_to_outcomes(...)
 ```
 
-Risk rail above `def`; ℹ️ describes **this edit** (return, call, import, `Added N blank lines.`, …) — not a static slogan. A second ℹ️ appears only when two edit blocks teach **different** outcomes.
+ℹ️ describes **this edit** (return, call, import, `Added N blank lines.`, …) — not a static slogan. Risk / who-breaks lives in the **HUD** (and PR comment), not as a second CodeLens on `def`. A second ℹ️ appears only when two edit blocks teach **different** outcomes.
 
 | Surface | Where |
 |---|---|
-| **Risk rail** | Above each changed `def` / `class` — `{emoji} {RISK} — {who} — {what goes wrong}` (quiet when LOW) |
 | **ℹ️ caption** | Edit-shaped detail at the change (return / call / import / assign / blank count / …) — **still shown on LOW** (narrate the edit, not the alarm) |
-| **Trust cues** | Hover the **highlighted code** (or click the rail / ℹ️) — ≤2 proven/heuristic cues. CodeLens title tooltips alone are flaky on macOS. |
-| **SCM diff (modified)** | Same rails on the Working Tree right pane (not the base/left side; no tint in diffs) |
+| **Trust cues** | Hover the **highlighted code** (or click the ℹ️) — ≤2 proven/heuristic cues. CodeLens title tooltips alone are flaky on macOS. |
+| **SCM diff (modified)** | Same ℹ️ on the Working Tree right pane (not the base/left side; no tint in diffs) |
 | **Gutter / tint** | Highlight on every git-touched line for that symbol (normal editor only) |
 | **File CodeLens** | Blast-radius files without symbol overlap (Danger Zone / hops) |
-| **HUD panel** | Full Mermaid + Danger Zones |
+| **HUD panel** | Full Mermaid + Danger Zones + risk / implication |
 
 Toggle gutter: `focus.gutter`. Toggle inline explainers: `focus.inlineExplanations`.
 
@@ -96,5 +94,5 @@ Toggle gutter: `focus.gutter`. Toggle inline explainers: `focus.inlineExplanatio
 | `focus.inlineExplanations` | ℹ️ purpose rows on edit blocks (default `true`) |
 | `focus.autoAuditOnSave` | After Save, quietly re-audit and refresh CodeLens (default `true`) |
 | `focus.liveBufferOverlay` | While editing (dirty buffer), quietly re-audit via overlay — no Save needed (default `true`) |
-| `focus.llmCaptions` | Opt-in: on **Focus: Audit Local**, show deterministic rails immediately, then LLM-label the **open file first** and the rest in the background (pack-hash cache + parallel; never autosave / overlay). Needs `FOCUS_LLM_API_KEY` or `FOCUS_LLM_PROVIDER=ollama` (default `qwen2.5-coder:3b`). |
+| `focus.llmCaptions` | Opt-in: on **Focus: Audit Local**, wait for LLM on the **open file** before painting (no short flash), then label the rest in the background (pack-hash cache + parallel; never autosave / overlay). Needs `FOCUS_LLM_API_KEY` or `FOCUS_LLM_PROVIDER=ollama` (default `qwen2.5-coder:3b`). |
 | `focus.lensFontSize` | CodeLens size: `0` = editor default, `-1` = match `editor.fontSize` |

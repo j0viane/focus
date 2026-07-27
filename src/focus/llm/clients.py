@@ -13,20 +13,25 @@ from focus.llm.settings import DEFAULT_OLLAMA_BASE_URL, LlmSettings
 log = logging.getLogger("focus.llm")
 
 SYSTEM_PROMPT = (
-    "One sentence ≤110 chars. Use only facts in the pack. "
-    "Do not invent callers, files, or behavior. Prefer measured slots. "
-    "If unsure, restate deterministic_caption. "
-    'Respond with JSON only: {"detail": "..."}'
+    "Write one ℹ️ for a code reviewer. ≤320 chars; up to two short sentences. "
+    "Sweet spot: name what changed AND why it matters (so that / for whom) — "
+    "not a thin edit slogan like 'Updates X here', and not jargon without "
+    "consequence. Use only facts in the pack (measured slots, edit lines, "
+    "implication). Do not invent callers, files, or behavior. "
+    "If you cannot add a clear so-that from the pack, restate "
+    "deterministic_caption. "
+    'JSON only: {"detail": "..."}'
 )
 
 # Module-constant orphans (Phase 4d): the pack carries readers + reader_doc,
 # so the model must explain consequence for the reader — not re-dump the value.
 ORPHAN_SYSTEM_PROMPT = (
-    "You explain one code edit to a reviewer. ≤110 chars, one sentence. "
-    "Facts: symbol_name is a module constant; readers use it; reader_doc "
-    "says what the reader does. Say what changing this constant means for "
-    "the reader's behavior. Do not quote the constant's contents. "
-    "Do not repeat deterministic_caption. Only name identifiers from the pack. "
+    "Write one ℹ️ for a code reviewer. ≤320 chars; up to two short sentences. "
+    "symbol_name is a module constant; readers use it; reader_doc says what "
+    "the reader does. Sweet spot: what changing this constant means for the "
+    "reader's behavior (so that / who breaks) — not quoting the value, not "
+    "repeating deterministic_caption, not empty 'Updates X here'. "
+    "Only name identifiers from the pack. "
     'JSON only: {"detail": "..."}'
 )
 

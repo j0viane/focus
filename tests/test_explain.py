@@ -694,6 +694,69 @@ def test_line_of_sight_keeps_signature_and_body_when_facts_differ(tmp_path: Path
         "sets `"
     )
 
+
+def test_body_edit_beats_docstring_for_caption_anchor(tmp_path: Path):
+    """Docstring + body edit → ℹ️ on the body line (sight of the change)."""
+    path = tmp_path / "docbody.py"
+    path.write_text(
+        "def helper():\n"
+        '    """Tracks pack hash for caption reuse."""\n'
+        "    total = 0\n"
+        "    return total\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="docbody.py",
+                name="helper",
+                kind="function",
+                line=1,
+                changed_lines=[2, 3],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["docbody.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"docbody.py": facts},
+    )[0]
+    assert len(enriched.hunk_details) == 1
+    assert enriched.hunk_details[0].line == 3
+    assert enriched.hunk_details[0].detail == "Sets `total` to `0`."
+
+
+def test_docstring_only_edit_still_gets_caption(tmp_path: Path):
+    """When the docstring is the only change, keep the ℹ️ there."""
+    path = tmp_path / "doconly.py"
+    path.write_text(
+        "def helper():\n"
+        '    """Tracks pack hash for caption reuse."""\n'
+        "    return 1\n"
+    )
+    facts = parse_module(path)
+    enriched = enrich_changed_symbols(
+        [
+            ChangedSymbolInfo(
+                path="doconly.py",
+                name="helper",
+                kind="function",
+                line=1,
+                changed_lines=[2],
+            )
+        ],
+        graph=nx.DiGraph(),
+        seeds=["doconly.py"],
+        danger_paths=set(),
+        downstream_count=0,
+        risk="LOW",
+        facts_by_path={"doconly.py": facts},
+    )[0]
+    assert enriched.hunk_details
+    assert enriched.hunk_details[0].line == 2
+
+
 def test_multi_hunk_collapses_to_symbol_outcome_when_purpose_strong(tmp_path: Path):
     """Call-only hunks + curated purpose → one outcome ℹ️ (slots would win if present)."""
     path = tmp_path / "wire.py"

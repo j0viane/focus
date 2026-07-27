@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import re
+from difflib import SequenceMatcher
 
 from focus.llm.pack import CaptionEvidencePack
 
-MAX_LABEL_CHARS = 110
+# Inline ℹ️ budget: enough for two–three short sentences; IDE stacks wrap rows.
+MAX_LABEL_CHARS = 320
 
 _HOP_RE = re.compile(r"\b\d+\s*hops?\b", re.IGNORECASE)
 _RISK_WORDS = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
@@ -16,6 +18,20 @@ _SNAKE_RE = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
 _CAMEL_RE = re.compile(r"\b[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+\b")
 _SCOPE_RE = re.compile(
     r"\b(callers?|downstream|depends?|dependents?)\b|\bimports?\s+from\b",
+    re.IGNORECASE,
+)
+# Thin edit-shape slogans like "Updates hash here." — not "Adds X so that Y".
+_THIN_EDIT_RE = re.compile(
+    r"^(updates?|changes?|modifies?|edits?)\s+"
+    r"(`[^`]+`|[A-Za-z_][\w.]*)\s+here\.?$",
+    re.IGNORECASE,
+)
+_CONSEQUENCE_RE = re.compile(
+    r"\b("
+    r"so that|so we|so reviewers?|reuse|skips?|avoids?|breaks?|"
+    r"callers?|readers?|meaning|when|fingerprint|cache hit|look\s*up|"
+    r"misleads?|fails?|depends?"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -51,6 +67,51 @@ def validate_label(detail: str, pack: CaptionEvidencePack) -> str | None:
         if text.count("`") % 2 == 1:
             return None
     return text
+
+
+def prefer_polish_label(detail: str, pack: CaptionEvidencePack) -> str | None:
+    """Keep a validated label only when it beats the deterministic caption.
+
+    Sweet spot: short + what/why. Reject empty restatements of ``deterministic_caption``
+    and thin edit-shape slogans with no consequence cue. Never reject merely because
+    the label is longer or more specific than the det line.
+    """
+    text = " ".join((detail or "").split())
+    if not text:
+        return None
+    det = " ".join((pack.deterministic_caption or "").split())
+    if det and _near_duplicate(text, det):
+        return None
+    if _is_thin_edit_shape(text) and not _has_consequence_cue(text):
+        # Don't replace a measured caption with an equally thin slogan.
+        if det:
+            return None
+    return text
+
+
+def _normalize_compare(text: str) -> str:
+    lowered = text.lower()
+    lowered = _BACKTICK_RE.sub(r"\1", lowered)
+    lowered = re.sub(r"[^\w\s]+", " ", lowered)
+    return re.sub(r"\s+", " ", lowered).strip()
+
+
+def _near_duplicate(left: str, right: str) -> bool:
+    a = _normalize_compare(left)
+    b = _normalize_compare(right)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    return SequenceMatcher(None, a, b).ratio() >= 0.92
+
+
+def _is_thin_edit_shape(text: str) -> bool:
+    return bool(_THIN_EDIT_RE.match(text.strip()))
+
+
+def _has_consequence_cue(text: str) -> bool:
+    return bool(_CONSEQUENCE_RE.search(text))
 
 
 def _pack_support_corpus(pack: CaptionEvidencePack) -> set[str]:

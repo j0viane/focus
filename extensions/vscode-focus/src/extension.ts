@@ -346,9 +346,83 @@ async function runAudit(
       const settingOn = vscode.workspace
         .getConfiguration("focus")
         .get<boolean>("llmCaptions", false);
-      // Progressive: always paint deterministic rails first; LLM never blocks autosave.
-      const wantLlmBackground =
+      // Option A: Audit Local waits for LLM on the open file before first paint
+      // (no short deterministic flash). Save/overlay stay deterministic-only.
+      const wantLlmAuditLocal =
         !quiet && !withOverlay && settingOn && !overlayPath;
+
+      if (wantLlmAuditLocal) {
+        const activeRel = activeEditorRelPath(root);
+        let hud: FocusHUD;
+        try {
+          hud = await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Window,
+              title: activeRel
+                ? "Focus: auditing + labeling open file…"
+                : "Focus: auditing + labeling captions…",
+            },
+            () =>
+              auditLocal(root, undefined, {
+                allowLlm: true,
+                llmPaths: activeRel ? [activeRel] : undefined,
+              }),
+          );
+        } catch (err) {
+          // Fail open to deterministic rails if LLM path errors.
+          reportError(err, true);
+          hud = await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Window,
+              title: "Focus: auditing local changes…",
+            },
+            () => auditLocal(root, undefined, { allowLlm: false }),
+          );
+          if (enrichGen !== llmEnrichGeneration) {
+            return;
+          }
+          setHud(hud, root, extVersion);
+          if (!quiet) {
+            HudPanel.show(hud);
+          }
+          return;
+        }
+        if (enrichGen !== llmEnrichGeneration) {
+          return;
+        }
+        setHud(hud, root, extVersion);
+        if (!quiet) {
+          HudPanel.show(hud);
+        }
+        // Label remaining files in the background (open file already long).
+        if (activeRel) {
+          statusBar.text = `Focus · ${hud.risk_tier} · labeling…`;
+          statusBar.tooltip = `${hud.summary}\n\nFocus extension v${extVersion}\nLLM captions finishing other files…`;
+          void (async () => {
+            try {
+              const labeled = await vscode.window.withProgress(
+                {
+                  location: vscode.ProgressLocation.Window,
+                  title: "Focus: labeling remaining captions…",
+                },
+                () => auditLocal(root, undefined, { allowLlm: true }),
+              );
+              if (enrichGen !== llmEnrichGeneration) {
+                return;
+              }
+              setHud(labeled, root, extVersion);
+            } catch (err) {
+              if (enrichGen !== llmEnrichGeneration) {
+                return;
+              }
+              reportError(err, true);
+              statusBar.text = `Focus · ${hud.risk_tier}`;
+              statusBar.tooltip = `${hud.summary}\n\nFocus extension v${extVersion}`;
+            }
+          })();
+        }
+        return;
+      }
 
       const hud = await vscode.window.withProgress(
         {
@@ -366,54 +440,6 @@ async function runAudit(
       setHud(hud, root, extVersion);
       if (!quiet) {
         HudPanel.show(hud);
-      }
-
-      if (wantLlmBackground) {
-        statusBar.text = `Focus · ${hud.risk_tier} · labeling…`;
-        statusBar.tooltip = `${hud.summary}\n\nFocus extension v${extVersion}\nLLM captions running in background…`;
-        void (async () => {
-          try {
-            // Visible-file-first: label the open file ASAP, then the rest.
-            const activeRel = activeEditorRelPath(root);
-            if (activeRel) {
-              const first = await vscode.window.withProgress(
-                {
-                  location: vscode.ProgressLocation.Window,
-                  title: "Focus: labeling open file (LLM)…",
-                },
-                () =>
-                  auditLocal(root, undefined, {
-                    allowLlm: true,
-                    llmPaths: [activeRel],
-                  }),
-              );
-              if (enrichGen !== llmEnrichGeneration) {
-                return;
-              }
-              setHud(first, root, extVersion);
-              statusBar.text = `Focus · ${first.risk_tier} · labeling…`;
-            }
-            const labeled = await vscode.window.withProgress(
-              {
-                location: vscode.ProgressLocation.Window,
-                title: "Focus: labeling captions (LLM)…",
-              },
-              () => auditLocal(root, undefined, { allowLlm: true }),
-            );
-            if (enrichGen !== llmEnrichGeneration) {
-              return;
-            }
-            setHud(labeled, root, extVersion);
-          } catch (err) {
-            if (enrichGen !== llmEnrichGeneration) {
-              return;
-            }
-            // Keep deterministic rails; surface quietly.
-            reportError(err, true);
-            statusBar.text = `Focus · ${hud.risk_tier}`;
-            statusBar.tooltip = `${hud.summary}\n\nFocus extension v${extVersion}`;
-          }
-        })();
       }
     } catch (err) {
       reportError(err, quiet);

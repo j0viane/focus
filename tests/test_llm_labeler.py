@@ -10,7 +10,7 @@ from focus.llm.pack import (
     pack_contains_secrets,
 )
 from focus.llm.settings import resolve_llm_captions
-from focus.llm.validate import validate_label
+from focus.llm.validate import MAX_LABEL_CHARS, prefer_polish_label, validate_label
 from focus.llm.weak import is_weak_caption
 from focus.models import ChangedSymbolInfo
 
@@ -79,13 +79,13 @@ def test_validate_label_caps_and_rejects_hops():
     )
     assert validate_label("Touches 3 hops away.", pack) is None
     assert validate_label("This is CRITICAL somehow.", pack) is None
-    long = "x" * 200
+    long = "x" * (MAX_LABEL_CHARS + 50)
     clipped = validate_label(long, pack)
     assert clipped is not None
-    assert len(clipped) <= 110
+    assert len(clipped) <= MAX_LABEL_CHARS
     assert clipped.endswith("…")
     # Clip that tears a `code` span open must fail closed (dogfood: dangling backtick).
-    torn = "x" * 105 + " `helper` tail"
+    torn = "x" * (MAX_LABEL_CHARS - 5) + " `helper` tail"
     assert validate_label(torn, pack) is None
 
 
@@ -142,6 +142,48 @@ def test_validate_allows_measured_return_restatement():
     )
     out = validate_label("Returns `helper`.", pack)
     assert out == "Returns `helper`."
+
+
+def test_prefer_polish_keeps_sweet_spot_over_thin_det():
+    """Dense what+why beats 'Updates X here' — not rejected for being longer."""
+    pack = CaptionEvidencePack(
+        path="src/focus/llm/cache.py",
+        symbol_name="pack_fingerprint",
+        symbol_kind="function",
+        risk_tier="CRITICAL",
+        deterministic_caption="Updates hash here.",
+        allowed_tokens=["pack_fingerprint", "hash", "pack", "model"],
+        measured=MeasuredSlots(),
+    )
+    sweet = "Fingerprint so we reuse captions for the same pack and model."
+    assert prefer_polish_label(sweet, pack) == sweet
+
+
+def test_prefer_polish_rejects_near_duplicate_of_det():
+    pack = CaptionEvidencePack(
+        path="a.py",
+        symbol_name="fn",
+        symbol_kind="function",
+        risk_tier="LOW",
+        deterministic_caption="Updates hash here.",
+        allowed_tokens=["fn", "hash"],
+        measured=MeasuredSlots(),
+    )
+    assert prefer_polish_label("Updates hash here.", pack) is None
+    assert prefer_polish_label("updates  hash  here", pack) is None
+
+
+def test_prefer_polish_rejects_thin_slogan_when_det_exists():
+    pack = CaptionEvidencePack(
+        path="a.py",
+        symbol_name="fn",
+        symbol_kind="function",
+        risk_tier="LOW",
+        deterministic_caption="Returns `ok`.",
+        allowed_tokens=["fn", "ok", "hash"],
+        measured=MeasuredSlots(return_expr="ok"),
+    )
+    assert prefer_polish_label("Updates hash here.", pack) is None
 
 
 def test_resolve_llm_captions_defaults_and_overlay_off(monkeypatch):

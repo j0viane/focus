@@ -1156,6 +1156,30 @@ def _run_is_blank_only(run_text: list[str]) -> bool:
     return bool(run_text) and all(not line.strip() for line in run_text)
 
 
+def _run_is_docstring_only(run_text: list[str]) -> bool:
+    """True when the hunk is only a docstring — no executable statements.
+
+    Docstring edits are real changes, but when a body edit exists in the same
+    symbol they must not steal the single ℹ️ (dogfood: caption parked on the
+    def-adjacent docstring instead of ``prompt_rev``).
+    """
+    stripped = [line.strip() for line in run_text if line.strip()]
+    if not stripped:
+        return False
+    blob = "\n".join(stripped)
+    for quote in ('"""', "'''"):
+        if blob.startswith(quote) and blob.endswith(quote) and len(blob) >= 2 * len(quote):
+            return True
+    if not stripped[0].startswith(('"""', "'''")):
+        return False
+    # Opened a docstring in this hunk; reject if any line looks like code.
+    codey = re.compile(
+        r"^(async\s+)?def\b|^class\b|^\w+\s*=|^(return|raise|import|from|if|for|"
+        r"while|with|try|pass|yield|await)\b"
+    )
+    return not any(codey.match(line) for line in stripped)
+
+
 def _hunk_details_are_blank_only(details: list[HunkDetail]) -> bool:
     return bool(details) and all(_is_blank_line_caption(d.detail) for d in details)
 
@@ -1245,6 +1269,7 @@ def _build_hunk_details(
     # in busy symbols (dogfood: return "" on _build_hunk_details never surfaced).
     runs = _contiguous_line_runs(symbol.changed_lines)
     code_rows: list[HunkDetail] = []
+    docstring_rows: list[HunkDetail] = []
     blank_rows: list[HunkDetail] = []
     for run in runs:
         if source:
@@ -1273,12 +1298,25 @@ def _build_hunk_details(
         if not detail:
             continue
         anchor = _anchor_line_for_caption(run, run_text, detail)
-        code_rows.append(HunkDetail(line=anchor, changed_lines=run, detail=detail))
+        row = HunkDetail(line=anchor, changed_lines=run, detail=detail)
+        # Defer docstring-only hunks: body edits own the sight-line ℹ️.
+        if source is not None and _run_is_docstring_only(run_text):
+            docstring_rows.append(row)
+            continue
+        code_rows.append(row)
 
-    # Real edits win: drop blank-only rows so they don't steal / dilute the ℹ️.
+    # Real edits win: drop blank-only / docstring rows so they don't steal the ℹ️.
     if code_rows:
         return _collapse_hunk_details_to_outcomes(
             code_rows,
+            purpose_outcome=fallback,
+            symbol_name=symbol.name,
+            symbol_line=symbol.line,
+            purpose_is_curated=purpose_is_curated,
+        )
+    if docstring_rows:
+        return _collapse_hunk_details_to_outcomes(
+            docstring_rows,
             purpose_outcome=fallback,
             symbol_name=symbol.name,
             symbol_line=symbol.line,
@@ -1366,10 +1404,13 @@ def _purpose_is_strong_outcome(text: str, symbol_name: str) -> bool:
 
 
 def _pick_primary_hunk(details: list[HunkDetail], symbol_line: int) -> HunkDetail:
-    """Anchor the single ℹ️ on the main body edit, not the def line when possible."""
+    """Anchor the single ℹ️ on the main body edit, not the def line when possible.
+
+    Prefer larger hunks, then later lines (sight of the change the author is on).
+    """
     body = [d for d in details if d.line != symbol_line]
     candidates = body or details
-    return max(candidates, key=lambda d: (len(d.changed_lines or []), -d.line))
+    return max(candidates, key=lambda d: (len(d.changed_lines or []), d.line))
 
 
 def _is_return_or_assign_caption(detail: str) -> bool:
