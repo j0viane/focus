@@ -15,12 +15,15 @@ _LOCK = threading.Lock()
 _MEMORY: dict[str, str] = {}
 _MAX_MEMORY = 512
 _CACHE_SUBDIR = "focus-llm-caption-cache"
+# Bump when system prompts / label budget change so stale captions are not reused.
+_PROMPT_REV = "320-2sent"
 
 
 def pack_fingerprint(pack: CaptionEvidencePack, *, model: str) -> str:
-    """Stable hash of pack JSON + model id."""
+    """Hash pack JSON + model + prompt rev so matching captions reuse the cache."""
     payload: dict[str, Any] = {
         "model": model,
+        "prompt_rev": _PROMPT_REV,
         "pack": pack.model_dump(mode="json"),
     }
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"))

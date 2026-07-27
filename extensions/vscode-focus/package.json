@@ -1,8 +1,9 @@
 {
   "name": "focus-hud",
+  "private": true,
   "displayName": "Focus",
-  "description": "Blast radius you can defend — evidence-only Focus HUD in the editor.",
-  "version": "0.5.11",
+  "description": "Blast radius you can defend - evidence-only Focus HUD in the editor.",
+  "version": "0.5.15",
   "publisher": "j0viane",
   "engines": {
     "vscode": "^1.85.0"
@@ -64,12 +65,12 @@
         "focus.captionHighlight": {
           "type": "boolean",
           "default": true,
-          "description": "Deprecated — use focus.inlineExplanations. Kept for compatibility."
+          "description": "Deprecated - use focus.inlineExplanations. Kept for compatibility."
         },
         "focus.inlineExplanations": {
           "type": "boolean",
           "default": true,
-          "description": "Word-wrapped summary above `def` and ℹ️ detail at the primary edit (virtual — not saved to disk)."
+          "description": "Inline detail at the primary edit (virtual - not saved to disk)."
         },
         "focus.lensFontSize": {
           "type": "number",
@@ -89,7 +90,7 @@
         "focus.llmCaptions": {
           "type": "boolean",
           "default": false,
-          "description": "Opt-in: after Focus: Audit Local, paint deterministic rails, then LLM-label the open file first and the rest in the background (never on autosave / overlay). Needs FOCUS_LLM_API_KEY for openai/anthropic, or FOCUS_LLM_PROVIDER=ollama (default model qwen2.5-coder:3b)."
+          "description": "Opt-in: on Focus: Audit Local, wait for LLM captions on the open file before painting (no short deterministic flash), then label the rest in the background. Never on autosave / overlay. Needs FOCUS_LLM_API_KEY for openai/anthropic, or FOCUS_LLM_PROVIDER=ollama (default model qwen2.5-coder:3b)."
         }
       }
     }

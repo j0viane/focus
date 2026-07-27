@@ -9,7 +9,7 @@ import {
   preferCodeLine,
 } from "./symbolLayout";
 import { FOCUS_BADGE, riskEmoji } from "./icons";
-import { evidenceMarkdown, explanationLensTitle, summaryLensTitle } from "./explainText";
+import { evidenceMarkdown, explanationLensTitle } from "./explainText";
 import { inlineExplanationsEnabled } from "./inlineExplanation";
 import type { ChangedSymbolInfo, FocusHUD, ImpactNode, LineExplanation, RiskTier } from "./types";
 
@@ -86,21 +86,10 @@ function symbolLenses(
 ): vscode.CodeLens[] {
   const defLine = definitionLine(sym);
   const lenses: vscode.CodeLens[] = [];
-  const implication = sym.implication || "";
   const railLine = preferCodeLine(document, defLine);
 
-  // Risk rail above `def` — quiet when implication is empty (LOW, or ROA gaps).
-  // Captions (ℹ️) still show below whenever we have detail — including LOW.
-  if (implication) {
-    lenses.push(
-      new vscode.CodeLens(lensRange(document, railLine), {
-        title: summaryLensTitle(implication),
-        command: "focus.showEvidence",
-        arguments: [document.uri, railLine, evidenceMarkdown(sym)],
-        tooltip: "Click for why to trust this · or hover the highlighted code",
-      }),
-    );
-  }
+  // ROA: no risk rail on `def` — implication lives in the HUD / PR comment.
+  // Editor chrome is ℹ️ at the change only.
 
   let captionCount = 0;
   if (inlineExplanationsEnabled()) {
@@ -131,7 +120,7 @@ function symbolLenses(
     }
 
     // Guarantee an ℹ️ when HUD has symbol.detail but no hunk anchors landed
-    // (common on LOW: quiet rail, still narrate the edit).
+    // (common on LOW: still narrate the edit).
     const fallbackDetail = (sym.detail || "").trim();
     if (captionCount === 0 && fallbackDetail) {
       lenses.push(
@@ -146,7 +135,7 @@ function symbolLenses(
     }
   }
 
-  // Last-resort badge when we have neither rail nor caption — skip on LOW (ROA).
+  // Last-resort badge when we have no caption — skip on LOW (ROA).
   if (!lenses.length && hud.risk_tier !== "LOW") {
     const n = hud.downstream.length;
     const badge = `${FOCUS_BADGE} Focus · ${sym.name} · ${riskEmoji(hud.risk_tier as RiskTier)} ${hud.risk_tier} · ${n} downstream`;
