@@ -3,10 +3,10 @@ Sideload this extension to see Focus **in the diff**: ℹ️ on changed **symbol
 ## Prerequisites
 
 ```bash
-# Prefer editable install from this repo (tracks main / 0.3.5+ features):
+# Prefer editable install from this repo (tracks main):
 #   ./scripts/install-extension.sh
-# Or older PyPI-only:
-pip install "focus-hud>=0.3.1"
+# Or PyPI:
+pip install "focus-hud>=0.3.5"
 focus version   # must support --format json
 ```
 

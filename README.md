@@ -25,8 +25,8 @@ Focus shows **what else that change touches** — with evidence you can point at
 ## Try in 60 seconds
 
 ```bash
-pip install "focus-hud>=0.3.1"    # PyPI — last published release
-# Latest from this repo (Phase 4c/4d): git clone + uv sync (see below)
+pip install "focus-hud>=0.3.5"    # PyPI
+# Or from this repo: git clone + uv sync (see below)
 
 focus trace path/to/shared_module.py --out focus-hud.md
 # open focus-hud.md → Markdown preview for Mermaid
@@ -149,7 +149,7 @@ Unchanged files reuse **`.focus-cache/`** (gitignored). Pass `--no-cache` to for
 
 Optional: copy [`.focus.toml.example`](.focus.toml.example) → `.focus.toml` to tune `fan_out_threshold` (default **3**).
 
-Requirements: Python 3.12+. **PyPI:** `pip install "focus-hud>=0.3.1"` (last published). **This checkout:** `uv sync` → local **0.3.5** (captions ledger + cache). Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
+Requirements: Python 3.12+. **PyPI:** `pip install "focus-hud>=0.3.5"`. **This checkout:** `uv sync` → same **0.3.5** line. Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ```bash
 uv run pytest
