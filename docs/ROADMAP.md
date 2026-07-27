@@ -3,7 +3,7 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** July 2026  
-**Current phase:** Phase 4 **in progress** — IDE + evidence-pack LLM captions shipped opt-in (4c). **Phase 4d thin slice** (module-constant def–use captions) implemented locally — not committed yet. Phase 3 complete on PyPI.
+**Current phase:** Phase 4 **in progress** — IDE + evidence-pack LLM captions shipped opt-in (4c). **Phase 4d thin slice** (module-constant def–use / orphan packs) **shipped on main** (#29); caption sweet-spot + quieter IDE chrome on main (#30). Phase 3 complete on PyPI.
 
 ---
 
@@ -151,8 +151,8 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | Limitation today | Planned improvement | Status |
 |---|---|---|
 | **Hunk copy names enclosing `def`** | Hybrid: structural cues → proven `CallSite` → text heuristics; skip plumbing callees | ✅ slice 1 |
-| **Implication rail** | `{emoji} {RISK} — {who} — {what goes wrong}`; quiet when LOW | ✅ slice 2 |
-| **CodeLens layout** | Risk rail on `def` + one ℹ️ unless hunks differ; hover = evidence | ✅ slices 3–4 |
+| **Implication (who / what goes wrong)** | Computed on the symbol; shown in **HUD / JSON / PR** — not as a second CodeLens on `def` (ROA: one ℹ️ at the edit) | ✅ HUD; IDE rail removed (#30) |
+| **CodeLens layout** | One ℹ️ at the body edit (docstring hunks deferred when body exists); hover = evidence | ✅ #30 |
 | **File-level blast radius** | Symbol-level downstream (who calls *this* def, not just the file) | Planned |
 | **Static-only graph** | Best-effort dynamic import / string-literal hints where parseable | Explore |
 | **Heuristic captions** when no docstring | JSDoc/TSDoc extraction for JS/TS; Typer `@app.command` metadata for CLI | Planned |
@@ -163,7 +163,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **Auto-refresh on save** | Quiet re-audit after saving a source file; CodeLens/gutters update in place (`focus.autoAuditOnSave`) | ✅ extension 0.5.1 |
 | **SCM Working Tree CodeLens** | Same risk rail + ℹ️ on the **modified** side of local side-by-side diffs (`diffEditor.codeLens`) and the open file (`editor.codeLens`) | ✅ |
 | **Edit-shaped captions** | Deterministic ℹ️ from the edit: blank counts, imports, calls, returns, assigns — not static slogans | ✅ focus-hud 0.3.2 / extension 0.5.2 |
-| **Expression-slot captions** | Return/assign ℹ️ include a clipped expression when readable; weak/`None`/code-soup yield to purpose (LLM labeler still planned) | ✅ focus-hud 0.3.3 |
+| **Expression-slot captions** | Return/assign ℹ️ include a clipped expression when readable; weak/`None`/code-soup yield to purpose; opt-in LLM may polish from the pack | ✅ focus-hud 0.3.3 + 4c/4d |
 | **Live-as-you-type** | Debounced refresh from the **unsaved buffer** (not only disk/git) — `--overlay-file` + `focus.liveBufferOverlay` | ✅ focus-hud 0.3.3 / extension 0.5.3 |
 | **Evidence-pack LLM captions** | Opt-in labeler for **all** ℹ️ (incl. blank-line); pack-constrained; never invents edges; never on live overlay | ✅ focus-hud 0.3.5 / extension 0.5.4 |
 
@@ -186,7 +186,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | `FOCUS_LLM_ENABLED` / `.focus.toml [llm] captions` | off |
 | `FOCUS_LLM_PROVIDER` | `openai` (cloud) or **`ollama`** (no-key local dogfood) |
 | `focus audit --llm-captions` | dogfood / CI force-on for one run |
-| Extension `focus.llmCaptions` | false (explicit **Audit Local**: deterministic rails first, LLM captions in background — never autosave / overlay) |
+| Extension `focus.llmCaptions` | false (explicit **Audit Local**: wait for open-file LLM before first paint, then label remaining files in background — never autosave / overlay) |
 
 **Dogfood checklist (all captions when enabled, before leaving on by default):**
 
@@ -204,9 +204,9 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 
 ---
 
-## Phase 4d — Portable fact ledger for captions *(thin slice local)*
+## Phase 4d — Portable fact ledger for captions *(thin slice shipped)*
 
-**Status:** Thin slice implemented locally (2026-07-22) — module-level assign + same-file readers + importers → template orphan captions. Kill-or-keep PASS on Focus + stranger fixture. Not committed/PR'd yet.
+**Status:** Thin slice **on main** (2026-07 — #29 / related) — module-level assign + same-file readers + importers → template orphan captions; packs carry `readers` / `importers` / `reader_doc` for opt-in LLM polish. Kill-or-keep PASS on Focus + stranger fixture. **More edit shapes still deferred.**
 
 **Problem dogfood surfaced:** Measured ℹ️ often names *edit shape* (`Updates \`weak_hit\` here.`, orphan “outside a function”) without *scope* (what changed in the target code, who uses it). An LLM can invent fluent scope; Focus must not. CEOs’ “AI replaces judgment” narrative does not license ungrounded captions.
 
@@ -217,7 +217,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 1. **Generic edit facts** — ~~module-level assign + clipped RHS + same-file readers~~ *(done in `src/focus/hud/edit_facts.py`)*; more edit shapes later.
 2. **Attach who** — ~~importers from `facts_by_path`~~ *(done for module names)*; expand as needed.
 3. **Template captions** from those facts *(done for orphan module assigns)*.
-4. **Opt-in LLM labeler** — orphan packs can carry readers/importers/reader_doc for polish; **happy path must not wait on the model** (owner dogfood: local Ollama latency unacceptable for all-line captions). Prefer richer ledger templates first.
+4. **Opt-in LLM labeler** — orphan packs carry readers/importers/reader_doc; sweet-spot polish + 320-char budget (#30); still **never on live overlay**; Audit Local waits for open-file labels when enabled.
 5. **First-class `EditFact` / `UseFact` / `ImpactFact` models** if the pack gets messy (defer).
 
 **Success check:** On any repo, a module-level constant edit reads as defendable scope — not “Edited outside a changed function…” and not insider product jokes. *(Ledger thin slice verified: Focus `_WEAK_MARKERS` → `is_weak_caption` and stranger `RETRY_LIMIT` → `charge`.)*
