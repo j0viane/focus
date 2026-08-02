@@ -153,7 +153,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **Hunk copy names enclosing `def`** | Hybrid: structural cues → proven `CallSite` → text heuristics; skip plumbing callees | ✅ slice 1 |
 | **Implication (who / what goes wrong)** | Computed on the symbol; shown in **HUD / JSON / PR** — not as a second CodeLens on `def` (ROA: one ℹ️ at the edit) | ✅ HUD; IDE rail removed (#30) |
 | **CodeLens layout** | One ℹ️ at the body edit (docstring hunks deferred when body exists); hover = evidence | ✅ #30 |
-| **File-level blast radius** | Symbol-level downstream (who calls *this* def, not just the file) | Planned |
+| **File-level blast radius** | Symbol-level downstream (who calls *this* def, not just the file) | ✅ symbol-proven filter |
 | **Static-only graph** | Best-effort dynamic import / string-literal hints where parseable | Explore |
 | **Heuristic captions** when no docstring | JSDoc/TSDoc extraction for JS/TS; Typer `@app.command` metadata for CLI | Planned |
 | **Evidence in IDE** | Hover = *why trust this* only (≤2 cues); no restating rail/ℹ️; importers collapsed → HUD | ✅ ROA slim |
