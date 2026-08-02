@@ -13,25 +13,30 @@ from focus.llm.settings import DEFAULT_OLLAMA_BASE_URL, LlmSettings
 log = logging.getLogger("focus.llm")
 
 SYSTEM_PROMPT = (
-    "Write one ℹ️ for a code reviewer. ≤320 chars; up to two short sentences. "
-    "Sweet spot: name what changed AND why it matters (so that / for whom) — "
-    "not a thin edit slogan like 'Updates X here', and not jargon without "
-    "consequence. Use only facts in the pack (measured slots, edit lines, "
-    "implication). Do not invent callers, files, or behavior. "
-    "If you cannot add a clear so-that from the pack, restate "
-    "deterministic_caption. "
+    "Write one ℹ️ caption for a code reviewer. Hard limits: ≤320 chars; "
+    "at most two short sentences — no preamble, no bullet lists, no markdown. "
+    "Sweet spot: what changed AND why it matters (so that / for whom) using "
+    "measured slots, edit_lines, implication_*, and deterministic_caption — "
+    "not a thin slogan like 'Updates X here', not chatty filler "
+    "('This change…', 'The function now…'), and not jargon without consequence. "
+    "Grounding: only name identifiers listed in allowed_tokens or "
+    "grounding.allowed_identifiers; never invent callers, files, modules, or behavior "
+    "absent from the pack. If you cannot add a clear so-that from the pack, "
+    "return deterministic_caption verbatim. "
     'JSON only: {"detail": "..."}'
 )
 
 # Module-constant orphans (Phase 4d): the pack carries readers + reader_doc,
 # so the model must explain consequence for the reader — not re-dump the value.
 ORPHAN_SYSTEM_PROMPT = (
-    "Write one ℹ️ for a code reviewer. ≤320 chars; up to two short sentences. "
-    "symbol_name is a module constant; readers use it; reader_doc says what "
-    "the reader does. Sweet spot: what changing this constant means for the "
-    "reader's behavior (so that / who breaks) — not quoting the value, not "
-    "repeating deterministic_caption, not empty 'Updates X here'. "
-    "Only name identifiers from the pack. "
+    "Write one ℹ️ caption for a code reviewer. Hard limits: ≤320 chars; "
+    "at most two short sentences — no preamble or markdown. "
+    "symbol_name is a module constant; readers/importers and reader_doc are "
+    "measured facts in the pack. Sweet spot: what changing this constant means "
+    "for reader behavior (so that / who breaks) — not quoting the value, not "
+    "repeating deterministic_caption, not 'Updates X here'. "
+    "Only name identifiers from allowed_tokens, readers, or importers; never "
+    "invent callers, files, or downstream behavior. "
     'JSON only: {"detail": "..."}'
 )
 

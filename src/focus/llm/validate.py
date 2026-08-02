@@ -7,8 +7,9 @@ from difflib import SequenceMatcher
 
 from focus.llm.pack import CaptionEvidencePack
 
-# Inline ℹ️ budget: enough for two–three short sentences; IDE stacks wrap rows.
+# Inline ℹ️ budget: enough for two short sentences; IDE stacks wrap rows.
 MAX_LABEL_CHARS = 320
+_MAX_SENTENCES = 2
 
 _HOP_RE = re.compile(r"\b\d+\s*hops?\b", re.IGNORECASE)
 _RISK_WORDS = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
@@ -17,15 +18,23 @@ _BACKTICK_RE = re.compile(r"`([^`]+)`")
 _SNAKE_RE = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
 _CAMEL_RE = re.compile(r"\b[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+\b")
 _SCOPE_RE = re.compile(
-    r"\b(callers?|downstream|depends?|dependents?)\b|\bimports?\s+from\b",
+    r"\b(callers?|downstream|upstream|dependents?|depends?|imports?\s+from|"
+    r"affects?|impacts?)\b",
     re.IGNORECASE,
 )
 # Thin edit-shape slogans like "Updates hash here." — not "Adds X so that Y".
 _THIN_EDIT_RE = re.compile(
-    r"^(updates?|changes?|modifies?|edits?)\s+"
-    r"(`[^`]+`|[A-Za-z_][\w.]*)\s+here\.?$",
+    r"^(updates?|changes?|modifies?|edits?|adjusts?)\s+"
+    r"(`[^`]+`|[A-Za-z_][\w.]*)"
+    r"(?:\s+here)?\.?$",
     re.IGNORECASE,
 )
+_CHATTY_PREAMBLE_RE = re.compile(
+    r"^(this (change|edit|function|update|code)|the function|in this|the following|"
+    r"note that|here,?|as a result)\b",
+    re.IGNORECASE,
+)
+_SENTENCE_END_RE = re.compile(r"[.!?](?:\s+|$)")
 _CONSEQUENCE_RE = re.compile(
     r"\b("
     r"so that|so we|so reviewers?|reuse|skips?|avoids?|breaks?|"
@@ -46,6 +55,10 @@ def validate_label(detail: str, pack: CaptionEvidencePack) -> str | None:
         return None
     text = " ".join(str(detail).split())
     if _HOP_RE.search(text):
+        return None
+    if _sentence_count(text) > _MAX_SENTENCES:
+        return None
+    if _CHATTY_PREAMBLE_RE.match(text):
         return None
     upper = text.upper()
     for tier in _RISK_WORDS:
@@ -112,6 +125,15 @@ def _is_thin_edit_shape(text: str) -> bool:
 
 def _has_consequence_cue(text: str) -> bool:
     return bool(_CONSEQUENCE_RE.search(text))
+
+
+def _sentence_count(text: str) -> int:
+    """Count sentence boundaries — abbreviations are rare in ℹ️ captions."""
+    stripped = text.strip()
+    if not stripped:
+        return 0
+    ends = len(_SENTENCE_END_RE.findall(stripped + " "))
+    return max(1, ends)
 
 
 def _pack_support_corpus(pack: CaptionEvidencePack) -> set[str]:

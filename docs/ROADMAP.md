@@ -202,6 +202,8 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 4. For each caption that gained `llm_label` evidence, score: invent entity? invent behavior not in pack? better than silence/deterministic?
 5. Accept only if **zero** topology invent and no ungrounded scope/entity slips past validate; otherwise leave default off.
 
+**Bake-off (3b vs 7b, evidence-only):** keep default `qwen2.5-coder:3b`; compare with `FOCUS_LLM_MODEL=qwen2.5-coder:7b` on the same diff. Clear caption cache between runs (`python -c "from focus.llm.cache import clear_caption_cache; clear_caption_cache(disk=True)"`). Prompt revision is fingerprinted (`320-ground-v3` as of caption-quality workstream).
+
 ---
 
 ## Phase 4d — Portable fact ledger for captions *(thin slice shipped)*

@@ -32,6 +32,15 @@ def test_pack_fingerprint_stable_and_model_sensitive():
     assert pack_fingerprint(_pack(name="other"), model="qwen2.5-coder:3b") != a
 
 
+def test_pack_fingerprint_busts_on_prompt_rev(monkeypatch):
+    from focus.llm import cache
+
+    pack = _pack()
+    before = pack_fingerprint(pack, model="qwen2.5-coder:3b")
+    monkeypatch.setattr(cache, "_PROMPT_REV", "old-rev")
+    assert pack_fingerprint(pack, model="qwen2.5-coder:3b") != before
+
+
 def test_memory_cache_round_trip():
     clear_caption_cache(disk=True)
     pack = _pack()
