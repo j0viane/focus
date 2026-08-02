@@ -15,5 +15,6 @@ Before writing Focus code, confirm out loud (or AskQuestion):
 6. End session: what shipped, why, how to defend it in an interview.
 7. **PR Test plan:** if a PR exists or is being opened, run every automatable checkbox, mark `[x]` with evidence (`gh pr edit` / create), leave only *(owner)* items. See `focus-pr-test-plan.mdc`.
 8. **README honesty:** if the change is user-visible, update root `README.md` and/or `extensions/vscode-focus/README.md` (versions, install pins, flags, phases, privacy) — global duty in `readme-honesty.mdc`. Be honest about PyPI vs this checkout.
+9. **Dogfood before commit/push:** never commit, push, or open a PR until the change is **verified working** — not tests alone. Run a real CLI/IDE dogfood on a concrete edit, show mode/summary (or ℹ️ / HUD) evidence to Joviane, and wait for her OK. Pytest proves the harness; dogfood proves the product. Skip only if she explicitly says so.
 
 Canonical detail: `focus-engineering.mdc` + `focus-mentorship.mdc`.

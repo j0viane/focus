@@ -8,7 +8,11 @@ from typer.testing import CliRunner
 
 from focus.audit import audit_local
 from focus.cli import app
-from focus.triggers import should_emit_diagram
+from focus.triggers import (
+    TINY_DIFF_MAX_LINES,
+    count_changed_lines,
+    should_emit_diagram,
+)
 
 runner = CliRunner()
 
@@ -89,6 +93,48 @@ def test_audit_local_isolated_non_danger_is_pass_through(tmp_path: Path, glass_b
     assert hud.mode == "pass_through"
     assert hud.risk_tier == "LOW"
     assert hud.mermaid is None
+
+
+def test_audit_local_tiny_diff_one_downstream_is_pass_through(
+    tmp_path: Path, glass_box_path: Path
+):
+    """ROA: ≤5 lines + <2 downstream files + no Danger Zone → no Mermaid."""
+    repo = _glass_box_repo(tmp_path, glass_box_path)
+    billing = repo / "billing" / "service.py"
+    billing.write_text(
+        billing.read_text().replace(
+            'return {"user_id": user_id, "charged_cents": amount_cents, "status": "ok"}',
+            'return {"user_id": user_id, "charged_cents": amount_cents, "status": "ok"}  # x',
+        )
+    )
+
+    hud = audit_local(repo, base="main")
+    assert hud.mode == "pass_through"
+    assert hud.risk_tier == "LOW"
+    assert hud.mermaid is None
+    assert "tiny" in hud.summary.lower() or "low blast" in hud.summary.lower()
+
+
+def test_audit_local_large_diff_one_downstream_is_full(tmp_path: Path, glass_box_path: Path):
+    """Same single importer, but enough changed lines → full HUD."""
+    repo = _glass_box_repo(tmp_path, glass_box_path)
+    billing = repo / "billing" / "service.py"
+    # Pad with many executable lines so the diff exceeds TINY_DIFF_MAX_LINES.
+    padding = "\n".join(f"    _pad_{i} = {i}" for i in range(TINY_DIFF_MAX_LINES + 3))
+    billing.write_text(
+        billing.read_text().replace(
+            "    return {\"user_id\": user_id, \"charged_cents\": amount_cents, \"status\": \"ok\"}",
+            f"{padding}\n    return {{\n"
+            f'        "user_id": user_id,\n'
+            f'        "charged_cents": amount_cents,\n'
+            f'        "status": "ok",\n'
+            f"    }}",
+        )
+    )
+
+    hud = audit_local(repo, base="main")
+    assert hud.mode == "full"
+    assert hud.mermaid is not None
 
 
 def test_audit_local_danger_seed_without_downstream_is_full(tmp_path: Path, glass_box_path: Path):
@@ -185,3 +231,42 @@ def test_trigger_helper():
         )
         is True
     )
+    # Tiny + one downstream file → pass-through (ROA).
+    assert (
+        should_emit_diagram(
+            changed_paths=["billing/service.py"],
+            python_seeds=["billing/service.py"],
+            has_downstream=True,
+            downstream_file_count=1,
+            changed_line_count=2,
+        )
+        is False
+    )
+    # Same coupling, not tiny → diagram.
+    assert (
+        should_emit_diagram(
+            changed_paths=["billing/service.py"],
+            python_seeds=["billing/service.py"],
+            has_downstream=True,
+            downstream_file_count=1,
+            changed_line_count=TINY_DIFF_MAX_LINES + 1,
+        )
+        is True
+    )
+    # Path Danger Zone still diagrams even when tiny.
+    assert (
+        should_emit_diagram(
+            changed_paths=["api/routes.py"],
+            python_seeds=["api/routes.py"],
+            has_downstream=False,
+            downstream_file_count=0,
+            changed_line_count=1,
+        )
+        is True
+    )
+
+
+def test_count_changed_lines():
+    assert count_changed_lines({}) == 0
+    assert count_changed_lines({"a.py": [(10, 10)]}) == 1
+    assert count_changed_lines({"a.py": [(10, 12)], "b.py": [(1, 2)]}) == 5

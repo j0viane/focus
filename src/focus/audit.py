@@ -31,7 +31,7 @@ from focus.models import (
     RiskTier,
 )
 from focus.scan import cache_dir_for, discover_source_files, parse_module_cached
-from focus.triggers import should_emit_diagram
+from focus.triggers import count_changed_lines, should_emit_diagram
 
 
 def audit_local(
@@ -127,6 +127,7 @@ def build_explain_context(
     rings = [(hops, [p for p in paths if p not in seed_set]) for hops, paths in rings]
     rings = [(hops, paths) for hops, paths in rings if paths]
     downstream_file_count = sum(len(paths) for _, paths in rings)
+    line_count = count_changed_lines(changed_line_ranges(root, base, mode=mode))
 
     if not should_emit_diagram(
         changed_paths=all_changed,
@@ -135,6 +136,7 @@ def build_explain_context(
         downstream_file_count=downstream_file_count,
         graph=graph,
         fan_out_threshold=fan_out,
+        changed_line_count=line_count,
     ):
         return ExplainContext(
             symbols=symbol_infos,
@@ -310,6 +312,7 @@ def run_audit(
 
     has_downstream = bool(rings)
     downstream_file_count = sum(len(paths) for _, paths in rings)
+    line_count = count_changed_lines(line_ranges)
     if not should_emit_diagram(
         changed_paths=all_changed,
         python_seeds=seeds,
@@ -317,16 +320,24 @@ def run_audit(
         downstream_file_count=downstream_file_count,
         graph=graph,
         fan_out_threshold=fan_out,
+        changed_line_count=line_count,
     ):
         label = ", ".join(f"`{s}`" for s in seeds)
+        if has_downstream:
+            summary = (
+                f"**Focus:** Tiny change to {label} — low blast radius; "
+                f"skipping diagram. **LOW** risk."
+            )
+        else:
+            summary = (
+                f"**Focus:** Changed {label} — no downstream dependents and "
+                f"no Danger Zone seed. **LOW** risk."
+            )
         return _with_line_explanations(
             FocusHUD(
             mode="pass_through",
             seed=", ".join(seeds),
-            summary=(
-                f"**Focus:** Changed {label} — no downstream dependents and "
-                f"no Danger Zone seed. **LOW** risk."
-            ),
+            summary=summary,
             risk_tier="LOW",
             isolated=seeds,
             changed_symbols=_enrich_symbols(

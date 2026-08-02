@@ -159,7 +159,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **Evidence in IDE** | Hover = *why trust this* only (≤2 cues); no restating rail/ℹ️; importers collapsed → HUD | ✅ ROA slim |
 | **Verbose / low-ROA copy** | Hard caps: max chars for ℹ️ / summary; one idea per lens; no restating the header | 🔄 hover done; caps continue |
 | **PR comment inventory dump** | Cap **Your changes** at 8 + overflow; cap Also affected / Not pulled in at 8; prefer short detail over long explanation | ✅ focus-hud 0.3.4 |
-| **Tiny diff, huge output** | Stronger triggers: tiny + low blast radius → pass-through or *tiny* HUD (see [`TRIGGERS.md`](TRIGGERS.md)) | Planned (ROA) |
+| **Tiny diff, huge output** | Stronger triggers: tiny + low blast radius → pass-through or *tiny* HUD (see [`TRIGGERS.md`](TRIGGERS.md)) | ✅ pass-through (≤5 lines, &lt;2 downstream, no DZ/path/shared) |
 | **Auto-refresh on save** | Quiet re-audit after saving a source file; CodeLens/gutters update in place (`focus.autoAuditOnSave`) | ✅ extension 0.5.1 |
 | **SCM Working Tree CodeLens** | Same risk rail + ℹ️ on the **modified** side of local side-by-side diffs (`diffEditor.codeLens`) and the open file (`editor.codeLens`) | ✅ |
 | **Edit-shaped captions** | Deterministic ℹ️ from the edit: blank counts, imports, calls, returns, assigns — not static slogans | ✅ focus-hud 0.3.2 / extension 0.5.2 |

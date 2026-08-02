@@ -3,7 +3,7 @@
 Living document. Defines when Focus emits a full **Focus HUD** (with Mermaid diagram) vs a **pass-through summary** (one sentence, no diagram).
 
 **Last updated:** July 2026  
-**Status:** Phase 2 shipped; Phase 4b ROA extensions planned (tiny-diff → tiny output)
+**Status:** Phase 2 shipped; Phase 4b tiny-diff → pass-through shipped (≤5 lines + &lt;2 downstream files + no Danger Zone / path / shared layout)
 
 ---
 
@@ -97,11 +97,11 @@ These sharpen triggers and copy caps so Focus stays high-signal when AI-era PR v
 
 | Rule | Intent | Status |
 |---|---|---|
-| **Tiny diff + low blast radius → tiny output** | If changed lines are few *and* downstream count / Danger Zones are empty, force **pass-through** (or a one-line summary) — no Mermaid, no essay | Planned |
+| **Tiny diff + low blast radius → tiny output** | If changed lines ≤ **5** *and* downstream files &lt; **2** *and* no path / Danger Zone / shared-layout seed, force **pass-through** — no Mermaid | ✅ `should_emit_diagram(..., changed_line_count=)` |
 | **Output size ≤ impact** | Cap executive summary and inline ℹ️ length; one idea per lens; never restate the Focus header in the detail row | Planned |
 | **Virtual UI only** | Explainers stay in CodeLens / HUD — never written into source or committed markdown | Done (protect) |
 
-Wire into `should_emit_diagram` / pass-through paths and `expand_acronyms_for_juniors` / hunk detail emitters when implementing. Tests: parametrize `(tiny_diff, zero_downstream) → pass_through`.
+Constants: `TINY_DIFF_MAX_LINES = 5`, `TINY_DIFF_MAX_DOWNSTREAM_FILES = 2` in `src/focus/triggers/rules.py`. Path / Danger / shared-layout seeds still get a full HUD even on a one-line edit. Tests: `(tiny_diff, one_downstream) → pass_through`; `(large_diff, one_downstream) → full`.
 
 ---
 
