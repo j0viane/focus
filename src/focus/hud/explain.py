@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
@@ -70,7 +71,12 @@ def explain_symbol_with_evidence(
 ) -> SymbolExplanation:
     """Explain one symbol and record proven vs heuristic evidence for each clause."""
     facts = context.facts_by_path.get(symbol.path)
-    purpose_text, purpose_evidence = _symbol_purpose_with_evidence(symbol, symbol.path, facts)
+    purpose_text, purpose_evidence = _symbol_purpose_with_evidence(
+        symbol,
+        symbol.path,
+        facts,
+        overlay_text=context.overlay_texts.get(symbol.path),
+    )
     impact_text, impact_evidence = _impact_clause_with_evidence(
         symbol,
         symbol.path,
@@ -1195,8 +1201,8 @@ def caption_for_orphan_edit(
 ) -> str:
     """Same caption ladder for diffs outside a changed function/class body.
 
-    When ``source_text`` is available, Phase 4d module-assign scope captions
-    (def–use + importers) beat edit-shape-only text.
+    When ``source_text`` is available, Phase 4d assign scope captions
+    (module- or class-body def–use + importers) beat edit-shape-only text.
     """
     from focus.hud.edit_facts import caption_for_overlapping_module_assign
 
@@ -1735,6 +1741,8 @@ def _symbol_purpose_with_evidence(
     symbol: ChangedSymbolInfo,
     path: str,
     facts: ModuleFacts | None,
+    *,
+    overlay_text: str | None = None,
 ) -> tuple[str, list[EvidenceItem]]:
     name = symbol.name
     lower = name.lower()
@@ -1776,6 +1784,27 @@ def _symbol_purpose_with_evidence(
                 ),
             ],
         )
+
+    if symbol.kind == "function" and facts is not None:
+        source_lines = _source_lines(facts, overlay_text=overlay_text)
+        if source_lines:
+            typer_help = _typer_command_help_from_source(
+                "\n".join(source_lines),
+                symbol.name,
+                symbol.line,
+            )
+            if typer_help:
+                return (
+                    _purpose_from_docstring(symbol.name, typer_help),
+                    [
+                        EvidenceItem(
+                            confidence="heuristic",
+                            kind="heuristic_path",
+                            location=f"{path}:{symbol.line}",
+                            fact=f'typer command help: "{typer_help}"',
+                        ),
+                    ],
+                )
 
     for key in (lower, snake, snake_core):
         exact = _EXACT_SYMBOL_PURPOSE.get(key)
@@ -2168,6 +2197,122 @@ def _class_purpose(name: str, lower: str, snake: str, path: str, padded: str) ->
 
 def _snake_name(name: str) -> str:
     return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name).lower()
+
+
+def _typer_command_help_from_source(
+    source_text: str,
+    function_name: str,
+    line: int | None = None,
+) -> str | None:
+    """Typer ``@app.command`` / ``Option`` help when the docstring is weak or missing."""
+    try:
+        tree = ast.parse(source_text)
+    except SyntaxError:
+        return None
+    func = _find_function_def(tree, function_name, line)
+    if func is None or not _has_typer_command_decorator(func):
+        return None
+    helps = _collect_typer_help_strings(func)
+    return _pick_typer_help(helps)
+
+
+def _find_function_def(
+    tree: ast.AST,
+    function_name: str,
+    line: int | None,
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.name == function_name and (line is None or node.lineno == line):
+                return node
+    return None
+
+
+def _has_typer_command_decorator(
+    func: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    return any(_is_typer_command_call(dec) for dec in func.decorator_list)
+
+
+def _is_typer_command_call(node: ast.AST) -> bool:
+    if isinstance(node, ast.Call) and _is_typer_attr_call(node.func, "command"):
+        return True
+    return isinstance(node, ast.Attribute) and node.attr == "command"
+
+
+def _is_typer_param_call(node: ast.Call) -> bool:
+    return _is_typer_attr_call(node.func, "Option", "Argument")
+
+
+def _is_typer_attr_call(
+    func: ast.AST,
+    *attrs: str,
+) -> bool:
+    if not isinstance(func, ast.Attribute):
+        return False
+    return func.attr in attrs
+
+
+def _collect_typer_help_strings(
+    func: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[str]:
+    helps: list[str] = []
+    for dec in func.decorator_list:
+        if isinstance(dec, ast.Call) and _is_typer_command_call(dec):
+            help_text = _ast_kwarg_string(dec, "help")
+            if help_text:
+                helps.append(help_text)
+    arg_nodes = (
+        *func.args.posonlyargs,
+        *func.args.args,
+        *func.args.kwonlyargs,
+    )
+    for arg in arg_nodes:
+        if arg.annotation is not None:
+            helps.extend(_typer_helps_from_annotation(arg.annotation))
+    for default in func.args.defaults:
+        helps.extend(_typer_helps_from_call(default))
+    for default in func.args.kw_defaults:
+        if default is not None:
+            helps.extend(_typer_helps_from_call(default))
+    return helps
+
+
+def _typer_helps_from_annotation(node: ast.AST) -> list[str]:
+    if not isinstance(node, ast.Subscript):
+        return []
+    slice_node = node.slice
+    if isinstance(slice_node, ast.Tuple) and slice_node.elts:
+        helps: list[str] = []
+        for elt in slice_node.elts[1:]:
+            helps.extend(_typer_helps_from_call(elt))
+        return helps
+    return []
+
+
+def _typer_helps_from_call(node: ast.AST) -> list[str]:
+    if isinstance(node, ast.Call) and _is_typer_param_call(node):
+        help_text = _ast_kwarg_string(node, "help")
+        if help_text:
+            return [help_text]
+    return []
+
+
+def _ast_kwarg_string(call: ast.Call, name: str) -> str | None:
+    for kw in call.keywords:
+        if kw.arg != name:
+            continue
+        if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+            return kw.value.value.strip()
+    return None
+
+
+def _pick_typer_help(helps: list[str]) -> str | None:
+    if not helps:
+        return None
+    useful = [h for h in helps if len(h.strip()) >= 8]
+    pool = useful or helps
+    return min(pool, key=len)
 
 
 def _definition_docstring(

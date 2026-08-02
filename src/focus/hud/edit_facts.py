@@ -21,12 +21,13 @@ _MAX_IMPORTERS = 8
 
 
 class AssignFact(BaseModel):
-    """One module-level name binding observed in source."""
+    """One module- or class-body name binding observed in source."""
 
     name: str
     line: int
     end_line: int
     rhs: str
+    class_name: str | None = None
 
 
 class ReaderFact(BaseModel):
@@ -42,30 +43,28 @@ def module_level_assignments(source_text: str) -> list[AssignFact]:
         tree = ast.parse(source_text)
     except SyntaxError:
         return []
+    return _assignments_in_body(tree.body, source_text=source_text)
+
+
+def class_body_assignments(source_text: str) -> list[AssignFact]:
+    """Class-body assignments / annotated assignments with a value."""
+    try:
+        tree = ast.parse(source_text)
+    except SyntaxError:
+        return []
     out: list[AssignFact] = []
     for node in tree.body:
-        if isinstance(node, ast.Assign):
-            rhs = _rhs_text(source_text, node.value)
-            end = getattr(node, "end_lineno", None) or node.lineno
-            for target in node.targets:
-                for name in _target_names(target):
-                    out.append(
-                        AssignFact(name=name, line=node.lineno, end_line=end, rhs=rhs)
-                    )
-        elif isinstance(node, ast.AnnAssign) and node.value is not None:
-            if not isinstance(node.target, ast.Name):
-                continue
-            rhs = _rhs_text(source_text, node.value)
-            end = getattr(node, "end_lineno", None) or node.lineno
-            out.append(
-                AssignFact(
-                    name=node.target.id,
-                    line=node.lineno,
-                    end_line=end,
-                    rhs=rhs,
-                )
-            )
+        if isinstance(node, ast.ClassDef):
+            for assign in _assignments_in_body(
+                node.body, source_text=source_text, class_name=node.name
+            ):
+                out.append(assign)
     return out
+
+
+def overlapping_assignments(source_text: str) -> list[AssignFact]:
+    """Module-level and class-body assigns with a value."""
+    return module_level_assignments(source_text) + class_body_assignments(source_text)
 
 
 def same_file_readers(name: str, source_text: str) -> list[ReaderFact]:
@@ -127,13 +126,13 @@ def caption_for_overlapping_module_assign(
     changed_path: str = "",
     facts_by_path: dict[str, ModuleFacts] | None = None,
 ) -> str | None:
-    """If the orphan hunk overlaps a module-level assign with scope, caption it."""
+    """If the orphan hunk overlaps a module- or class-body assign with scope, caption it."""
     if not source_text or not hunk_lines:
         return None
     hunk = set(hunk_lines)
     assigns = [
         a
-        for a in module_level_assignments(source_text)
+        for a in overlapping_assignments(source_text)
         if any(a.line <= line <= a.end_line for line in hunk)
     ]
     if not assigns:
@@ -149,6 +148,45 @@ def caption_for_overlapping_module_assign(
     return scope_caption_for_module_assign(
         assign, readers=readers, importers=importers
     )
+
+
+def _assignments_in_body(
+    body: list[ast.stmt],
+    *,
+    source_text: str,
+    class_name: str | None = None,
+) -> list[AssignFact]:
+    out: list[AssignFact] = []
+    for node in body:
+        if isinstance(node, ast.Assign):
+            rhs = _rhs_text(source_text, node.value)
+            end = getattr(node, "end_lineno", None) or node.lineno
+            for target in node.targets:
+                for name in _target_names(target):
+                    out.append(
+                        AssignFact(
+                            name=name,
+                            line=node.lineno,
+                            end_line=end,
+                            rhs=rhs,
+                            class_name=class_name,
+                        )
+                    )
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            if not isinstance(node.target, ast.Name):
+                continue
+            rhs = _rhs_text(source_text, node.value)
+            end = getattr(node, "end_lineno", None) or node.lineno
+            out.append(
+                AssignFact(
+                    name=node.target.id,
+                    line=node.lineno,
+                    end_line=end,
+                    rhs=rhs,
+                    class_name=class_name,
+                )
+            )
+    return out
 
 
 def _target_names(target: ast.AST) -> list[str]:
@@ -256,3 +294,14 @@ class _ReaderVisitor(ast.NodeVisitor):
             and self.scope
         ):
             self.readers.append(ReaderFact(name=self.scope[-1], line=node.lineno))
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        if (
+            isinstance(node.ctx, ast.Load)
+            and node.attr == self.target
+            and self.scope
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "self"
+        ):
+            self.readers.append(ReaderFact(name=self.scope[-1], line=node.lineno))
+        self.generic_visit(node)

@@ -1164,6 +1164,68 @@ def test_orphan_module_constant_gets_reader_scope():
     assert "read by `gate`" in caption
 
 
+def test_orphan_class_constant_gets_reader_scope():
+    """Phase 4d: class-body constant orphan names a same-file reader."""
+    from focus.hud.explain import caption_for_orphan_edit
+
+    source = (
+        "class BillingPolicy:\n"
+        "    RETRY_LIMIT = 10\n"
+        "\n"
+        "    def gate(self, value: int) -> bool:\n"
+        "        return value >= self.RETRY_LIMIT\n"
+    )
+    caption = caption_for_orphan_edit(
+        ["    RETRY_LIMIT = 25"],
+        hunk_lines=[2],
+        source_text=source.replace("RETRY_LIMIT = 10", "RETRY_LIMIT = 25"),
+        changed_path="pkg/policy.py",
+    )
+    assert "Edited outside a changed function" not in caption
+    assert "Sets `RETRY_LIMIT` to `25`" in caption
+    assert "read by `gate`" in caption
+
+
+def test_typer_command_help_when_docstring_weak(tmp_path: Path):
+    """Typer Option help feeds purpose when the docstring only restates the name."""
+    from focus.hud.explain import _symbol_purpose_with_evidence
+
+    path = tmp_path / "cli.py"
+    path.write_text(
+        "import typer\n"
+        "from typing import Annotated\n"
+        "\n"
+        "app = typer.Typer()\n"
+        "\n"
+        "@app.command()\n"
+        "def ingest(\n"
+        "    source: Annotated[\n"
+        "        str,\n"
+        "        typer.Option(help=\"Pull records from the upstream billing API.\"),\n"
+        "    ] = \"\",\n"
+        ") -> None:\n"
+        '    """Ingest."""\n'
+        "    pass\n"
+    )
+    facts = parse_module(path)
+    purpose, evidence = _symbol_purpose_with_evidence(
+        ChangedSymbolInfo(
+            path="cli.py",
+            name="ingest",
+            kind="function",
+            line=7,
+            changed_lines=[7],
+        ),
+        "cli.py",
+        facts,
+    )
+    assert "upstream billing API" in purpose
+    assert any(
+        item.kind == "heuristic_path" and "typer command help" in item.fact
+        for item in evidence
+    )
+
+
 def test_blank_run_dropped_when_code_hunk_exists(tmp_path: Path):
     path = tmp_path / "mixed.py"
     path.write_text(
