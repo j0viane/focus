@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Focus — Project status (memory / handoff)
 
-**Last updated:** 2026-07-26 (PyPI `focus-hud` **0.3.5** published — tag `v0.3.5`)  
+**Last updated:** 2026-07-31 (#30 on main; PyPI `focus-hud` **0.3.5**; extension **0.5.15**)  
 **Product:** Focus — evidence-only blast-radius HUD. PyPI `focus-hud`, CLI `focus`, IDE `extensions/vscode-focus`. Repo: `j0viane/focus`.
 
 **Read this first in a new chat.** Update this file when pausing or before switching windows.
@@ -16,21 +16,42 @@ alwaysApply: true
 
 | Item | State |
 |---|---|
-| **Branch** | `main` |
-| **PyPI** | **`focus-hud` 0.3.5** ([pypi.org/project/focus-hud](https://pypi.org/project/focus-hud/)) — tag `v0.3.5` |
-| **Extension** | **0.5.15** — wait for open-file LLM on Audit Local; no def risk rail; single ℹ️ CodeLens |
-| **LLM captions** | Opt-in; **`qwen2.5-coder:3b`**; **`MAX_LABEL_CHARS = 320`**; never on overlay |
-| **Phase 4d** | **Thin slice on main** — more shapes deferred |
-| **Cache** | Local pack-hash only — no Redis |
+| **Branch** | `main` (clean, synced with `origin/main`; no open feature branches / PRs) |
+| **PyPI** | **`focus-hud` 0.3.5** — tag `v0.3.5` ([pypi.org/project/focus-hud](https://pypi.org/project/focus-hud/)) |
+| **Extension** | **0.5.15** — Audit Local waits for open-file LLM before first paint; no `def` risk rail; single ℹ️ CodeLens |
+| **LLM captions** | Opt-in; default **`qwen2.5-coder:3b`**; `MAX_LABEL_CHARS = 320`; prompt rev `320-2sent`; never on overlay |
+| **Phase 4c / 4d** | Caption labeler + thin ledger slice on main (#29); sweet-spot + quieter IDE chrome (#30) |
+| **Cache** | Local pack-hash memory+disk only — **no Redis** |
+| **Global binary** | Broken `uv tool` focus-hud uninstalled; dogfood via `.venv/bin/focus` or `pip install focus-hud` |
+
+### Locked UX (do not regress without options table)
+
+1. Captions: sweet-spot what/why; up to two short sentences; ≤320 chars; `prefer_polish_label`
+2. Body edit wins over docstring for ℹ️ anchor (`_run_is_docstring_only`)
+3. Drop IDE risk rail on `def` — implication stays in HUD/JSON/PR only
+4. With `focus.llmCaptions`: wait for open-file LLM before first paint (no short deterministic flash); rest background
+5. Never LLM on live overlay / save path
+6. One `explanationLensTitle` CodeLens — Cursor joins same-line lenses with ` | `; no multi-lens wrap
+
+### Dogfood notes
+
+- Bake-off winner still `qwen2.5-coder:3b` for latency; quality mixed (chatty / confused) — quality pass is separate
+- README mock: ℹ️ at the edit, risk in the HUD (`8ded2aa`)
+- Workspace `.vscode/settings.json` may set `focus.llmCaptions: true` (gitignored)
 
 ### Do next
 
-1. Phase 4 leftovers: tiny-diff HUD, symbol-level downstream, Marketplace
-2. Phase 5 — GitHub inline
+1. Phase 4 leftovers: ~~tiny-diff HUD~~ ✅ (`db82b18` on main — should have been a PR), **symbol-level downstream** (next), Marketplace (held), more 4d ledger shapes, JSDoc/TSDoc/Typer heuristics
+2. Caption quality (prompt/pack vs 7B) — options table when fresh
+3. Phase 5 — GitHub inline diff annotations
+4. Optional later: vulture/radon on `explain.py` only (concentration ~2.5k LOC; not a rewrite)
 
 ### Standing
 
 - No commit/push/PR unless asked
-- Dogfood CLI: `.venv/bin/focus` or `pip install focus-hud`
-- Captions portable — no Focus-lore special cases
+- **Feature branch + PR** — product repos (Focus, …) never ship straight to `main` (see `focus-agent-gates.mdc` §10). Private `cursor-rules` may use `main`.
+- **Dogfood before commit/push** — real CLI/IDE check on a concrete edit; wait for owner OK (see `focus-agent-gates.mdc` §9)
+- Dogfood CLI: `.venv/bin/focus` (editable) or published `focus-hud>=0.3.5`
+- Captions must stay portable — no Focus-lore special cases
 - LLM never on live overlay
+- Git author for push: GitHub noreply `71949760+j0viane@users.noreply.github.com` (avoids GH007)
