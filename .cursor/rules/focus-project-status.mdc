@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Focus — Project status (memory / handoff)
 
-**Last updated:** 2026-08-02 (open **#31**; `main` has tiny-diff `db82b18`; PyPI `focus-hud` **0.3.5**; extension **0.5.15**)  
+**Last updated:** 2026-08-06 (evening) — **#32 / #33 / #34 merged** onto `origin/main` @ `c64d527`; **local pulled up to `c64d527`** (190 passed; caption cache cleared for `320-ground-v3`); PyPI `focus-hud` **0.3.5**; extension **0.5.15**  
 **Product:** Focus — evidence-only blast-radius HUD. PyPI `focus-hud`, CLI `focus`, IDE `extensions/vscode-focus`. Repo: `j0viane/focus`.
 
 **Read this first in a new chat.** Update this file when pausing or before switching windows.
@@ -16,27 +16,50 @@ alwaysApply: true
 
 | Item | State |
 |---|---|
-| **Checked-out branch** | `feat/agent-rules-upskilling-alignment` @ `2b0d59d` — tracks `origin/…` |
-| **Open PR** | **[#31](https://github.com/j0viane/focus/pull/31)** — *docs(rules): align Focus gates with global upskilling home* — **OPEN**, mergeable, Focus HUD check **SUCCESS**. Rules/gitignore only (no runtime). One *(owner)* item: Reload Window / confirm Rules+Hooks in Customize |
-| **`main` HEAD** | `db82b18` — *feat(triggers): pass-through for tiny diffs with low blast radius* (synced with `origin/main`) |
-| **PyPI** | **`focus-hud` 0.3.5** — tag `v0.3.5` ([pypi.org/project/focus-hud](https://pypi.org/project/focus-hud/)). **Tiny-diff is on `main` source but not a new PyPI bump yet** — dogfood tiny-diff via `.venv/bin/focus` (editable checkout), not the published wheel alone |
+| **Checked-out branch** | `main` @ **`c64d527`** — **up to date** with `origin/main` (pulled 2026-08-06 eve; `2db9615..c64d527` fast-forward). `190 passed`. Local dirty: this handoff file only |
+| **Open PRs** | **None** |
+| **`origin/main` HEAD** | **`c64d527`** — *Merge PR #34* (caption quality). Stack on main: #31 → #32 (`aaba1eb`) → #33 (`cc66868`) → #34 (`c64d527`) |
+| **PyPI** | **`focus-hud` 0.3.5** — tag `v0.3.5`. **#32–#34 are on GitHub `main` but not on PyPI** — dogfood via `.venv/bin/focus` after pull (or worktree `PYTHONPATH=…/src` until pull) |
 | **Extension** | **0.5.15** — Audit Local waits for open-file LLM before first paint; no `def` risk rail; single ℹ️ CodeLens |
-| **LLM captions** | Opt-in; default **`qwen2.5-coder:3b`**; `MAX_LABEL_CHARS = 320`; prompt rev `320-2sent`; never on overlay |
-| **Phase 4c / 4d** | Caption labeler + thin ledger slice on main (#29); sweet-spot + quieter IDE chrome (#30) |
-| **Phase 4b ROA** | **Tiny-diff HUD** on `main` (`db82b18`): ≤5 changed lines **and** &lt;2 downstream files **and** no path/Danger/shared seed → **pass-through** (no Mermaid). Constants: `TINY_DIFF_MAX_LINES`, `TINY_DIFF_MAX_DOWNSTREAM_FILES` in `src/focus/triggers/rules.py`; wired via `count_changed_lines` + `should_emit_diagram(..., changed_line_count=)` from `audit.py`. Docs: `docs/TRIGGERS.md`, `docs/ROADMAP.md` |
+| **LLM captions (on `origin/main`)** | Opt-in; default **`qwen2.5-coder:3b`**; `MAX_LABEL_CHARS = 320`; prompt rev **`320-ground-v3`** (from #34); never on overlay. Clear caption cache after pull (rev bump) |
+| **Phase 4c / 4d (on `origin/main`)** | Caption labeler + module-assign ledger (#29); sweet-spot + quieter IDE (#30); **class-body assigns + Typer CLI purpose** (#32) |
+| **Phase 4b ROA (on `origin/main`)** | Tiny-diff HUD (`db82b18`): ≤5 changed lines **and** &lt;2 downstream files **and** no path/Danger/shared seed → pass-through. **Symbol-proven downstream filter** (#33) — `symbol_filter.py`; counts feed triggers post-filter |
 | **Cache** | Local pack-hash memory+disk only — **no Redis** |
-| **Global binary** | Broken `uv tool` focus-hud uninstalled; dogfood via `.venv/bin/focus` or `pip install focus-hud` |
 | **Marketplace** | **Held** until product feels solid / owner says go |
-| **Agent teaching** | Canonical **only** private `cursor-rules` → `rules/upskilling.mdc` + hooks (`session-start-teach.sh`, `ask-before-git-publish.sh`). **No stop-hook recap** — append upskilling recap in the **same reply** (token save). No Focus `learning`/`mentorship` rule files. Focus gates point at upskilling; engineering §17 = owner-owned co-write |
+| **Agent teaching** | Canonical **only** private `cursor-rules` → `rules/upskilling.mdc` + hooks (`session-start-teach.sh`, `ask-before-git-publish.sh`). Recap in **same reply** (no stop-hook). Eng §17 = owner-owned co-write |
+
+### Just merged (2026-08-06 UTC; verified via `gh pr view`)
+
+| PR | Merge commit | Merged at (UTC) | What landed |
+|---|---|---|---|
+| **[#32](https://github.com/j0viane/focus/pull/32)** | `aaba1eb` | 23:12:53 | Class-body assigns + Typer `@app.command` / Option help purpose |
+| **[#33](https://github.com/j0viane/focus/pull/33)** | `cc66868` | 23:14:32 | Filter blast rings by proven import+call of changed symbol (`hud/symbol_filter.py`) |
+| **[#34](https://github.com/j0viane/focus/pull/34)** | `c64d527` | 23:14:48 | Tighter prompts/pack grounding; chatty/>2-sentence validate; `prompt_rev=320-ground-v3`; default model stays 3b |
+
+**Local vs remote:** this workspace has **not** pulled yet — editable `.venv` still runs pre-#32–#34 code until `git pull`.
+
+**Worktrees** (still on disk; optional until cleanup — code now on `origin/main`):
+
+| Branch | Path | Tip (pre-merge) |
+|---|---|---|
+| `feat/ledger-heuristics` | `~/.cursor/worktrees/ledger-heuristics-c519e82e/Focus-cebabdae42e7` | `3a3cd6a` |
+| `feat/symbol-downstream` | `~/.cursor/worktrees/symbol-downstream-a3f7b2c1/Focus-cebabdae42e7` | `ea496a9` |
+| `feat/caption-quality` | `~/.cursor/worktrees/caption-quality-2ecbc2a9/Focus-cebabdae42e7` | `3d479d0` |
+
+Remote feature refs may still exist (e.g. `feat/ledger-heuristics` @ `3a3cd6a` seen after merge). Safe to delete branches + worktrees after local pull confirms green.
+
+**Chosen approaches (locked):** #32 class-body + Typer (JSDoc/TSDoc deferred); #33 filter file-level rings (not rebuild symbol graph); #34 prompt/pack on 3b first (no default model switch).
 
 ### Recently shipped (product + process)
 
 | When | What | Notes |
 |---|---|---|
-| 2026-08-02 | Tiny-diff → pass-through | `db82b18` on **`main` directly** — process mistake; lesson locked: product work = feature branch → PR. Dogfooded `/tmp/focus-tiny-dogfood` (tiny billing → pass-through; large/auth hub → full HUD). Tests green at ship time (~176) |
-| 2026-08-02 | Upskilling / hooks (private `cursor-rules`) | `bbb626c` + follow-up on **`cursor-rules` `main`**: single teach home; sessionStart only for teach; **removed `stop-upskill-recap.sh`** (recap same-reply); publish hook allows main only for `cursor-rules` |
-| 2026-08-02 | Focus rules alignment | Branch + **PR #31** (`2b0d59d` + handoff refresh): gates §9 dogfood / §10 feature-branch; teach → upskilling only; eng §17; detailed project-status memory |
-| Earlier | #29 / #30 / 0.3.5 / 0.5.15 | LLM captions latency + 4d thin slice; caption sweet-spot + quieter IDE; README pin/honesty |
+| 2026-08-06 | #32 → #33 → #34 merged | Class-body/Typer ledger; symbol-proven downstream filter; caption `320-ground-v3`. Order preserved. Not on PyPI yet |
+| 2026-08-02 | #31 merged | Rules/gates/upskilling alignment (`2db9615`) |
+| 2026-08-02 | Parallel agents opened #32–#34 | Three worktrees; agent Test plans filled |
+| 2026-08-02 | Tiny-diff → pass-through | `db82b18` on **`main` directly** — lesson: product = feature branch → PR |
+| 2026-08-02 | Upskilling / hooks (`cursor-rules`) | Single teach home; no stop-hook recap; publish hook allows main only for `cursor-rules` |
+| Earlier | #29 / #30 / 0.3.5 / 0.5.15 | LLM captions + 4d thin slice; caption sweet-spot; quieter IDE |
 
 ### Locked UX (do not regress without options table)
 
@@ -48,23 +71,32 @@ alwaysApply: true
 6. One `explanationLensTitle` CodeLens — Cursor joins same-line lenses with ` | `; no multi-lens wrap
 7. Tiny + low blast → pass-through; path / Danger Zone / shared-layout seeds still force full HUD even on a one-line edit
 
-### Dogfood notes
+### Smoke / dogfood recipes (post-pull on `main`)
 
-- Bake-off winner still `qwen2.5-coder:3b` for latency; quality mixed (chatty / confused) — quality pass is separate (options table when fresh)
-- README mock: ℹ️ at the edit, risk in the HUD (`8ded2aa`)
+**#32 ledger:** Edit a class-body constant with a method reader (stranger name e.g. `RETRY_LIMIT`). Audit Local **without** LLM. Pass if ℹ️ names scope (`read by …`), not orphan fallback.
+
+**#33 symbol filter:** glass_box — edit only `hash_password` → 0 downstream; edit only `validate_token` → 4 downstream + Mermaid.  
+`.venv/bin/focus audit --local --path <fixture> --base main`
+
+**#34 captions:** Clear cache after rev bump; `focus audit --local --llm-captions` with Ollama 3b. Score: invent entity? invent behavior? better than det? Optional `FOCUS_LLM_MODEL=qwen2.5-coder:7b` bake-off — do not switch default unless 7b wins invent+latency.
+
+Other notes:
+
+- Prefer `.venv/bin/focus` for anything newer than PyPI 0.3.5
 - Workspace `.vscode/settings.json` may set `focus.llmCaptions: true` (gitignored)
-- Tiny-diff dogfood fixture idea: small edit under `tests/fixtures/glass_box/billing/service.py` pattern / `/tmp/focus-tiny-dogfood`
-- Prefer `.venv/bin/focus` for anything newer than PyPI 0.3.5 (includes tiny-diff on this checkout’s `main`)
+- Tiny-diff fixture idea: `/tmp/focus-tiny-dogfood` / glass_box billing pattern
 
 ### Do next
 
-1. **Merge #31** when owner OK (Reload Window check) — then return checkout to `main` / delete feature branch
-2. **Symbol-level downstream** (next Phase 4 product item) — feature branch first; options table if it touches graph topology / ROA
-3. More **4d ledger** shapes; **JSDoc/TSDoc/Typer** heuristics
-4. Caption **quality** (prompt/pack vs 7B) — options table; measure-first still holds
-5. **Phase 5** — GitHub inline diff annotations
-6. **Marketplace** — still held
-7. Optional later: PyPI bump if tiny-diff should ship to installers; vulture/radon on `explain.py` only (~2.5k LOC concentration; not a rewrite)
+1. **`git pull --ff-only origin main`** in this checkout (land `c64d527`); re-run `.venv/bin/python -m pytest -q`
+2. Optional: delete remote `feat/ledger-heuristics` / `feat/symbol-downstream` / `feat/caption-quality` + remove the three worktrees
+3. Commit or discard this handoff dirty (rules-only → small PR or fold into next docs touch)
+4. Owner smoke of #32–#34 on pulled `main` if not already done in IDE
+5. More **4d ledger** shapes; **JSDoc/TSDoc** (Typer already landed with #32)
+6. Caption quality follow-up from #34 *(owner)* notes / optional 7b bake-off
+7. **Phase 5** — GitHub inline diff annotations
+8. **Marketplace** — held
+9. Optional: **PyPI bump** so installers get #32–#34; vulture/radon on `explain.py` only (~2.5k LOC; not a rewrite)
 
 ### Standing (agent + owner)
 
