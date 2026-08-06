@@ -82,7 +82,7 @@ Edit-shaped ℹ️ on the change you're looking at, plus the full HUD panel — 
         return hashlib.sha256(...).hexdigest()
 ```
 
-ℹ️ sits on the **body edit** (not the docstring when both changed). It names **what changed and why it matters** — return / call / import / assign / blank count / ledger scope — not a static slogan. A second ℹ️ appears only when two edit blocks teach **different** outcomes.
+ℹ️ sits on the **body edit** (not the docstring when both changed). It names **what changed and why it matters** — return / call / import / assign / blank count / ledger scope (module + class constants) — not a static slogan. Typer CLI commands can surface `@app.command` / `Option` help when the docstring is thin. A second ℹ️ appears only when two edit blocks teach **different** outcomes.
 
 | Surface | Where | What |
 |---|---|---|

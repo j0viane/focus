@@ -6,6 +6,7 @@ from pathlib import Path
 
 from focus.hud.edit_facts import (
     caption_for_overlapping_module_assign,
+    class_body_assignments,
     importers_of_name,
     module_level_assignments,
     same_file_readers,
@@ -32,6 +33,23 @@ def charge(amount: int) -> bool:
 
 def describe() -> str:
     return f"limit={RETRY_LIMIT}"
+'''
+
+
+_CLASS_STRANGER = '''\
+"""Policy knobs for billing."""
+
+class BillingPolicy:
+    RETRY_LIMIT = 3
+    MAX_FEE = 100
+
+    def charge(self, amount: int) -> bool:
+        if amount > self.MAX_FEE:
+            return False
+        return amount < self.RETRY_LIMIT * 10
+
+    def describe(self) -> str:
+        return f"limit={self.RETRY_LIMIT}"
 '''
 
 
@@ -180,3 +198,43 @@ def test_parse_source_still_lean() -> None:
     facts = parse_source(_STRANGER.encode(), Path("billing/limits.py"))
     assert facts.definitions
     assert not hasattr(facts, "assignments")
+
+
+def test_class_body_assignments_finds_constants() -> None:
+    facts = class_body_assignments(_CLASS_STRANGER)
+    by_name = {a.name: a for a in facts}
+    assert by_name["RETRY_LIMIT"].rhs == "3"
+    assert by_name["RETRY_LIMIT"].class_name == "BillingPolicy"
+    assert by_name["MAX_FEE"].class_name == "BillingPolicy"
+
+
+def test_class_body_readers_def_use_chain() -> None:
+    readers = same_file_readers("RETRY_LIMIT", _CLASS_STRANGER)
+    names = [r.name for r in readers]
+    assert "charge" in names
+    assert "describe" in names
+
+
+def test_orphan_class_constant_gets_reader_scope() -> None:
+    edited = _CLASS_STRANGER.replace("RETRY_LIMIT = 3", "RETRY_LIMIT = 5")
+    caption = caption_for_orphan_edit(
+        ["    RETRY_LIMIT = 5"],
+        hunk_lines=[4],
+        source_text=edited,
+        changed_path="billing/policy.py",
+    )
+    assert "Edited outside a changed function" not in caption
+    assert "Sets `RETRY_LIMIT` to `5`" in caption
+    assert "read by `" in caption
+
+
+def test_overlapping_class_body_assign() -> None:
+    edited = _CLASS_STRANGER.replace("MAX_FEE = 100", "MAX_FEE = 250")
+    caption = caption_for_overlapping_module_assign(
+        source_text=edited,
+        hunk_lines=[5],
+        changed_path="billing/policy.py",
+    )
+    assert caption is not None
+    assert "Sets `MAX_FEE` to `250`" in caption
+    assert "read by `charge`" in caption

@@ -155,7 +155,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **CodeLens layout** | One ℹ️ at the body edit (docstring hunks deferred when body exists); hover = evidence | ✅ #30 |
 | **File-level blast radius** | Symbol-level downstream (who calls *this* def, not just the file) | Planned |
 | **Static-only graph** | Best-effort dynamic import / string-literal hints where parseable | Explore |
-| **Heuristic captions** when no docstring | JSDoc/TSDoc extraction for JS/TS; Typer `@app.command` metadata for CLI | Planned |
+| **Heuristic captions** when no docstring | ~~Typer `@app.command` metadata for CLI~~ *(done)*; JSDoc/TSDoc extraction for JS/TS | Planned |
 | **Evidence in IDE** | Hover = *why trust this* only (≤2 cues); no restating rail/ℹ️; importers collapsed → HUD | ✅ ROA slim |
 | **Verbose / low-ROA copy** | Hard caps: max chars for ℹ️ / summary; one idea per lens; no restating the header | 🔄 hover done; caps continue |
 | **PR comment inventory dump** | Cap **Your changes** at 8 + overflow; cap Also affected / Not pulled in at 8; prefer short detail over long explanation | ✅ focus-hud 0.3.4 |
@@ -206,7 +206,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 
 ## Phase 4d — Portable fact ledger for captions *(thin slice shipped)*
 
-**Status:** Thin slice **on main** (2026-07 — #29 / related) — module-level assign + same-file readers + importers → template orphan captions; packs carry `readers` / `importers` / `reader_doc` for opt-in LLM polish. Kill-or-keep PASS on Focus + stranger fixture. **More edit shapes still deferred.**
+**Status:** Thin slice **on main** (2026-07 — #29 / related) — module-level assign + same-file readers + importers → template orphan captions; packs carry `readers` / `importers` / `reader_doc` for opt-in LLM polish. Kill-or-keep PASS on Focus + stranger fixture. **Class-body assigns + Typer `@app.command` help heuristic shipped** (`feat/ledger-heuristics`). JSDoc/TSDoc still deferred.
 
 **Problem dogfood surfaced:** Measured ℹ️ often names *edit shape* (`Updates \`weak_hit\` here.`, orphan “outside a function”) without *scope* (what changed in the target code, who uses it). An LLM can invent fluent scope; Focus must not. CEOs’ “AI replaces judgment” narrative does not license ungrounded captions.
 
@@ -214,7 +214,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 
 **Direction (ship order):**
 
-1. **Generic edit facts** — ~~module-level assign + clipped RHS + same-file readers~~ *(done in `src/focus/hud/edit_facts.py`)*; more edit shapes later.
+1. **Generic edit facts** — ~~module-level assign + clipped RHS + same-file readers~~ *(done in `src/focus/hud/edit_facts.py`)*; ~~class-body assigns~~ *(done)*; more edit shapes later.
 2. **Attach who** — ~~importers from `facts_by_path`~~ *(done for module names)*; expand as needed.
 3. **Template captions** from those facts *(done for orphan module assigns)*.
 4. **Opt-in LLM labeler** — orphan packs carry readers/importers/reader_doc; sweet-spot polish + 320-char budget (#30); still **never on live overlay**; Audit Local waits for open-file labels when enabled.
