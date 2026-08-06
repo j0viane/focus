@@ -61,7 +61,16 @@ def build_evidence_pack(
     who, what = _split_implication(implication)
     edit_lines = _capped_edit_lines(symbol, source_lines)
     measured = _measure(edit_lines, facts=facts, hunk_lines=symbol.changed_lines or [symbol.line])
-    allowed = _allowed_tokens(symbol, measured, facts)
+    allowed = _allowed_tokens(
+        symbol,
+        measured,
+        facts,
+        implication_who=who,
+        implication_what=what,
+        purpose_hint=(purpose_hint or "").strip(),
+        deterministic_caption=(symbol.detail or "").strip(),
+        edit_lines=edit_lines,
+    )
     return CaptionEvidencePack(
         path=symbol.path,
         symbol_name=symbol.name,
@@ -108,13 +117,21 @@ def build_orphan_evidence_pack(
     tokens: set[str] = {name, path, path.split("/")[-1]}
     tokens.update(readers)
     tokens.update(importers)
+    tokens.update(_identifiers_from_text(deterministic_caption))
+    tokens.update(_identifiers_from_text(reader_doc))
     for imp_path in importers:
         tokens.add(imp_path.split("/")[-1])
+    for line in edit_lines:
+        tokens.update(_identifiers_from_text(line.text))
     for c in measured.callees:
         tokens.add(c)
     for mod in measured.import_modules:
         tokens.add(mod)
         tokens.add(mod.split(".")[-1])
+    if measured.return_expr:
+        tokens.update(_identifiers_from_text(measured.return_expr))
+    if measured.assign:
+        tokens.update(_identifiers_from_text(measured.assign))
     return CaptionEvidencePack(
         path=path,
         symbol_name=name,
@@ -216,10 +233,33 @@ def _measure(
     )
 
 
+def _identifiers_from_text(text: str) -> set[str]:
+    """Snake/Camel/backtick identifiers from a fragment — for allowed_tokens."""
+    out: set[str] = set()
+    raw = (text or "").strip()
+    if not raw:
+        return out
+    for match in re.findall(r"`([^`]+)`", raw):
+        bare = match.split("(")[0].strip()
+        if bare:
+            out.add(bare)
+            out.add(bare.split(".")[-1])
+    for token in re.findall(r"[A-Za-z_][A-Za-z0-9_.]*", raw):
+        out.add(token)
+        out.add(token.split(".")[-1])
+    return {t for t in out if t and t not in {"if", "elif", "for", "while", "with", "return"}}
+
+
 def _allowed_tokens(
     symbol: ChangedSymbolInfo,
     measured: MeasuredSlots,
     facts: ModuleFacts | None,
+    *,
+    implication_who: str = "",
+    implication_what: str = "",
+    purpose_hint: str = "",
+    deterministic_caption: str = "",
+    edit_lines: list[EditLine] | None = None,
 ) -> set[str]:
     tokens: set[str] = {symbol.name, symbol.path}
     tokens.add(symbol.path.split("/")[-1])
@@ -228,8 +268,16 @@ def _allowed_tokens(
     for mod in measured.import_modules:
         tokens.add(mod)
         tokens.add(mod.split(".")[-1])
-    if measured.assign and "=" in measured.assign:
-        tokens.add(measured.assign.split("=", 1)[0])
+    if measured.return_expr:
+        tokens.update(_identifiers_from_text(measured.return_expr))
+    if measured.assign:
+        tokens.update(_identifiers_from_text(measured.assign))
+        if "=" in measured.assign:
+            tokens.add(measured.assign.split("=", 1)[0])
+    for blob in (implication_who, implication_what, purpose_hint, deterministic_caption):
+        tokens.update(_identifiers_from_text(blob))
+    for line in edit_lines or []:
+        tokens.update(_identifiers_from_text(line.text))
     if facts:
         for definition in facts.definitions:
             tokens.add(definition.name)
@@ -251,4 +299,17 @@ def _looks_like_secret(text: str) -> bool:
 
 
 def pack_as_prompt_json(pack: CaptionEvidencePack) -> dict[str, Any]:
-    return pack.model_dump(mode="json")
+    """Pack facts plus explicit grounding cues the labeler must respect."""
+    data = pack.model_dump(mode="json")
+    data["grounding"] = {
+        "allowed_identifiers": pack.allowed_tokens,
+        "must_not_invent": [
+            "callers",
+            "files",
+            "modules",
+            "downstream paths",
+            "behavior not in edit_lines or measured slots",
+        ],
+        "fallback_caption": pack.deterministic_caption or None,
+    }
+    return data

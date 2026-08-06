@@ -16,7 +16,7 @@ _MEMORY: dict[str, str] = {}
 _MAX_MEMORY = 512
 _CACHE_SUBDIR = "focus-llm-caption-cache"
 # Bump when system prompts / label budget change so stale captions are not reused.
-_PROMPT_REV = "320-2sent"
+_PROMPT_REV = "320-ground-v3"
 
 
 def pack_fingerprint(pack: CaptionEvidencePack, *, model: str) -> str:

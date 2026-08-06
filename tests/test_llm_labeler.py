@@ -46,7 +46,27 @@ def test_build_evidence_pack_caps_edit_lines():
     assert len(pack.edit_lines) <= 20
     assert pack.implication_who == "callers"
     assert "do_thing" in pack.allowed_tokens
+    assert "callers" in pack.allowed_tokens
     assert pack.risk_tier == "HIGH"
+
+
+def test_pack_as_prompt_json_includes_grounding():
+    from focus.llm.pack import pack_as_prompt_json
+
+    pack = CaptionEvidencePack(
+        path="a.py",
+        symbol_name="fn",
+        symbol_kind="function",
+        risk_tier="LOW",
+        deterministic_caption="Returns `ok`.",
+        allowed_tokens=["fn", "ok"],
+        measured=MeasuredSlots(),
+    )
+    payload = pack_as_prompt_json(pack)
+    assert "grounding" in payload
+    assert payload["grounding"]["allowed_identifiers"] == ["fn", "ok"]
+    assert payload["grounding"]["fallback_caption"] == "Returns `ok`."
+    assert "must_not_invent" in payload["grounding"]
 
 
 def test_pack_rejects_secret_bearing_lines():
@@ -113,6 +133,22 @@ def test_validate_rejects_ungrounded_camelcase_and_scope():
     assert validate_label("Delegates to AuthService here.", pack) is None
     assert validate_label("Handles authentication for callers.", pack) is None
     assert validate_label("Touches 2 hops of downstream files.", pack) is None
+    assert validate_label("This change impacts downstream billing.", pack) is None
+
+
+def test_validate_rejects_chatty_and_overlong_sentences():
+    pack = CaptionEvidencePack(
+        path="a.py",
+        symbol_name="fn",
+        symbol_kind="function",
+        risk_tier="LOW",
+        allowed_tokens=["fn", "helper"],
+        measured=MeasuredSlots(callees=["helper"]),
+    )
+    assert validate_label("This change calls `helper` after the edit.", pack) is None
+    assert validate_label("The function now returns `helper`.", pack) is None
+    three = "Calls `helper`. Then reviewers see the new path. Finally tests pass."
+    assert validate_label(three, pack) is None
 
 
 def test_validate_allows_scope_when_implication_names_callers():
@@ -184,6 +220,20 @@ def test_prefer_polish_rejects_thin_slogan_when_det_exists():
         measured=MeasuredSlots(return_expr="ok"),
     )
     assert prefer_polish_label("Updates hash here.", pack) is None
+    assert prefer_polish_label("Changes hash.", pack) is None
+
+
+def test_prefer_polish_rejects_thin_without_here():
+    pack = CaptionEvidencePack(
+        path="a.py",
+        symbol_name="fn",
+        symbol_kind="function",
+        risk_tier="LOW",
+        deterministic_caption="Updates hash here.",
+        allowed_tokens=["fn", "hash"],
+        measured=MeasuredSlots(),
+    )
+    assert prefer_polish_label("Changes `hash`.", pack) is None
 
 
 def test_resolve_llm_captions_defaults_and_overlay_off(monkeypatch):
