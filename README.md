@@ -208,7 +208,7 @@ flowchart TB
 
 ## Roadmap
 
-Phase 3 **complete**. Phase 4 IDE **C** shipping (edit-shaped ℹ️ + live buffer + SCM Working Tree; risk / implication in HUD). Phase **4c/4d** on main + PyPI **0.3.5**: opt-in evidence-pack LLM captions + portable edit ledger + caption sweet-spot (extension **0.5.15**). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Phase 3 **complete**. Phase 4 IDE **C** shipping (edit-shaped ℹ️ + live buffer + SCM Working Tree; risk / implication in HUD). Phase **4b** symbol-proven downstream on blast-radius counts when changed defs are known (file-level fallback when not). Phase **4c/4d** on main + PyPI **0.3.5**: opt-in evidence-pack LLM captions + portable edit ledger + caption sweet-spot (extension **0.5.15**). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 

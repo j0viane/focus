@@ -17,6 +17,7 @@ from focus.hud.classify import (
     shared_hub_reason,
 )
 from focus.hud.explain import ExplainContext, enrich_changed_symbols
+from focus.hud.symbol_filter import filter_rings_by_symbols
 from focus.hud.mermaid import render_mermaid, validate_mermaid_edges
 from focus.ingest import changed_files, changed_source_files
 from focus.ingest.diff import DiffMode
@@ -122,10 +123,9 @@ def build_explain_context(
             facts_by_path=facts_by_rel,
         )
 
-    rings = _merge_rings(graph, seeds)
-    seed_set = set(seeds)
-    rings = [(hops, [p for p in paths if p not in seed_set]) for hops, paths in rings]
-    rings = [(hops, paths) for hops, paths in rings if paths]
+    rings = _prepare_blast_rings(
+        graph, seeds, symbol_infos, facts_by_rel
+    )
     downstream_file_count = sum(len(paths) for _, paths in rings)
     line_count = count_changed_lines(changed_line_ranges(root, base, mode=mode))
 
@@ -305,10 +305,9 @@ def run_audit(
             llm_paths=path_filter,
         )
 
-    rings = _merge_rings(graph, seeds)
-    seed_set = set(seeds)
-    rings = [(hops, [p for p in paths if p not in seed_set]) for hops, paths in rings]
-    rings = [(hops, paths) for hops, paths in rings if paths]
+    rings = _prepare_blast_rings(
+        graph, seeds, symbol_infos, facts_by_rel
+    )
 
     has_downstream = bool(rings)
     downstream_file_count = sum(len(paths) for _, paths in rings)
@@ -464,6 +463,21 @@ def _full_audit_hud(
         isolated=isolated,
         changed_symbols=symbol_infos,
         caveat=DEFAULT_CAVEAT,
+    )
+
+
+def _prepare_blast_rings(
+    graph: nx.DiGraph,
+    seeds: list[str],
+    symbol_infos: list[ChangedSymbolInfo],
+    facts_by_path: dict[str, ModuleFacts],
+) -> list[tuple[int, list[str]]]:
+    rings = _merge_rings(graph, seeds)
+    seed_set = set(seeds)
+    rings = [(hops, [p for p in paths if p not in seed_set]) for hops, paths in rings]
+    rings = [(hops, paths) for hops, paths in rings if paths]
+    return filter_rings_by_symbols(
+        rings, graph, seeds, symbol_infos, facts_by_path
     )
 
 

@@ -33,6 +33,27 @@ def _glass_box_repo(tmp_path: Path, glass_box_path: Path) -> Path:
     return repo
 
 
+def test_audit_local_helper_change_filters_importers(tmp_path: Path, glass_box_path: Path):
+    """Changing an unused helper must not file-level blast-radius every importer."""
+    repo = _glass_box_repo(tmp_path, glass_box_path)
+    auth = repo / "auth_utils.py"
+    auth.write_text(
+        auth.read_text().replace(
+            "return password[::-1]",
+            "return password[::-1]  # audited",
+        )
+    )
+
+    hud = audit_local(repo, base="main")
+    downstream_paths = {n.path for n in hud.downstream}
+    danger_downstream = {n.path for n in hud.danger_zones if n.hops > 0}
+    assert "billing/service.py" not in downstream_paths
+    assert "dashboard/views.py" not in downstream_paths
+    assert "jobs/worker.py" not in downstream_paths
+    assert "api/routes.py" not in danger_downstream
+    assert any(s.name == "hash_password" for s in hud.changed_symbols)
+
+
 def test_audit_local_auth_change_is_critical(tmp_path: Path, glass_box_path: Path):
     repo = _glass_box_repo(tmp_path, glass_box_path)
     auth = repo / "auth_utils.py"

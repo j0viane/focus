@@ -2,8 +2,8 @@
 
 Living document. Defines when Focus emits a full **Focus HUD** (with Mermaid diagram) vs a **pass-through summary** (one sentence, no diagram).
 
-**Last updated:** July 2026  
-**Status:** Phase 2 shipped; Phase 4b tiny-diff → pass-through shipped (≤5 lines + &lt;2 downstream files + no Danger Zone / path / shared layout)
+**Last updated:** August 2026  
+**Status:** Phase 2 shipped; Phase 4b tiny-diff → pass-through shipped (≤5 lines + &lt;2 downstream files + no Danger Zone / path / shared layout); **symbol-level downstream** filters blast-radius file counts when changed symbols are known
 
 ---
 
@@ -64,6 +64,8 @@ flowchart TD
 | Downstream consumer count | ≥ 3 symbols or ≥ 2 files |
 | Max hop depth to API/schema node | ≤ 3 hops from seed |
 | Any seed symbol in shared `utils/`, `lib/`, `common/` | Always evaluate BFS |
+
+When the diff names changed symbols, **downstream file counts** use symbol-proven consumers (import + call/construct evidence) instead of every file-level importer. Transitive hops stay only when a file-level import path reaches a kept hop-(n−1) file. No changed symbols → file-level blast radius (unchanged).
 
 ### Layer 4 — Danger Zone → **Diagram**
 

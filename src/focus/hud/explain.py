@@ -15,13 +15,15 @@ from focus.hud.classify import (
     list_importers,
     shared_hub_reason,
 )
+from focus.hud.symbol_filter import (
+    users_with_evidence as _users_with_evidence,
+)
 from focus.models import (
     CallSite,
     ChangedSymbolInfo,
     EvidenceItem,
     ExplanationClause,
     HunkDetail,
-    Import,
     ModuleFacts,
     RiskTier,
     SymbolExplanation,
@@ -30,8 +32,6 @@ from focus.models import (
 MAX_EXPLANATION_CHARS = 260
 MAX_SUMMARY_CHARS = 110
 MAX_IMPLICATION_BODY = 110
-MAX_CALL_EVIDENCE_PER_FILE = 2
-# IDE / HUD JSON hover: trust cues only — full trail stays on clauses for `focus explain --why`.
 MAX_INLINE_EVIDENCE = 2
 
 _RISK_EMOJI: dict[RiskTier, str] = {
@@ -2026,82 +2026,6 @@ def _test_only_impact(path: str) -> tuple[str, list[EvidenceItem]]:
     )
 
 
-def _users_with_evidence(
-    symbol_name: str,
-    seed_path: str,
-    importers: list[str],
-    facts_by_path: dict[str, ModuleFacts],
-    *,
-    kind: str,
-) -> tuple[list[str], list[EvidenceItem]]:
-    users: list[str] = []
-    evidence: list[EvidenceItem] = []
-    seed_stem = PurePosixPath(seed_path).stem
-    use_verb = "constructs" if kind == "class" else "calls"
-
-    for importer in importers:
-        facts = facts_by_path.get(importer)
-        if not facts:
-            continue
-        matching_imports = [
-            imp
-            for imp in facts.imports
-            if _import_references_symbol(imp, symbol_name, seed_stem)
-        ]
-        matching_calls = [
-            call
-            for call in facts.calls
-            if call.callee == symbol_name or call.callee.endswith(f".{symbol_name}")
-        ]
-        uses_symbol = bool(matching_imports) and (
-            bool(matching_calls) or kind == "class"
-        )
-        if not uses_symbol:
-            continue
-
-        users.append(importer)
-        evidence.append(
-            EvidenceItem(
-                confidence="proven",
-                kind="graph_importer",
-                location="graph",
-                fact=f"`{importer}` → `{seed_path}`",
-            ),
-        )
-        for imp in matching_imports[:1]:
-            syms = ", ".join(imp.symbols) if imp.symbols else "(module)"
-            evidence.append(
-                EvidenceItem(
-                    confidence="proven",
-                    kind="import",
-                    location=f"{importer}:{imp.line}",
-                    fact=f"from {imp.module} import {syms}",
-                ),
-            )
-        shown_calls = matching_calls[:MAX_CALL_EVIDENCE_PER_FILE]
-        for call in shown_calls:
-            evidence.append(
-                EvidenceItem(
-                    confidence="proven",
-                    kind="call",
-                    location=f"{importer}:{call.line}",
-                    fact=f"{use_verb} `{call.callee}`",
-                ),
-            )
-        if len(matching_calls) > MAX_CALL_EVIDENCE_PER_FILE:
-            extra = len(matching_calls) - MAX_CALL_EVIDENCE_PER_FILE
-            lines = ", ".join(str(call.line) for call in matching_calls[MAX_CALL_EVIDENCE_PER_FILE :])
-            evidence.append(
-                EvidenceItem(
-                    confidence="proven",
-                    kind="call",
-                    location=importer,
-                    fact=f"+{extra} more {use_verb} at lines {lines}",
-                ),
-            )
-    return users, evidence
-
-
 def _split_prod_test(paths: list[str]) -> tuple[list[str], list[str]]:
     prod = [p for p in paths if not _is_test_path(p)]
     test = [p for p in paths if _is_test_path(p)]
@@ -2562,15 +2486,6 @@ _GENERIC_SURFACE_WORDS = frozenset(
         "code",
     },
 )
-
-
-def _import_references_symbol(imp: Import, symbol_name: str, seed_stem: str) -> bool:
-    if symbol_name not in imp.symbols and "*" not in imp.symbols:
-        return False
-    module = imp.module.replace("/", ".").strip(".")
-    if not module:
-        return True
-    return seed_stem in module.split(".") or module.endswith(seed_stem)
 
 
 def _caller_consequence(caller_path: str) -> str:
