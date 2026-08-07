@@ -38,6 +38,47 @@ def test_ts_definitions_and_exports():
     assert "Router" in names
 
 
+def test_ts_jsdoc_docstring_on_exported_function():
+    facts = parse_source(
+        b"/** Charge the customer and return a receipt id. */\n"
+        b"export function chargeUser() {}\n",
+        Path("billing/service.ts"),
+    )
+    by_name = {d.name: d for d in facts.definitions}
+    assert (
+        by_name["chargeUser"].docstring
+        == "Charge the customer and return a receipt id."
+    )
+
+
+def test_ts_jsdoc_docstring_on_class():
+    facts = parse_source(
+        b"/** HTTP router. */\nexport class Router {}\n",
+        Path("api/routes.ts"),
+    )
+    by_name = {d.name: d for d in facts.definitions}
+    assert by_name["Router"].docstring == "HTTP router."
+
+
+def test_ts_jsdoc_skips_tag_lines_and_takes_first_description():
+    facts = parse_source(
+        b"/**\n * @param x the id\n * Looks up the user by id.\n */\n"
+        b"function findUser(x) {}\n",
+        Path("util.ts"),
+    )
+    by_name = {d.name: d for d in facts.definitions}
+    assert by_name["findUser"].docstring == "Looks up the user by id."
+
+
+def test_plain_block_comment_is_not_a_docstring():
+    facts = parse_source(
+        b"/* not jsdoc, just a note */\nfunction helper() {}\n",
+        Path("util.ts"),
+    )
+    by_name = {d.name: d for d in facts.definitions}
+    assert by_name["helper"].docstring is None
+
+
 def test_ts_nested_calls_do_not_segfault_or_emit_garbage_lines():
     """Regression: TreeCursor walks produced stale nodes → SIGSEGV in Pydantic."""
     # Nested registerCommand / then / withProgress style (extension.ts shape).
