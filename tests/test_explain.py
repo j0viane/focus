@@ -5,7 +5,12 @@ from pathlib import Path
 import networkx as nx
 
 from focus.hud.explain import (
+    MAX_EXPLANATION_CHARS,
+    MAX_IMPLICATION_BODY,
+    MAX_INLINE_EVIDENCE,
+    MAX_SUMMARY_CHARS,
     ExplainContext,
+    _clip_for_caption,
     _compact_evidence_for_inline,
     enrich_changed_symbols,
     explain_changed_symbol,
@@ -1519,3 +1524,22 @@ def test_purpose_quiets_name_soup_and_test_modules():
         None,
     )
     assert purpose == ""
+
+
+def test_roa_caps_stay_within_return_on_attention_bounds():
+    """Guard the ROA caps (Phase 4b) — a bump past these needs an options table."""
+    assert MAX_EXPLANATION_CHARS <= 320
+    assert MAX_SUMMARY_CHARS <= 160
+    assert MAX_IMPLICATION_BODY <= 160
+    assert MAX_INLINE_EVIDENCE <= 2
+
+
+def test_clip_for_caption_truncates_long_expression_with_ellipsis():
+    long_expr = "user.first_name + user.last_name + user.email + user.phone_number"
+    clipped = _clip_for_caption(long_expr)
+    assert len(clipped) <= 52
+    assert clipped.endswith("…")
+
+
+def test_clip_for_caption_keeps_short_expression_unchanged():
+    assert _clip_for_caption("count + 1") == "count + 1"
