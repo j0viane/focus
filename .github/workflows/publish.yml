@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -32,3 +32,15 @@ jobs:
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      # A tag push publishes to PyPI but does NOT create a GitHub Release —
+      # that is a separate object. Create one so the Releases page tracks tags.
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "focus-hud ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            --verify-tag
