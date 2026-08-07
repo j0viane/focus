@@ -11,7 +11,14 @@ import {
 import { FOCUS_BADGE, riskEmoji } from "./icons";
 import { evidenceMarkdown, explanationLensTitle } from "./explainText";
 import { inlineExplanationsEnabled } from "./inlineExplanation";
-import type { ChangedSymbolInfo, FocusHUD, ImpactNode, LineExplanation, RiskTier } from "./types";
+import type {
+  ChangedSymbolInfo,
+  FocusHUD,
+  ImpactNode,
+  ImportEvidence,
+  LineExplanation,
+  RiskTier,
+} from "./types";
 
 export class FocusCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChange = new vscode.EventEmitter<void>();
@@ -193,20 +200,40 @@ function blastRadiusLens(hud: FocusHUD, rel: string): vscode.CodeLens | undefine
 
   let title: string | undefined;
   let reason: string | undefined;
+  let evidence: ImportEvidence[] | undefined;
 
   if (isSeed) {
     title = `${FOCUS_BADGE} Focus · ${riskEmoji(hud.risk_tier)} ${hud.risk_tier} · ${n} downstream`;
     reason = hud.summary;
+    // "Who imports me" — the changed seed carries its dependents' import lines.
+    const seedNode = hud.danger_zones.find((z) => z.path === rel && z.hops === 0);
+    evidence = seedNode?.import_evidence;
   } else if (danger) {
     title = `⚠️ Focus · Danger Zone · ${riskEmoji(hud.risk_tier)} ${hud.risk_tier}`;
     reason = danger.reason;
+    evidence = danger.import_evidence;
   } else if (downstream) {
     title = `➡️ Focus · ${downstream.hops} hops from change`;
     reason = downstream.reason;
+    evidence = downstream.import_evidence;
   }
 
   if (!title) {
     return undefined;
+  }
+
+  const proofs = (evidence ?? []).filter((e) => e && e.path && e.line > 0);
+  if (proofs.length > 0) {
+    const jumpTip =
+      proofs.length === 1
+        ? `Jump to the import that proves this edge (${proofs[0].path}:${proofs[0].line})`
+        : `Jump to one of ${proofs.length} imports that prove this edge`;
+    return new vscode.CodeLens(new vscode.Range(0, 0, 0, 0), {
+      title,
+      command: "focus.whyEdge",
+      arguments: [proofs, reason],
+      tooltip: reason ? `${reason} · ${jumpTip}` : jumpTip,
+    });
   }
 
   return new vscode.CodeLens(new vscode.Range(0, 0, 0, 0), {

@@ -38,8 +38,23 @@ def build_graph(all_facts: list[ModuleFacts], root: Path) -> nx.DiGraph:
         for imp in facts.imports:
             for target in _resolve(imp, rel, modules, js_index):
                 if target != rel:
-                    graph.add_edge(str(rel), str(target))
+                    _add_import_edge(graph, str(rel), str(target), imp)
     return graph
+
+
+def _add_import_edge(graph: nx.DiGraph, src: str, dst: str, imp: Import) -> None:
+    """Add/annotate the ``src imports dst`` edge with the proving import line.
+
+    Topology is unchanged — the same nodes and edges exist regardless. We
+    only record which parsed import statement(s) created the edge so the HUD
+    can surface a jump-to-line "why this edge" without re-parsing.
+    """
+    if graph.has_edge(src, dst):
+        proofs = graph.edges[src, dst].setdefault("imports", [])
+    else:
+        proofs = []
+        graph.add_edge(src, dst, imports=proofs)
+    proofs.append({"line": imp.line, "module": imp.module})
 
 
 def downstream_rings(graph: nx.DiGraph, target: str) -> list[tuple[int, list[str]]]:

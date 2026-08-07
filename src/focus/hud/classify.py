@@ -11,7 +11,7 @@ from pathlib import PurePosixPath
 
 import networkx as nx
 
-from focus.models import ImpactNode, RiskTier
+from focus.models import ImpactNode, ImportEvidence, RiskTier
 
 # Path fragments that mark a file as a Danger Zone when it appears downstream.
 _DANGER_FRAGMENTS = (
@@ -87,12 +87,14 @@ def classify_impacts(
     downstream: list[ImpactNode] = []
     for hops, paths in rings:
         for path in paths:
+            evidence = direct_import_evidence(graph, path, seed_list) if hops == 1 else []
             if is_danger_zone(path, graph, fan_out_threshold=fan_out_threshold):
                 danger.append(
                     ImpactNode(
                         path=path,
                         hops=hops,
                         reason=_danger_reason(path, hops, graph),
+                        import_evidence=evidence,
                     )
                 )
             else:
@@ -101,9 +103,63 @@ def classify_impacts(
                         path=path,
                         hops=hops,
                         reason=_downstream_reason(path, hops, graph, seed_list),
+                        import_evidence=evidence,
                     )
                 )
     return danger, downstream
+
+
+def _edge_import_proofs(graph: nx.DiGraph | None, src: str, dst: str) -> list[dict]:
+    """Recorded ``import`` statements that created the ``src -> dst`` edge."""
+    if graph is None or not graph.has_edge(src, dst):
+        return []
+    return graph.edges[src, dst].get("imports", [])
+
+
+def direct_import_evidence(
+    graph: nx.DiGraph | None,
+    importer: str,
+    seeds: list[str],
+) -> list[ImportEvidence]:
+    """Import line(s) in ``importer`` that directly import a changed seed.
+
+    Deterministic: the proofs come from the graph edge, which was created by
+    the parser's own import facts. Empty when ``importer`` does not directly
+    import any seed (e.g. transitive dependents).
+    """
+    evidence: list[ImportEvidence] = []
+    for seed in seeds:
+        for proof in _edge_import_proofs(graph, importer, seed):
+            evidence.append(
+                ImportEvidence(
+                    path=importer,
+                    line=proof["line"],
+                    module=proof["module"],
+                )
+            )
+    return evidence
+
+
+def importer_import_evidence(
+    graph: nx.DiGraph | None,
+    seed: str,
+) -> list[ImportEvidence]:
+    """Import line(s) in every file that directly imports ``seed``.
+
+    Used for the changed seed's own "who imports me" claim — jump from the
+    file you edited to each proving import statement in its dependents.
+    """
+    evidence: list[ImportEvidence] = []
+    for importer in list_importers(graph, seed) if graph is not None else []:
+        for proof in _edge_import_proofs(graph, importer, seed):
+            evidence.append(
+                ImportEvidence(
+                    path=importer,
+                    line=proof["line"],
+                    module=proof["module"],
+                )
+            )
+    return evidence
 
 
 def score_risk(

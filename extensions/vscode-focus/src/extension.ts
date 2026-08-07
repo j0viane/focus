@@ -10,7 +10,7 @@ import { FocusGutter } from "./gutter";
 import { HudPanel } from "./hudPanel";
 import { InlineExplanation } from "./inlineExplanation";
 import { watchLensFontSize } from "./lensFont";
-import type { FocusHUD } from "./types";
+import type { FocusHUD, ImportEvidence } from "./types";
 
 const SOURCE_LANGUAGE_IDS = new Set([
   "python",
@@ -130,6 +130,12 @@ export function activate(context: vscode.ExtensionContext): void {
           const plain = markdown.replace(/\*\*/g, "").replace(/\n+/g, " — ");
           void vscode.window.showInformationMessage(plain.slice(0, 280));
         }
+      },
+    ),
+    vscode.commands.registerCommand(
+      "focus.whyEdge",
+      async (evidence?: ImportEvidence[], reason?: string) => {
+        await showWhyEdge(evidence, reason);
       },
     ),
     vscode.commands.registerCommand("focus.refresh", () => runAudit(true, extVersion)),
@@ -480,6 +486,71 @@ async function runTrace(extVersion = "dev"): Promise<void> {
     HudPanel.show(hud);
   } catch (err) {
     reportError(err, false);
+  }
+}
+
+/**
+ * "Why this edge" — jump to the import statement that proves a blast-radius edge.
+ *
+ * Evidence is deterministic (Focus copies it from the parser); we never infer a
+ * line here. One proof → jump straight there; several → let the user pick which
+ * proving import to open. No evidence → fall back to the reason text + HUD.
+ */
+async function showWhyEdge(
+  evidence?: ImportEvidence[],
+  reason?: string,
+): Promise<void> {
+  const proofs = (evidence ?? []).filter((e) => e && e.path && e.line > 0);
+  if (proofs.length === 0) {
+    if (reason) {
+      const pick = await vscode.window.showInformationMessage(`Focus: ${reason}`, "Open HUD");
+      if (pick === "Open HUD" && lastHud) {
+        HudPanel.show(lastHud);
+      }
+    } else if (lastHud) {
+      HudPanel.show(lastHud);
+    }
+    return;
+  }
+
+  let chosen = proofs[0];
+  if (proofs.length > 1) {
+    const items = proofs.map((e) => ({
+      label: `${e.path}:${e.line}`,
+      description: `imports ${e.module}`,
+      evidence: e,
+    }));
+    const picked = await vscode.window.showQuickPick(items, {
+      title: "Focus · why this edge",
+      placeHolder: "Jump to the import that proves this dependency",
+    });
+    if (!picked) {
+      return;
+    }
+    chosen = picked.evidence;
+  }
+
+  await openImportEvidence(chosen);
+}
+
+async function openImportEvidence(evidence: ImportEvidence): Promise<void> {
+  const root = workspaceRoot();
+  if (!root) {
+    void vscode.window.showWarningMessage(workspaceRootError());
+    return;
+  }
+  const target = vscode.Uri.file(path.join(root, evidence.path));
+  try {
+    const doc = await vscode.workspace.openTextDocument(target);
+    const editor = await vscode.window.showTextDocument(doc, { preserveFocus: false });
+    const line = Math.max(0, Math.min(evidence.line - 1, doc.lineCount - 1));
+    const range = doc.lineAt(line).range;
+    editor.selection = new vscode.Selection(range.start, range.end);
+    editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+  } catch {
+    void vscode.window.showWarningMessage(
+      `Focus: could not open ${evidence.path}:${evidence.line}`,
+    );
   }
 }
 

@@ -32,6 +32,10 @@
         "title": "Focus: Show Why (blast radius reason)"
       },
       {
+        "command": "focus.whyEdge",
+        "title": "Focus: Why This Edge (jump to proving import)"
+      },
+      {
         "command": "focus.refresh",
         "title": "Focus: Refresh"
       },
