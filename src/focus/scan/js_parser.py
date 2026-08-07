@@ -241,7 +241,12 @@ def _extract_definitions(root: Node, *, max_line: int) -> list[dict]:
                 line = _safe_line(name, max_line=max_line)
                 if line is not None:
                     definitions.append(
-                        {"name": _text(name), "kind": "function", "line": line}
+                        {
+                            "name": _text(name),
+                            "kind": "function",
+                            "line": line,
+                            "docstring": _leading_jsdoc(node),
+                        }
                     )
         elif node.type == "class_declaration":
             name = node.child_by_field_name("name")
@@ -249,7 +254,12 @@ def _extract_definitions(root: Node, *, max_line: int) -> list[dict]:
                 line = _safe_line(name, max_line=max_line)
                 if line is not None:
                     definitions.append(
-                        {"name": _text(name), "kind": "class", "line": line}
+                        {
+                            "name": _text(name),
+                            "kind": "class",
+                            "line": line,
+                            "docstring": _leading_jsdoc(node),
+                        }
                     )
     seen: set[tuple[str, int]] = set()
     unique: list[dict] = []
@@ -277,6 +287,48 @@ def _extract_calls(root: Node, *, max_line: int) -> list[dict]:
             continue
         calls.append({"callee": callee, "line": line})
     return sorted(calls, key=lambda c: c["line"])
+
+
+def _leading_jsdoc(node: Node) -> str | None:
+    """First line of a ``/** ... */`` comment immediately above this declaration.
+
+    Tree-sitter attaches the doc-comment as a *previous sibling*, not a child.
+    ``export function foo()`` wraps the declaration in an ``export_statement``,
+    so the comment sits before the wrapper — check the parent in that case.
+    Only true JSDoc/TSDoc (``/**``) counts, never a plain ``/* */`` block.
+    """
+    target = node
+    parent = node.parent
+    if parent is not None and parent.type == "export_statement":
+        target = parent
+    sibling = target.prev_sibling
+    if sibling is None or sibling.type != "comment":
+        return None
+    raw = _text(sibling)
+    if not raw.startswith("/**"):
+        return None
+    return _clean_jsdoc_first_line(raw)
+
+
+def _clean_jsdoc_first_line(raw: str) -> str | None:
+    """Strip JSDoc delimiters and return the first descriptive line, or None.
+
+    Mirrors Python's ``_first_docstring_line`` (first non-empty line). Skips
+    pure ``@tag`` lines (``@param`` / ``@returns``) — they are not a summary.
+    """
+    body = raw
+    if body.startswith("/**"):
+        body = body[3:]
+    elif body.startswith("/*"):
+        body = body[2:]
+    if body.endswith("*/"):
+        body = body[:-2]
+    for line in body.splitlines():
+        stripped = line.strip().lstrip("*").strip()
+        if not stripped or stripped.startswith("@"):
+            continue
+        return stripped
+    return None
 
 
 def _string_literal(node: Node | None) -> str:
