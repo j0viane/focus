@@ -67,6 +67,15 @@ export class FocusCodeLensProvider implements vscode.CodeLensProvider {
     }
 
     if (symbols.length > 0) {
+      // The changed seed hub still gets its "who imports me" edge lens at the
+      // top, alongside its per-symbol ℹ️ captions. Non-seed changed files are
+      // left untouched (no downstream/danger lens on files you edited).
+      if (isSeedFile(this.hud, rel)) {
+        const seedLens = blastRadiusLens(this.hud, rel);
+        if (seedLens) {
+          lenses.unshift(seedLens);
+        }
+      }
       return lenses;
     }
 
@@ -192,11 +201,7 @@ function blastRadiusLens(hud: FocusHUD, rel: string): vscode.CodeLens | undefine
   const danger = lookupNode(hud.danger_zones, rel);
   const downstream = lookupNode(hud.downstream, rel);
   const n = hud.downstream.length;
-  const isSeed =
-    hud.seed === rel ||
-    hud.seed.endsWith("/" + rel) ||
-    rel.endsWith(hud.seed) ||
-    seedPaths(hud.seed).includes(rel);
+  const isSeed = isSeedFile(hud, rel);
 
   let title: string | undefined;
   let reason: string | undefined;
@@ -253,6 +258,15 @@ function seedPaths(seed: string): string[] {
     return [];
   }
   return seed.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+function isSeedFile(hud: FocusHUD, rel: string): boolean {
+  return (
+    hud.seed === rel ||
+    hud.seed.endsWith("/" + rel) ||
+    rel.endsWith(hud.seed) ||
+    seedPaths(hud.seed).includes(rel)
+  );
 }
 
 function isBlankLineDetail(detail: string): boolean {
