@@ -2,8 +2,15 @@
 
 Living document for project progress. Updated as phases complete.
 
-**Last updated:** July 2026  
+**Last updated:** August 2026  
 **Current phase:** Phase 4 **in progress** — IDE + evidence-pack LLM captions shipped opt-in (4c). **Phase 4d thin slice** (module-constant def–use / orphan packs) **shipped on main** (#29); caption sweet-spot + quieter IDE chrome on main (#30). Phase 3 complete on PyPI.
+
+**Recently merged on `main` (Aug 2026, not yet on PyPI):**
+- **#32 (Phase 4d)** — class-body constant assigns + Typer `@app.command` / Option help as caption purpose source.
+- **#33 (Phase 4b)** — symbol-proven downstream filter (`src/focus/hud/symbol_filter.py`): blast rings filtered to files that actually import **and** call the changed symbol.
+- **#34 (Phase 4c)** — tighter caption prompt/pack grounding; `prompt_rev=320-ground-v3`; default model stays `qwen2.5-coder:3b`.
+
+> **Honesty:** #32–#34 are on GitHub `main` only — `focus-hud` on PyPI is still **0.3.5**, so `pip install` users do **not** get these until a PyPI bump. VS Code extension is **0.5.15**.
 
 ---
 
