@@ -3,14 +3,17 @@
 Living document for project progress. Updated as phases complete.
 
 **Last updated:** August 2026  
-**Current phase:** Phase 4 **in progress** — IDE + evidence-pack LLM captions shipped opt-in (4c). **Phase 4d thin slice** (module-constant def–use / orphan packs) **shipped on main** (#29); caption sweet-spot + quieter IDE chrome on main (#30). Phase 3 complete on PyPI.
+**Current phase:** Phase **4b core complete** — deterministic explanation depth shipped (symbol-proven downstream, why-this-edge jump, JSDoc/TSDoc captions, ROA hard caps); dynamic-import hints parked to Explore. Phase 4c/4d opt-in captions + edit ledger on main. Phase 3 complete on PyPI. **Phase 5 next** (GitHub inline diff annotations).
 
-**Recently merged on `main` (Aug 2026, not yet on PyPI):**
+**Shipped to PyPI in `focus-hud` 0.4.0 (extension 0.6.0):**
 - **#32 (Phase 4d)** — class-body constant assigns + Typer `@app.command` / Option help as caption purpose source.
 - **#33 (Phase 4b)** — symbol-proven downstream filter (`src/focus/hud/symbol_filter.py`): blast rings filtered to files that actually import **and** call the changed symbol.
 - **#34 (Phase 4c)** — tighter caption prompt/pack grounding; `prompt_rev=320-ground-v3`; default model stays `qwen2.5-coder:3b`.
+- **#37 (Phase 4b)** — why-this-edge import jump: CodeLens jumps to the import line that proves a blast-radius edge (`ImportEvidence`).
+- **#38 (Phase 4b)** — JSDoc/TSDoc extraction into `Definition.docstring` for JS/TS captions.
+- **#39 (Phase 4b)** — roadmap honesty + ROA-caps guard tests.
 
-> **Honesty:** #32–#34 are on GitHub `main` only — `focus-hud` on PyPI is still **0.3.5**, so `pip install` users do **not** get these until a PyPI bump. VS Code extension is **0.5.15**.
+> **Honesty:** #32–#39 are on GitHub `main` **and** shipped in `focus-hud` **0.4.0** on PyPI (`pip install "focus-hud>=0.4.0"`). VS Code extension is **0.6.0** — **not** on the Marketplace yet (held); sideload via `./scripts/install-extension.sh`.
 
 ---
 

@@ -25,7 +25,7 @@ Focus shows **what else that change touches** — with evidence you can point at
 ## Try in 60 seconds
 
 ```bash
-pip install "focus-hud>=0.3.5"    # PyPI
+pip install "focus-hud>=0.4.0"    # PyPI
 # Or from this repo: git clone + uv sync (see below)
 
 focus trace path/to/shared_module.py --out focus-hud.md
@@ -138,7 +138,7 @@ Unchanged files reuse **`.focus-cache/`** (gitignored). Pass `--no-cache` to for
 
 Optional: copy [`.focus.toml.example`](.focus.toml.example) → `.focus.toml` to tune `fan_out_threshold` (default **3**).
 
-Requirements: Python 3.12+. **PyPI:** `pip install "focus-hud>=0.3.5"`. **This checkout:** `uv sync` → same **0.3.5** line. Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
+Requirements: Python 3.12+. **PyPI:** `pip install "focus-hud>=0.4.0"`. **This checkout:** `uv sync` → same **0.4.0** line. Publish notes: [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ```bash
 uv run pytest
@@ -187,7 +187,7 @@ flowchart TB
 | Graph | NetworkX |
 | Diagrams | Mermaid (GitHub + IDE webview) |
 | CI | Opt-in GitHub Action — PR comment (A); inline diff (C) planned |
-| IDE | VS Code / Cursor — CodeLens + HUD panel (C); extension **0.5.15** |
+| IDE | VS Code / Cursor — CodeLens + HUD panel (C); extension **0.6.0** |
 | LLM (opt-in) | Pack-only ℹ️ labels — never invents graph edges; off by default |
 
 ---
@@ -208,7 +208,7 @@ flowchart TB
 
 ## Roadmap
 
-Phase 3 **complete**. Phase 4 IDE **C** shipping (edit-shaped ℹ️ + live buffer + SCM Working Tree; risk / implication in HUD). Phase **4b** symbol-proven downstream on blast-radius counts when changed defs are known (file-level fallback when not). Phase **4c/4d** on main + PyPI **0.3.5**: opt-in evidence-pack LLM captions + portable edit ledger + caption sweet-spot (extension **0.5.15**). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Phase 3 **complete**. Phase 4 IDE **C** shipping (edit-shaped ℹ️ + live buffer + SCM Working Tree; risk / implication in HUD). Phase **4b core complete** — symbol-proven downstream counts, why-this-edge import jump (#37), JSDoc/TSDoc caption extraction (#38), ROA hard caps enforced (dynamic-import hints parked to Explore). Phase **4c/4d** on PyPI **0.4.0**: opt-in evidence-pack LLM captions + portable edit ledger + caption sweet-spot (extension **0.6.0**). Phase 5 **next** (GitHub diff **C**, beside the **A** PR comment). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
