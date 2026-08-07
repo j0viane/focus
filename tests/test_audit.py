@@ -83,6 +83,37 @@ def test_audit_local_auth_change_is_critical(tmp_path: Path, glass_box_path: Pat
     assert "calls `validate_token`" in token.explanation or "called from" in token.explanation.lower()
 
 
+def test_audit_local_populates_import_evidence(tmp_path: Path, glass_box_path: Path):
+    """Blast-radius claims carry the proving import line for IDE jump."""
+    repo = _glass_box_repo(tmp_path, glass_box_path)
+    auth = repo / "auth_utils.py"
+    auth.write_text(
+        auth.read_text().replace(
+            "return token == FIXTURE_SECRET",
+            "return token == FIXTURE_SECRET  # audited",
+        )
+    )
+
+    hud = audit_local(repo, base="main")
+
+    # Hop-1 dependent: self-file import that proves the edge.
+    billing = next(n for n in hud.downstream if n.path == "billing/service.py")
+    assert [e.model_dump() for e in billing.import_evidence] == [
+        {"path": "billing/service.py", "line": 3, "module": "auth_utils"}
+    ]
+
+    # Changed seed hub: "who imports me" — one entry per direct dependent.
+    seed = next(n for n in hud.danger_zones if n.path == "auth_utils.py")
+    importer_paths = {e.path for e in seed.import_evidence}
+    assert {"billing/service.py", "dashboard/views.py", "jobs/worker.py"} <= importer_paths
+    assert all(e.line > 0 for e in seed.import_evidence)
+
+    # Transitive (hop-2) node has no single proving import line.
+    routes = next(n for n in hud.danger_zones if n.path == "api/routes.py")
+    assert routes.hops == 2
+    assert routes.import_evidence == []
+
+
 def test_audit_local_docs_only_is_pass_through(tmp_path: Path, glass_box_path: Path):
     repo = _glass_box_repo(tmp_path, glass_box_path)
     (repo / "NOTES.md").write_text("docs only\n")

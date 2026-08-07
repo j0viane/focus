@@ -144,7 +144,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | CodeLens on changed / blast-radius files | Risk + downstream count at top of file | ✅ MVP |
 | HUD webview panel | Same Mermaid + Danger Zones as CLI / PR comment | ✅ MVP |
 | CodeLens on changed **lines/symbols** | True inline diff context (not just file header) | ✅ 0.2.1 |
-| Gutter hop markers + “why this edge” | Click claim → import evidence | 🔄 MVP (gutter + showWhy; import jump pending) |
+| Gutter hop markers + “why this edge” | Click claim → import evidence | 🔄 gutter + showWhy; **import jump landed** (branch): file CodeLens jumps to the proving `import` line via `ImpactNode.import_evidence` |
 | Inline symbol explanations | Stacked CodeLens `↳` captions on changed defs | ✅ branch |
 | `focus explain --why` | CLI evidence trail (proven vs heuristic) per caption | ✅ branch |
 | Marketplace publish | Easy install for strangers | Pending |

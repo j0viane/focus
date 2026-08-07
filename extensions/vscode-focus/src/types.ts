@@ -4,10 +4,22 @@ export type RiskTier = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type HudMode = "full" | "pass_through" | "error";
 export type Confidence = "proven" | "heuristic";
 
+/** The import statement that proves one blast-radius edge (from the parser). */
+export interface ImportEvidence {
+  /** Repo-relative posix path of the file containing the import line. */
+  path: string;
+  /** 1-based line of the import statement. */
+  line: number;
+  /** Imported module string exactly as written. */
+  module: string;
+}
+
 export interface ImpactNode {
   path: string;
   hops: number;
   reason: string;
+  /** Import line(s) proving this edge; empty for transitive (hop >= 2) nodes. */
+  import_evidence?: ImportEvidence[];
 }
 
 export interface HunkDetail {

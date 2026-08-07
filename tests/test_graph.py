@@ -30,6 +30,26 @@ def test_glass_box_edges_are_exact(glass_box_path: Path):
     }
 
 
+def test_edges_record_proving_import_line(glass_box_path: Path):
+    """Each edge carries the parser's import line that created it (jump evidence)."""
+    graph = _glass_box_graph(glass_box_path)
+    proofs = graph.edges["billing/service.py", "auth_utils.py"]["imports"]
+    assert proofs == [{"line": 3, "module": "auth_utils"}]
+
+
+def test_duplicate_imports_accumulate_on_one_edge():
+    facts = [
+        parse_source(
+            b"from pkg.helper import a\nfrom pkg.helper import b\n",
+            Path("pkg/mod.py"),
+        ),
+        parse_source(b"", Path("pkg/helper.py")),
+    ]
+    graph = build_graph(facts, Path("."))
+    proofs = graph.edges["pkg/mod.py", "pkg/helper.py"]["imports"]
+    assert [p["line"] for p in proofs] == [1, 2]
+
+
 def test_blast_radius_rings_for_auth_utils(glass_box_path: Path):
     graph = _glass_box_graph(glass_box_path)
     assert downstream_rings(graph, "auth_utils.py") == [

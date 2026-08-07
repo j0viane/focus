@@ -36,6 +36,7 @@ cd ../..
 - **Focus: Trace Current File** — `focus trace <file> --format json`
 - **Focus: Show HUD** — open the last HUD panel
 - **Focus: Show Why** — blast-radius reason (from CodeLens on Danger Zone files)
+- **Focus: Why This Edge (jump to proving import)** — from the file CodeLens on a blast-radius file, jump the editor to the exact `import` line that proves the dependency edge (evidence, never inferred). On the changed file it lists every dependent's import; on a direct dependent it opens that file's own import line. Transitive (2+ hop) files have no single proving line and fall back to the reason text.
 - **Focus: Refresh** — re-run audit for CodeLens + gutter
 
 **Default dogfood loop:** edit a real line — ℹ️ updates live from the unsaved buffer (`focus.liveBufferOverlay`). **Save** still syncs disk (`focus.autoAuditOnSave`). Use Audit Local when you want the HUD panel or a forced refresh.

@@ -117,8 +117,9 @@ Emits `FocusHUD.model_dump(mode="json")` — the VS Code / Cursor extension cons
 | `summary` | string | Block 1 |
 | `risk_tier` | `LOW` \| `MEDIUM` \| `HIGH` \| `CRITICAL` | |
 | `mermaid` | string \| null | Block 2 source |
-| `danger_zones` | `ImpactNode[]` | path, hops, reason |
+| `danger_zones` | `ImpactNode[]` | path, hops, reason, `import_evidence` |
 | `downstream` | `ImpactNode[]` | |
+| ↳ `import_evidence` | `ImportEvidence[]` | `{path, line, module}` — proving `import` line(s) for direct (hop-1) edges + the changed seed's importers; empty for transitive (hop ≥ 2). Deterministic (from parser); IDE "why this edge" jump target |
 | `isolated` | string[] | |
 | `changed_symbols` | `ChangedSymbolInfo[]` | audit only |
 | `caveat` | string \| null | Block 4 |

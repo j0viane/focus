@@ -11,6 +11,7 @@ from focus.graph import build_graph, downstream_rings
 from focus.hud.classify import (
     DEFAULT_CAVEAT,
     classify_impacts,
+    importer_import_evidence,
     is_danger_path,
     is_danger_zone,
     score_risk,
@@ -406,6 +407,9 @@ def _full_audit_hud(
                     path=seed,
                     hops=0,
                     reason=reason,
+                    # "Who imports me" — jump from the changed file to each
+                    # dependent's proving import line.
+                    import_evidence=importer_import_evidence(graph, seed),
                 ),
             )
 

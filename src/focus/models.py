@@ -73,12 +73,31 @@ EvidenceKind = Literal[
 ]
 
 
+class ImportEvidence(BaseModel):
+    """The import statement that proves one blast-radius edge.
+
+    Deterministic — copied straight from the parser's ``Import`` facts
+    (never inferred). ``path`` is the repo-relative posix file that
+    contains the ``import`` line; ``line`` is 1-based; ``module`` is the
+    imported module string exactly as written. Lets the IDE jump from a
+    blast-radius claim to the line that proves it.
+    """
+
+    path: str
+    line: int
+    module: str
+
+
 class ImpactNode(BaseModel):
     """One file in the blast radius, with hop distance from the seed."""
 
     path: str
     hops: int
     reason: str
+    # Import line(s) that prove this edge. Populated for direct (hop-1)
+    # dependents and for the changed seed's importers; empty for transitive
+    # (hop >= 2) nodes, which no single import statement proves.
+    import_evidence: list[ImportEvidence] = []
 
 
 class HunkDetail(BaseModel):
