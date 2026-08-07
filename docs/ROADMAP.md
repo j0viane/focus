@@ -151,7 +151,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 
 ---
 
-## Phase 4b — Explanation depth *(in progress)*
+## Phase 4b — Explanation depth *(core complete — dynamic-import hints parked to Explore)*
 
 **Goal:** Close the known gaps in deterministic explanations — still **no LLM** for dependency edges or captions. Guard **Return on Attention (ROA)**: every word Focus asks a human to read must earn its cost.
 
@@ -162,9 +162,9 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 | **CodeLens layout** | One ℹ️ at the body edit (docstring hunks deferred when body exists); hover = evidence | ✅ #30 |
 | **File-level blast radius** | Symbol-level downstream (who calls *this* def, not just the file) | ✅ symbol-proven filter |
 | **Static-only graph** | Best-effort dynamic import / string-literal hints where parseable | Explore |
-| **Heuristic captions** when no docstring | ~~Typer `@app.command` metadata for CLI~~ *(done)*; JSDoc/TSDoc extraction for JS/TS | Planned |
+| **Heuristic captions** when no docstring | ~~Typer `@app.command` metadata for CLI~~ *(done)*; ~~JSDoc/TSDoc extraction for JS/TS~~ *(done, #38)* | ✅ |
 | **Evidence in IDE** | Hover = *why trust this* only (≤2 cues); no restating rail/ℹ️; importers collapsed → HUD | ✅ ROA slim |
-| **Verbose / low-ROA copy** | Hard caps: max chars for ℹ️ / summary; one idea per lens; no restating the header | 🔄 hover done; caps continue |
+| **Verbose / low-ROA copy** | Hard caps: max chars for ℹ️ / summary; one idea per lens; no restating the header | ✅ enforced in `explain.py` (260 explanation / 110 summary / 110 implication; ℹ️ slot clip 52; ≤2 inline evidence) |
 | **PR comment inventory dump** | Cap **Your changes** at 8 + overflow; cap Also affected / Not pulled in at 8; prefer short detail over long explanation | ✅ focus-hud 0.3.4 |
 | **Tiny diff, huge output** | Stronger triggers: tiny + low blast radius → pass-through or *tiny* HUD (see [`TRIGGERS.md`](TRIGGERS.md)) | ✅ pass-through (≤5 lines, &lt;2 downstream, no DZ/path/shared) |
 | **Auto-refresh on save** | Quiet re-audit after saving a source file; CodeLens/gutters update in place (`focus.autoAuditOnSave`) | ✅ extension 0.5.1 |
@@ -215,7 +215,7 @@ LLM label pass was **removed from Phase 3** and parked (see below): Focus ships 
 
 ## Phase 4d — Portable fact ledger for captions *(thin slice shipped)*
 
-**Status:** Thin slice **on main** (2026-07 — #29 / related) — module-level assign + same-file readers + importers → template orphan captions; packs carry `readers` / `importers` / `reader_doc` for opt-in LLM polish. Kill-or-keep PASS on Focus + stranger fixture. **Class-body assigns + Typer `@app.command` help heuristic shipped** (`feat/ledger-heuristics`). JSDoc/TSDoc still deferred.
+**Status:** Thin slice **on main** (2026-07 — #29 / related) — module-level assign + same-file readers + importers → template orphan captions; packs carry `readers` / `importers` / `reader_doc` for opt-in LLM polish. Kill-or-keep PASS on Focus + stranger fixture. **Class-body assigns + Typer `@app.command` help heuristic shipped** (`feat/ledger-heuristics`). JSDoc/TSDoc extraction shipped (#38).
 
 **Problem dogfood surfaced:** Measured ℹ️ often names *edit shape* (`Updates \`weak_hit\` here.`, orphan “outside a function”) without *scope* (what changed in the target code, who uses it). An LLM can invent fluent scope; Focus must not. CEOs’ “AI replaces judgment” narrative does not license ungrounded captions.
 
